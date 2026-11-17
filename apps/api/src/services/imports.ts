@@ -265,35 +265,43 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
             );
           }
 
-          const salaryChanges = [];
-          for (const { existing, input, changes } of updates) {
-            const {
-              salaryAmount,
-              gender,
-              countryCode: _country,
-              employeeCode: _code,
-              ...fields
-            } = input;
-            await repo.updateEmployee(tx, existing.id, {
-              ...fields,
-              ...(gender ? { gender } : {}),
-              salaryAmount,
+          // One UPDATE ... FROM (VALUES ...) per batch instead of one per row:
+          // round trips dominate once the database is across a network.
+          for (const batch of chunks(updates)) {
+            const rows = batch.map(({ existing, input }) => {
+              const gender = input.gender ?? existing.gender;
+              return sql`(${existing.id}::uuid, ${input.fullName}, ${input.email}, ${input.jobTitle},
+                ${input.department}, ${input.employmentType}, ${input.hireDate}::date, ${gender},
+                ${input.salaryAmount}::bigint)`;
             });
+            await tx.execute(sql`
+              UPDATE ${employees} AS e SET
+                full_name = v.full_name, email = v.email, job_title = v.job_title,
+                department = v.department, employment_type = v.employment_type,
+                hire_date = v.hire_date, gender = v.gender, salary_amount = v.salary_amount,
+                updated_at = now()
+              FROM (VALUES ${sql.join(rows, sql`, `)}) AS v(id, full_name, email, job_title,
+                department, employment_type, hire_date, gender, salary_amount)
+              WHERE e.id = v.id
+            `);
+          }
+          for (const { existing, input, changes } of updates) {
+            // Rare (a corrected hire date), so per row is fine.
             if (changes.some((c) => c.field === "hireDate")) {
               await repo.moveHireRevision(tx, existing.id, input.hireDate);
             }
-            if (salaryAmount !== existing.salaryAmount) {
-              salaryChanges.push({
-                employeeId: existing.id,
-                amount: salaryAmount,
-                previousAmount: existing.salaryAmount,
-                currency: existing.salaryCurrency,
-                effectiveOn: today,
-                reason: "import",
-                importId,
-              });
-            }
           }
+          const salaryChanges = updates
+            .filter(({ existing, input }) => input.salaryAmount !== existing.salaryAmount)
+            .map(({ existing, input }) => ({
+              employeeId: existing.id,
+              amount: input.salaryAmount,
+              previousAmount: existing.salaryAmount,
+              currency: existing.salaryCurrency,
+              effectiveOn: today,
+              reason: "import",
+              importId,
+            }));
           for (const batch of chunks(salaryChanges)) {
             await tx.insert(salaryRevisions).values(batch);
           }
