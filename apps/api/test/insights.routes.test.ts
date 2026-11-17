@@ -30,6 +30,20 @@ describe("insight routes", () => {
     );
   });
 
+  it("serves fairness checks and validates raise requests", async () => {
+    expect((await app.request("/api/insights/fairness/outliers?country=IN")).status).toBe(200);
+    expect((await app.request("/api/insights/fairness/gender-gaps")).status).toBe(200);
+    const raise = (percent: unknown) =>
+      app.request("/api/insights/raise-cost", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ percent, country: "IN" }),
+      });
+    expect((await raise(5)).status).toBe(200);
+    expect((await raise(0)).status).toBe(422);
+    expect((await raise(2.555)).status).toBe(422);
+  });
+
   it("serves filter options", async () => {
     const res = await app.request("/api/meta/filters");
     expect(res.status).toBe(200);

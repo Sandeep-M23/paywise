@@ -6,6 +6,7 @@ import { AppError } from "./lib/errors";
 import { createEmployeeService } from "./services/employees";
 import { employeeRoutes } from "./routes/employees";
 import { createInsightsService } from "./services/insights";
+import { createFairnessService } from "./services/fairness";
 import { insightRoutes, metaRoutes } from "./routes/insights";
 import { createImportService } from "./services/imports";
 import { createExportService } from "./services/exports";
@@ -16,6 +17,7 @@ export type AppDeps = { db: Db; clock: Clock };
 export function createApp({ db, clock }: AppDeps) {
   const employees = createEmployeeService({ db, clock });
   const insights = createInsightsService({ db });
+  const fairness = createFairnessService({ db });
   const imports = createImportService({ db, clock });
   const exports = createExportService({ db });
 
@@ -39,7 +41,7 @@ export function createApp({ db, clock }: AppDeps) {
 
   app.get("/health", (c) => c.json({ ok: true }));
   app.route("/employees", employeeRoutes(employees));
-  app.route("/insights", insightRoutes(insights));
+  app.route("/insights", insightRoutes(insights, fairness));
   app.route("/meta", metaRoutes(insights));
   app.route("/imports", importRoutes(imports, exports));
   app.route("/export", exportRoutes(exports));
