@@ -5,11 +5,14 @@ import type { Clock } from "./lib/clock";
 import { AppError } from "./lib/errors";
 import { createEmployeeService } from "./services/employees";
 import { employeeRoutes } from "./routes/employees";
+import { createInsightsService } from "./services/insights";
+import { insightRoutes, metaRoutes } from "./routes/insights";
 
 export type AppDeps = { db: Db; clock: Clock };
 
 export function createApp({ db, clock }: AppDeps) {
   const employees = createEmployeeService({ db, clock });
+  const insights = createInsightsService({ db });
 
   const app = new Hono().basePath("/api");
 
@@ -31,6 +34,8 @@ export function createApp({ db, clock }: AppDeps) {
 
   app.get("/health", (c) => c.json({ ok: true }));
   app.route("/employees", employeeRoutes(employees));
+  app.route("/insights", insightRoutes(insights));
+  app.route("/meta", metaRoutes(insights));
 
   return app;
 }

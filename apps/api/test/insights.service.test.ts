@@ -144,3 +144,12 @@ describe("distribution", () => {
     expect(await insights.distribution("JP", 5)).toEqual({ currency: "jpy", buckets: [] });
   });
 });
+
+describe("filterOptions", () => {
+  it("lists supported countries and distinct titles and departments", async () => {
+    const options = await insights.filterOptions();
+    expect(options.countries).toHaveLength(8);
+    expect(options.jobTitles).toEqual(["Product Manager", "Software Engineer"]);
+    expect(options.departments).toEqual(["Engineering", "Product"]);
+  });
+});

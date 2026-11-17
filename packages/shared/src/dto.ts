@@ -42,3 +42,27 @@ export type Page<T> = { data: T[]; page: number; pageSize: number; total: number
 export type ApiErrorBody = {
   error: { code: string; message: string; details?: { path: string; message: string }[] };
 };
+
+/** Insight figures are minor units in the country's own currency. */
+export type PayStats = {
+  headcount: number;
+  min: number;
+  max: number;
+  mean: number;
+  median: number;
+};
+
+export type CountrySummary = PayStats & { countryCode: string; currency: string; total: number };
+export type JobTitleSummary = PayStats & { jobTitle: string };
+export type DepartmentSummary = Omit<PayStats, "min" | "max"> & {
+  department: string;
+  total: number;
+};
+export type DistributionBucket = { from: number; to: number; count: number };
+export type Distribution = { currency: string; buckets: DistributionBucket[] };
+
+export type FilterOptions = {
+  countries: { code: CountryCode; name: string; currency: string }[];
+  jobTitles: string[];
+  departments: string[];
+};
