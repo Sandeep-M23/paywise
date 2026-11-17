@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { COUNTRIES, type CountryCode } from "./countries";
 import type { EmployeeSummary } from "./dto";
 import { parseMoneyInput, toMajorString } from "./money";
@@ -275,3 +276,26 @@ export function toCsv(headers: readonly string[], rows: string[][]): string {
   const lines = [headers, ...rows].map((cells) => cells.map(escapeCsvCell).join(","));
   return `﻿${lines.join("\r\n")}\r\n`;
 }
+
+// --- Import API contract -------------------------------------------------------
+
+export const MAX_IMPORT_ROWS = 10_000;
+
+// The browser parses the file and applies the column mapping; the API receives
+// rows keyed by field, plus the spreadsheet line number for error messages.
+export const importRequestSchema = z.object({
+  filename: z.string().trim().min(1).max(255),
+  rows: z
+    .array(
+      z.object({
+        line: z.number().int().min(1),
+        values: z.partialRecord(z.enum(IMPORT_FIELDS), z.string().max(1_000)),
+      }),
+    )
+    .min(1, "The file has no data rows")
+    .max(
+      MAX_IMPORT_ROWS,
+      `Import at most ${MAX_IMPORT_ROWS.toLocaleString("en-US")} rows at a time`,
+    ),
+});
+export type ImportRequest = z.infer<typeof importRequestSchema>;

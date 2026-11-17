@@ -66,3 +66,40 @@ export type FilterOptions = {
   jobTitles: string[];
   departments: string[];
 };
+
+export type ImportRowStatus = "create" | "update" | "unchanged" | "error";
+export type ImportChange = { field: string; from: string | number; to: string | number };
+
+export type ImportPreviewRow = {
+  line: number;
+  employeeCode: string | null;
+  fullName: string | null;
+  status: ImportRowStatus;
+  currency?: string;
+  errors?: { field: string; message: string }[];
+  changes?: ImportChange[];
+};
+
+export type ImportPreview = {
+  summary: Record<ImportRowStatus, number> & { total: number };
+  rows: ImportPreviewRow[];
+};
+
+export type ImportResult = {
+  importId: string;
+  created: number;
+  updated: number;
+  unchanged: number;
+  skipped: number;
+};
+
+export type ImportLogEntry = {
+  id: string;
+  filename: string;
+  rowCount: number;
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  status: "committed" | "reverted";
+  createdAt: string;
+};
