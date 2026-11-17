@@ -8,7 +8,7 @@ let app: ReturnType<typeof createApp>;
 
 beforeAll(async () => {
   testDb = await createTestDb();
-  app = createApp({ db: testDb.db, clock: fixedClock("2026-06-30") });
+  app = createApp({ db: testDb.db, clock: fixedClock("2026-06-30"), auth: "disabled" });
 });
 afterAll(() => testDb.close());
 

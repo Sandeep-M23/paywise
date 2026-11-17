@@ -18,7 +18,7 @@ let app: ReturnType<typeof createApp>;
 
 beforeAll(async () => {
   testDb = await createTestDb();
-  app = createApp({ db: testDb.db, clock });
+  app = createApp({ db: testDb.db, clock, auth: "disabled" });
 });
 afterAll(() => testDb.close());
 
