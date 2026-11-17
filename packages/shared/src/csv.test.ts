@@ -37,16 +37,17 @@ describe("autoMapColumns", () => {
     });
   });
 
-  it("leaves unknown fields unmapped and never reuses a header", () => {
+  it("prefers the most specific header, leaves unknown fields unmapped, never reuses a header", () => {
     const mapping = autoMapColumns(["Name", "Full Name", "Notes"]);
-    expect(mapping.fullName).toBe("Name");
+    expect(mapping.fullName).toBe("Full Name");
     expect(mapping.email).toBeNull();
-    expect(Object.values(mapping).filter((h) => h === "Full Name")).toHaveLength(0);
+    const used = Object.values(mapping).filter((h) => h !== null);
+    expect(new Set(used).size).toBe(used.length);
   });
 
   it("maps our own export headers back to fields", () => {
     const mapping = autoMapColumns([...EXPORT_HEADERS]);
-    expect(Object.values(mapping).every((h) => h !== null || false)).toBe(false); // gender absent
+    expect(mapping.gender).toBeNull(); // gender is never exported
     expect(mapping).toMatchObject({ employeeCode: "employee_code", salary: "salary" });
   });
 });
