@@ -51,18 +51,21 @@ export function DirectoryFilters({
       </div>
       <FilterSelect
         label="Country"
+        allLabel="All countries"
         value={query.country}
         options={(options?.countries ?? []).map((c) => ({ value: c.code, label: c.name }))}
         onChange={(country) => onChange({ country: country as EmployeeListQuery["country"] })}
       />
       <FilterSelect
         label="Department"
+        allLabel="All departments"
         value={query.department}
         options={(options?.departments ?? []).map((d) => ({ value: d, label: d }))}
         onChange={(department) => onChange({ department })}
       />
       <FilterSelect
         label="Job title"
+        allLabel="All job titles"
         value={query.jobTitle}
         options={(options?.jobTitles ?? []).map((t) => ({ value: t, label: t }))}
         onChange={(jobTitle) => onChange({ jobTitle })}
@@ -104,11 +107,13 @@ export function DirectoryFilters({
 
 function FilterSelect({
   label,
+  allLabel,
   value,
   options,
   onChange,
 }: {
   label: string;
+  allLabel: string;
   value: string | undefined;
   options: { value: string; label: string }[];
   onChange: (value: string | undefined) => void;
@@ -119,7 +124,7 @@ function FilterSelect({
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={ALL}>All {label.toLowerCase()}s</SelectItem>
+        <SelectItem value={ALL}>{allLabel}</SelectItem>
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
             {option.label}

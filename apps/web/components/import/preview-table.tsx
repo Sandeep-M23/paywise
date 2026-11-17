@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ImportPreviewRow, ImportRowStatus } from "@paywise/shared";
+import { IMPORT_FIELD_LABELS, type ImportPreviewRow, type ImportRowStatus } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,13 @@ import {
 import { humanize, money } from "@/lib/format";
 
 const PAGE = 100;
+
+/** "Hire date (YYYY-MM-DD)" -> "Hire date": the hint belongs on the mapping screen only. */
+const fieldLabel = (field: string) =>
+  (IMPORT_FIELD_LABELS[field as keyof typeof IMPORT_FIELD_LABELS] ?? humanize(field)).replace(
+    / \(.*\)$/,
+    "",
+  );
 const STATUS_LABEL: Record<ImportRowStatus, string> = {
   create: "New",
   update: "Update",
@@ -81,12 +88,12 @@ export function PreviewTable({ rows }: { rows: ImportPreviewRow[] }) {
               <TableCell className="text-sm whitespace-normal">
                 {row.errors?.map((e, i) => (
                   <div key={i}>
-                    <span className="font-medium">{humanize(e.field)}:</span> {e.message}
+                    <span className="font-medium">{fieldLabel(e.field)}:</span> {e.message}
                   </div>
                 ))}
                 {row.changes?.map((c) => (
                   <div key={c.field}>
-                    <span className="font-medium">{humanize(c.field)}:</span>{" "}
+                    <span className="font-medium">{fieldLabel(c.field)}:</span>{" "}
                     {c.field === "salary" && row.currency
                       ? `${money(Number(c.from), row.currency)} → ${money(Number(c.to), row.currency)}`
                       : `${c.from} → ${c.to}`}

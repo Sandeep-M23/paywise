@@ -1,15 +1,21 @@
-import { currencyExponent, findCountry, formatMoney } from "@paywise/shared";
+import { COUNTRIES, currencyExponent, findCountry, formatMoney } from "@paywise/shared";
 
 /** Money in the conventions of the country it is paid in (₹18,00,000.00, €65.000,00). */
 export function money(amount: number, currency: string, countryCode?: string) {
-  const locale = countryCode ? findCountry(countryCode)?.locale : undefined;
+  // Without a country (e.g. per-currency totals), use the locale of the country paid in it.
+  const locale = countryCode
+    ? findCountry(countryCode)?.locale
+    : COUNTRIES.find((c) => c.currency === currency.toLowerCase())?.locale;
   return formatMoney(amount, currency, locale ?? "en-US");
 }
 
-/** Compact money for chart axes and dense tables ($113K, ₹28.7L style via Intl). */
-export function compactMoney(amount: number, currency: string, countryCode?: string) {
-  const locale = (countryCode && findCountry(countryCode)?.locale) || "en-US";
-  return new Intl.NumberFormat(locale, {
+/**
+ * Compact money for charts and dense tables. English notation everywhere so
+ * the UI reads consistently: lakh/crore for INR (₹28.2L), K/M otherwise
+ * (€87.7K, ¥13.7M). Full amounts elsewhere use each country's locale.
+ */
+export function compactMoney(amount: number, currency: string, _countryCode?: string) {
+  return new Intl.NumberFormat(currency.toLowerCase() === "inr" ? "en-IN" : "en-US", {
     style: "currency",
     currency: currency.toUpperCase(),
     notation: "compact",

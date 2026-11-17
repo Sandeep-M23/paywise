@@ -138,11 +138,17 @@ export function InsightsView() {
                   barCategoryGap={2}
                 >
                   <CartesianGrid horizontal={false} strokeOpacity={0.4} />
-                  <XAxis type="number" tickFormatter={short} tickLine={false} axisLine={false} />
+                  <XAxis
+                    type="number"
+                    dataKey="median"
+                    tickFormatter={short}
+                    tickLine={false}
+                    axisLine={false}
+                  />
                   <YAxis
                     type="category"
                     dataKey="jobTitle"
-                    width={170}
+                    width={200}
                     tickLine={false}
                     axisLine={false}
                     interval={0}
@@ -226,7 +232,12 @@ export function InsightsView() {
                       />
                     }
                   />
-                  <Bar dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="count"
+                    fill="var(--color-count)"
+                    radius={[4, 4, 0, 0]}
+                    isAnimationActive={false}
+                  />
                 </BarChart>
               </ChartContainer>
             )}
