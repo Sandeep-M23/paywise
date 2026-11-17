@@ -20,13 +20,13 @@ export function GapStatus({ group }: { group: GenderGapGroup }) {
   }
   if (group.flagged) {
     return (
-      <Badge variant="outline" className="border-amber-500 text-amber-800 dark:text-amber-300">
+      <Badge variant="outline" className="border-warning/50 text-warning">
         <CircleHelp aria-hidden /> ≥ 5%, may be chance
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="text-emerald-700 dark:text-emerald-400">
+    <Badge variant="outline" className="text-success">
       <CircleCheck aria-hidden /> Within 5%
     </Badge>
   );

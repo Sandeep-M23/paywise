@@ -32,7 +32,7 @@ export function SalaryHistory({
                 {revision.reason === "hire" ? "Hired" : humanize(revision.reason)}
               </Badge>
               {change !== null && (
-                <span className={change >= 0 ? "text-emerald-700" : "text-destructive"}>
+                <span className={change >= 0 ? "text-success" : "text-destructive"}>
                   {change >= 0 ? "+" : ""}
                   {percent(change)} from{" "}
                   {money(revision.previousAmount!, revision.currency, countryCode)}

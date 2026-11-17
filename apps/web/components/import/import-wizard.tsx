@@ -311,7 +311,7 @@ export function ImportWizard() {
       {wizard.step === "done" && wizard.result && (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-            <CheckCircle2 className="size-10 text-emerald-600" aria-hidden />
+            <CheckCircle2 className="size-10 text-success" aria-hidden />
             <p className="text-lg font-medium">Import complete</p>
             <p className="text-muted-foreground text-sm">
               {wizard.result.created} added · {wizard.result.updated} updated ·{" "}

@@ -1,6 +1,12 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type {
   CountrySummary,
   DepartmentSummary,
@@ -29,7 +35,6 @@ const STABLE = 5 * 60_000;
 
 export const keys = {
   employees: ["employees"] as const,
-  employeeList: (query: EmployeeListQuery) => ["employees", "list", query] as const,
   employee: (id: string) => ["employees", "detail", id] as const,
   filters: ["meta", "filters"] as const,
   insights: ["insights"] as const,
@@ -37,11 +42,24 @@ export const keys = {
   imports: ["imports"] as const,
 };
 
-export function useEmployees(query: EmployeeListQuery) {
-  return useQuery({
-    queryKey: keys.employeeList(query),
-    queryFn: () => api<Page<EmployeeSummary>>(`/employees${toQueryString(query)}`),
-    placeholderData: keepPreviousData, // keep the table steady while paging
+export const DIRECTORY_BATCH = 50;
+export type DirectoryFilters = Omit<EmployeeListQuery, "page" | "pageSize">;
+
+/**
+ * The directory loads 50 people at a time as the user scrolls. Uses the same
+ * paged endpoint; the previous list stays on screen while a new filter loads.
+ */
+export function useEmployeeDirectory(filters: DirectoryFilters) {
+  return useInfiniteQuery({
+    queryKey: ["employees", "directory", filters],
+    queryFn: ({ pageParam }) =>
+      api<Page<EmployeeSummary>>(
+        `/employees${toQueryString({ ...filters, page: pageParam, pageSize: DIRECTORY_BATCH })}`,
+      ),
+    initialPageParam: 1,
+    getNextPageParam: (last) =>
+      last.page * last.pageSize < last.total ? last.page + 1 : undefined,
+    placeholderData: keepPreviousData,
   });
 }
 

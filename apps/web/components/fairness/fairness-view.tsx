@@ -7,8 +7,8 @@ import { PageHeader } from "@/components/app/page-header";
 import { EmployeeSheet } from "@/components/employees/employee-sheet";
 import { CountryPicker } from "@/components/insights/country-picker";
 import { Stat } from "@/components/insights/stat";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { scrollTable, stickyHeader } from "@/components/app/sticky";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -50,17 +50,18 @@ export function FairnessView() {
         </TabsList>
 
         <TabsContent value="gender" className="flex flex-col gap-4">
-          <Alert>
-            <AlertTitle>How to read this</AlertTitle>
-            <AlertDescription>
+          <details className="bg-card group rounded-lg border px-4 py-3 text-sm">
+            <summary className="cursor-pointer font-medium select-none">How to read this</summary>
+            <p className="text-muted-foreground mt-2 leading-relaxed">
               The gap is how much less women are paid than men on average in the same role and
               country (negative: women are paid more). Under the EU Pay Transparency Directive, an
               unexplained gap of 5% or more requires a joint pay assessment. “Review” means the gap
-              is also too large to be chance in a group this size. Groups with fewer than 5 women or
-              men are hidden to protect individuals&apos; privacy.
-            </AlertDescription>
-          </Alert>
-          <div className="grid grid-cols-3 gap-4">
+              is also too large to be chance in a group this size. Only full-time employees are
+              compared, and groups with fewer than 5 women or men are hidden to protect
+              individuals&apos; privacy.
+            </p>
+          </details>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Stat label="Groups compared" value={gaps.data ? reported.length : "–"} />
             <Stat
               label="Need review"
@@ -72,10 +73,10 @@ export function FairnessView() {
               value={gaps.data ? gaps.data.length - reported.length : "–"}
             />
           </div>
-          <Card>
-            <CardContent>
-              <Table>
-                <TableHeader>
+          <Card className="py-0">
+            <CardContent className="px-0">
+              <Table containerClassName={scrollTable("max-h-[calc(100dvh-22rem)] min-h-80")}>
+                <TableHeader className={stickyHeader}>
                   <TableRow>
                     <TableHead>Job title</TableHead>
                     <TableHead>Country</TableHead>
@@ -133,8 +134,8 @@ export function FairnessView() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
+              <Table containerClassName={scrollTable("max-h-[calc(100dvh-22rem)] min-h-80")}>
+                <TableHeader className={stickyHeader}>
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead>Job title</TableHead>

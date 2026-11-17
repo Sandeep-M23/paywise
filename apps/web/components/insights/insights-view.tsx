@@ -20,6 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { scrollTable, stickyHeader } from "@/components/app/sticky";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { insightsCountryAtom } from "@/lib/atoms";
 import { compactMoney, countryName, money } from "@/lib/format";
 import {
@@ -29,7 +31,6 @@ import {
   useJobTitleSummaries,
 } from "@/lib/queries";
 import { cn } from "@/lib/utils";
-import { CountryPicker } from "./country-picker";
 import { Stat } from "./stat";
 
 const medianChart = {
@@ -45,64 +46,47 @@ export function InsightsView() {
   const departments = useDepartmentSummaries(country);
   const distribution = useDistribution(country);
   const summary = countries.data?.find((c) => c.countryCode === country);
-  const fmt = (amount: number) => money(amount, currency, country);
+  const fmt = (amount: number) => money(amount, currency, country, "none");
   const short = (amount: number) => compactMoney(amount, currency, country);
 
   return (
     <>
       <PageHeader
         title="Pay insights"
-        description="How we pay people, per country in local currency. Active employees only; medians match Excel's PERCENTILE.INC."
+        description="How we pay people, in each country's own currency. Active employees only; medians match Excel's PERCENTILE.INC."
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>By country</CardTitle>
-          <CardDescription>Select a row to explore that country below.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Country</TableHead>
-                <TableHead className="text-right">Headcount</TableHead>
-                <TableHead className="text-right">Median</TableHead>
-                <TableHead className="text-right">Average</TableHead>
-                <TableHead className="text-right">Lowest</TableHead>
-                <TableHead className="text-right">Highest</TableHead>
-                <TableHead className="text-right">Annual payroll</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {countries.isLoading && <LoadingRows columns={7} />}
-              {countries.data?.map((c) => (
-                <TableRow
-                  key={c.countryCode}
-                  className={cn("cursor-pointer", c.countryCode === country && "bg-muted")}
-                  onClick={() => setCountry(c.countryCode)}
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && setCountry(c.countryCode)}
-                  aria-selected={c.countryCode === country}
-                >
-                  <TableCell className="font-medium">{countryName(c.countryCode)}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {c.headcount.toLocaleString()}
-                  </TableCell>
-                  {[c.median, c.mean, c.min, c.max, c.total].map((amount, i) => (
-                    <TableCell key={i} className="text-right tabular-nums">
-                      {money(amount, c.currency, c.countryCode)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold">{countryName(country)}</h2>
-        <CountryPicker value={country} onChange={(code) => code && setCountry(code)} />
+      {/* Country chips: one tap to switch; scroll sideways on small screens. */}
+      <div
+        role="tablist"
+        aria-label="Country"
+        className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+      >
+        {countries.isLoading &&
+          Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-14 w-32 shrink-0" />)}
+        {[...(countries.data ?? [])]
+          .sort((a, b) => b.headcount - a.headcount)
+          .map((c) => {
+            const active = c.countryCode === country;
+            return (
+              <button
+                key={c.countryCode}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setCountry(c.countryCode)}
+                className={cn(
+                  "bg-card hover:border-primary/40 flex shrink-0 snap-start flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors",
+                  active && "border-primary ring-primary/20 ring-2",
+                )}
+              >
+                <span className="text-sm font-medium">{countryName(c.countryCode)}</span>
+                <span className="text-muted-foreground text-xs tabular-nums">
+                  {c.headcount.toLocaleString()} ·{" "}
+                  {compactMoney(c.median, c.currency, c.countryCode)} median
+                </span>
+              </button>
+            );
+          })}
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -245,70 +229,106 @@ export function InsightsView() {
         </Card>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Job titles</CardTitle>
+      <Card>
+        <Tabs defaultValue="titles" className="gap-4">
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <CardTitle>Breakdown</CardTitle>
+            <TabsList>
+              <TabsTrigger value="titles">Job titles</TabsTrigger>
+              <TabsTrigger value="departments">Departments</TabsTrigger>
+              <TabsTrigger value="countries">All countries</TabsTrigger>
+            </TabsList>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Job title</TableHead>
-                  <TableHead className="text-right">People</TableHead>
-                  <TableHead className="text-right">Lowest</TableHead>
-                  <TableHead className="text-right">Median</TableHead>
-                  <TableHead className="text-right">Highest</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {titles.isLoading && <LoadingRows columns={5} />}
-                {titles.data?.map((t) => (
-                  <TableRow key={t.jobTitle}>
-                    <TableCell>{t.jobTitle}</TableCell>
-                    <TableCell className="text-right tabular-nums">{t.headcount}</TableCell>
-                    <TableCell className="text-right tabular-nums">{short(t.min)}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">
-                      {short(t.median)}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{short(t.max)}</TableCell>
+            <TabsContent value="titles">
+              <Table containerClassName={scrollTable("max-h-[28rem]")}>
+                <TableHeader className={stickyHeader}>
+                  <TableRow>
+                    <TableHead>Job title</TableHead>
+                    <TableHead className="text-right">People</TableHead>
+                    <TableHead className="text-right">Lowest</TableHead>
+                    <TableHead className="text-right">Median</TableHead>
+                    <TableHead className="text-right">Highest</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Departments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-right">People</TableHead>
-                  <TableHead className="text-right">Median</TableHead>
-                  <TableHead className="text-right">Average</TableHead>
-                  <TableHead className="text-right">Payroll</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {departments.isLoading && <LoadingRows columns={5} />}
-                {departments.data?.map((d) => (
-                  <TableRow key={d.department}>
-                    <TableCell>{d.department}</TableCell>
-                    <TableCell className="text-right tabular-nums">{d.headcount}</TableCell>
-                    <TableCell className="text-right tabular-nums">{short(d.median)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{short(d.mean)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{short(d.total)}</TableCell>
+                </TableHeader>
+                <TableBody>
+                  {titles.isLoading && <LoadingRows columns={5} />}
+                  {titles.data?.map((t) => (
+                    <TableRow key={t.jobTitle}>
+                      <TableCell>{t.jobTitle}</TableCell>
+                      <TableCell className="text-right tabular-nums">{t.headcount}</TableCell>
+                      <TableCell className="text-right tabular-nums">{short(t.min)}</TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {short(t.median)}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{short(t.max)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            <TabsContent value="departments">
+              <Table containerClassName={scrollTable("max-h-[28rem]")}>
+                <TableHeader className={stickyHeader}>
+                  <TableRow>
+                    <TableHead>Department</TableHead>
+                    <TableHead className="text-right">People</TableHead>
+                    <TableHead className="text-right">Median</TableHead>
+                    <TableHead className="text-right">Average</TableHead>
+                    <TableHead className="text-right">Payroll</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {departments.isLoading && <LoadingRows columns={5} />}
+                  {departments.data?.map((d) => (
+                    <TableRow key={d.department}>
+                      <TableCell>{d.department}</TableCell>
+                      <TableCell className="text-right tabular-nums">{d.headcount}</TableCell>
+                      <TableCell className="text-right tabular-nums">{short(d.median)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{short(d.mean)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{short(d.total)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+            <TabsContent value="countries">
+              <Table containerClassName={scrollTable("max-h-[28rem]")}>
+                <TableHeader className={stickyHeader}>
+                  <TableRow>
+                    <TableHead>Country</TableHead>
+                    <TableHead className="text-right">People</TableHead>
+                    <TableHead className="text-right">Median</TableHead>
+                    <TableHead className="text-right">Average</TableHead>
+                    <TableHead className="text-right">Lowest</TableHead>
+                    <TableHead className="text-right">Highest</TableHead>
+                    <TableHead className="text-right">Payroll</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {countries.data?.map((c) => (
+                    <TableRow
+                      key={c.countryCode}
+                      className={cn("cursor-pointer", c.countryCode === country && "bg-accent")}
+                      onClick={() => setCountry(c.countryCode)}
+                    >
+                      <TableCell className="font-medium">{countryName(c.countryCode)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {c.headcount.toLocaleString()}
+                      </TableCell>
+                      {[c.median, c.mean, c.min, c.max, c.total].map((amount, i) => (
+                        <TableCell key={i} className="text-right tabular-nums">
+                          {money(amount, c.currency, c.countryCode, "none")}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TabsContent>
           </CardContent>
-        </Card>
-      </div>
+        </Tabs>
+      </Card>
     </>
   );
 }

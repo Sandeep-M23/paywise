@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { IMPORT_FIELD_LABELS, type ImportPreviewRow, type ImportRowStatus } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
+import { scrollTable, stickyHeader } from "@/components/app/sticky";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -53,8 +54,8 @@ export function PreviewTable({ rows }: { rows: ImportPreviewRow[] }) {
           </Button>
         ))}
       </div>
-      <Table>
-        <TableHeader>
+      <Table containerClassName={scrollTable("max-h-[32rem] rounded-md border")}>
+        <TableHeader className={stickyHeader}>
           <TableRow>
             <TableHead className="w-16">Line</TableHead>
             <TableHead>Employee</TableHead>

@@ -21,6 +21,7 @@ import { useEmployee } from "@/lib/queries";
 import { ChangeSalaryDialog } from "./change-salary-dialog";
 import { DeactivateDialog } from "./deactivate-dialog";
 import { EmployeeFormDialog } from "./employee-form-dialog";
+import { PeerPosition } from "./peer-position";
 import { SalaryHistory } from "./salary-history";
 
 type Dialog = "edit" | "salary" | "deactivate" | null;
@@ -33,7 +34,7 @@ export function EmployeeSheet() {
 
   return (
     <Sheet open={id !== null} onOpenChange={(open) => !open && setId(null)}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+      <SheetContent className="w-full gap-0 overflow-y-auto overscroll-contain sm:max-w-lg">
         {isLoading && (
           <div className="flex flex-col gap-3 p-4">
             <Skeleton className="h-6 w-2/3" />
@@ -48,16 +49,17 @@ export function EmployeeSheet() {
         )}
         {employee && (
           <>
-            <SheetHeader>
-              <SheetTitle className="flex items-center gap-2">
-                {employee.fullName}
-                {employee.status === "inactive" && <Badge variant="secondary">Inactive</Badge>}
-              </SheetTitle>
-              <SheetDescription>
-                {employee.jobTitle} · {employee.department} · {countryName(employee.countryCode)}
-              </SheetDescription>
-            </SheetHeader>
-            <div className="flex flex-col gap-5 px-4 pb-6">
+            {/* Name, salary and actions stay in view while the history scrolls. */}
+            <div className="bg-popover sticky top-0 z-10 flex flex-col gap-4 border-b px-4 pt-4 pb-4">
+              <SheetHeader className="p-0 pr-8">
+                <SheetTitle className="flex items-center gap-2">
+                  {employee.fullName}
+                  {employee.status === "inactive" && <Badge variant="secondary">Inactive</Badge>}
+                </SheetTitle>
+                <SheetDescription>
+                  {employee.jobTitle} · {employee.department} · {countryName(employee.countryCode)}
+                </SheetDescription>
+              </SheetHeader>
               <div>
                 <p className="text-muted-foreground text-xs uppercase">Annual salary</p>
                 <p className="text-2xl font-semibold tabular-nums">
@@ -84,6 +86,15 @@ export function EmployeeSheet() {
                   </AlertDescription>
                 </Alert>
               )}
+            </div>
+            <div className="flex flex-col gap-6 px-4 py-5">
+              <section aria-labelledby="peers-heading" className="flex flex-col gap-2">
+                <h3 id="peers-heading" className="text-sm font-medium">
+                  Compared with peers
+                </h3>
+                <PeerPosition employee={employee} />
+              </section>
+              <Separator />
               <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                 {[
                   ["Employee code", employee.employeeCode],
@@ -101,7 +112,7 @@ export function EmployeeSheet() {
               </dl>
               <Separator />
               <div>
-                <h3 className="mb-3 font-medium">Salary history</h3>
+                <h3 className="mb-3 text-sm font-medium">Salary history</h3>
                 <SalaryHistory revisions={employee.revisions} countryCode={employee.countryCode} />
               </div>
             </div>
