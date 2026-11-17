@@ -5,6 +5,6 @@ export default defineConfig({
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "postgres://paywise:paywise@localhost:5432/paywise",
+    url: process.env.DATABASE_URL ?? "postgres://paywise:paywise@localhost:5433/paywise",
   },
 });

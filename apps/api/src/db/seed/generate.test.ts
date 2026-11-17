@@ -86,9 +86,13 @@ describe("generateEmployees", () => {
     });
 
     it("plants pay compression for software engineers in India", () => {
-      const yearsAgo = (years: number) => `${Number(TODAY.slice(0, 4)) - years}${TODAY.slice(4)}`;
-      const recent = group("IN", "Software Engineer", (p) => p.employee.hireDate > yearsAgo(1.5));
-      const tenured = group("IN", "Software Engineer", (p) => p.employee.hireDate < yearsAgo(3));
+      const monthsAgo = (months: number) => {
+        const date = new Date(`${TODAY}T00:00:00Z`);
+        date.setUTCMonth(date.getUTCMonth() - months);
+        return date.toISOString().slice(0, 10);
+      };
+      const recent = group("IN", "Software Engineer", (p) => p.employee.hireDate > monthsAgo(18));
+      const tenured = group("IN", "Software Engineer", (p) => p.employee.hireDate < monthsAgo(36));
       expect(mean(recent.map((p) => p.employee.salaryAmount))).toBeGreaterThan(
         mean(tenured.map((p) => p.employee.salaryAmount)),
       );
