@@ -157,7 +157,8 @@ export function generateEmployees({
     const hireDate = toIso(hireMs);
     const tenureYears = (toDate(today) - hireMs) / (365 * DAY_MS);
 
-    let factor = Math.exp(rng.number.float({ min: -0.25, max: 0.25 }));
+    // ±12%: typical spread of pay for the same role and market.
+    let factor = Math.exp(rng.number.float({ min: -0.12, max: 0.12 }));
     factor *= 1 + Math.min(tenureYears * 0.015, 0.15); // modest tenure premium
     if (employmentType === "part_time") factor *= 0.6;
 

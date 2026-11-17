@@ -10,8 +10,10 @@ import type { Db } from "../db/client";
 import { employees } from "../db/schema";
 
 /*
- * Fairness checks compare people only with peers in the same job title and
- * country (same currency, same market). Definitions are in docs/DESIGN.md §5.
+ * Fairness checks compare like with like: full-time employees in the same job
+ * title and country (same currency, same market, same hours). Part-time pay
+ * isn't comparable without hours worked, which we don't record. Definitions
+ * are in docs/DESIGN.md §5.
  */
 
 const MIN_PEERS_FOR_OUTLIERS = 5;
@@ -21,10 +23,17 @@ const MIN_GROUP_SIZE = 5;
 // EU Pay Transparency Directive: an unexplained gap of 5% or more triggers a
 // joint pay assessment.
 const GAP_THRESHOLD = 0.05;
+// |t| of a Welch t-test at ~95% confidence: the gap is unlikely to be chance.
+const SIGNIFICANT_T = 1.96;
 
 const num = (value: unknown) => Number(value);
 
-function activeWhere(filters: { country?: string; jobTitle?: string; department?: string }): SQL {
+const comparableWhere = (filters: Filters): SQL =>
+  and(activeWhere(filters), eq(employees.employmentType, "full_time"))!;
+
+type Filters = { country?: string; jobTitle?: string; department?: string };
+
+function activeWhere(filters: Filters): SQL {
   return and(
     eq(employees.status, "active"),
     filters.country ? eq(employees.countryCode, filters.country) : undefined,
@@ -44,7 +53,7 @@ export function createFairnessService({ db }: { db: Db }) {
                  percentile_cont(0.5)  WITHIN GROUP (ORDER BY salary_amount) AS median,
                  percentile_cont(0.75) WITHIN GROUP (ORDER BY salary_amount) AS q3
           FROM ${employees}
-          WHERE ${activeWhere(filters)}
+          WHERE ${comparableWhere(filters)}
           GROUP BY country_code, job_title
           HAVING count(*) >= ${MIN_PEERS_FOR_OUTLIERS}
         ), fenced AS (
@@ -55,7 +64,7 @@ export function createFairnessService({ db }: { db: Db }) {
                e.salary_amount, e.salary_currency, f.n, f.median, f.lower_fence, f.upper_fence
         FROM ${employees} e
         JOIN fenced f ON f.country_code = e.country_code AND f.job_title = e.job_title
-        WHERE e.status = 'active'
+        WHERE e.status = 'active' AND e.employment_type = 'full_time'
           AND (e.salary_amount < f.lower_fence OR e.salary_amount > f.upper_fence)
         ORDER BY abs(e.salary_amount - f.median) / f.median DESC, e.employee_code
         LIMIT 500
@@ -85,6 +94,9 @@ export function createFairnessService({ db }: { db: Db }) {
     /**
      * Mean and median pay of women vs. men per job title and country. The gap
      * is (male - female) / male, so a positive gap means women are paid less.
+     * "flagged" is the legal 5% trigger; "significant" says whether the gap is
+     * larger than chance would explain in a group this size, so HR can tell
+     * systematic gaps from noise in small teams.
      */
     async genderGaps(filters: FairnessQuery): Promise<GenderGapGroup[]> {
       const { rows } = await db.execute(sql`
@@ -96,9 +108,11 @@ export function createFairnessService({ db }: { db: Db }) {
           percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_amount)
             FILTER (WHERE gender = 'female') AS female_median,
           percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_amount)
-            FILTER (WHERE gender = 'male') AS male_median
+            FILTER (WHERE gender = 'male') AS male_median,
+          stddev_samp(salary_amount) FILTER (WHERE gender = 'female') AS female_sd,
+          stddev_samp(salary_amount) FILTER (WHERE gender = 'male') AS male_sd
         FROM ${employees}
-        WHERE ${activeWhere(filters)} AND gender IN ('female', 'male')
+        WHERE ${comparableWhere(filters)} AND gender IN ('female', 'male')
         GROUP BY country_code, job_title, salary_currency
       `);
 
@@ -122,6 +136,7 @@ export function createFairnessService({ db }: { db: Db }) {
             meanGap: null,
             medianGap: null,
             flagged: false,
+            significant: false,
             suppressed: true,
           };
         }
@@ -131,6 +146,13 @@ export function createFairnessService({ db }: { db: Db }) {
         const maleMedian = num(r.male_median);
         const meanGap = (maleMean - femaleMean) / maleMean;
         const medianGap = (maleMedian - femaleMedian) / maleMedian;
+        const standardError = Math.sqrt(
+          num(r.female_sd) ** 2 / femaleCount + num(r.male_sd) ** 2 / maleCount,
+        );
+        const significant =
+          standardError === 0
+            ? maleMean !== femaleMean
+            : Math.abs(maleMean - femaleMean) / standardError >= SIGNIFICANT_T;
         return {
           ...base,
           femaleMean: Math.round(femaleMean),
@@ -139,12 +161,16 @@ export function createFairnessService({ db }: { db: Db }) {
           maleMedian: Math.round(maleMedian),
           meanGap,
           medianGap,
-          flagged: Math.abs(meanGap) >= GAP_THRESHOLD || Math.abs(medianGap) >= GAP_THRESHOLD,
+          // The Directive's trigger is the gap in average pay; the median is context.
+          flagged: Math.abs(meanGap) >= GAP_THRESHOLD,
+          significant,
           suppressed: false,
         };
       });
 
-      const rank = (g: GenderGapGroup) => (g.suppressed ? 2 : g.flagged ? 0 : 1);
+      // Flagged and statistically significant first: those most need attention.
+      const rank = (g: GenderGapGroup) =>
+        g.suppressed ? 3 : g.flagged && g.significant ? 0 : g.flagged ? 1 : 2;
       return groups.sort(
         (a, b) =>
           rank(a) - rank(b) ||

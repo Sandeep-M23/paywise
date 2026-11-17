@@ -147,14 +147,18 @@ UTF-8 **with BOM** (so Excel shows non-ASCII names correctly), and formula-injec
 
 ## 5. Analytics Definitions
 
-| Metric             | Definition                                                                                                                                            |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Median / quartiles | `percentile_cont`, which equals Excel `PERCENTILE.INC` (linear interpolation)                                                                         |
-| Outlier            | In a job title × country group with n ≥ 5: below Q1 − 1.5·IQR or above Q3 + 1.5·IQR                                                                   |
-| Gender pay gap     | `(mean_male − mean_female) / mean_male` per job title × country; flagged at \|gap\| ≥ 5% (EU Pay Transparency Directive); the median gap is shown too |
-| Raise cost         | Per currency over the filtered active employees: current total, increase, new total                                                                   |
+| Metric             | Definition                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Median / quartiles | `percentile_cont`, which equals Excel `PERCENTILE.INC` (linear interpolation)                                                                                                                                                                                                                                                                                                                                    |
+| Outlier            | Full-time, active employees in a job title × country group with n ≥ 5: below Q1 − 1.5·IQR or above Q3 + 1.5·IQR                                                                                                                                                                                                                                                                                                  |
+| Gender pay gap     | Full-time, active employees per job title × country: `(mean_male − mean_female) / mean_male`. **Flagged** at \|gap\| ≥ 5% (EU Pay Transparency Directive trigger, average pay). **Significant** when a Welch t-test gives \|t\| ≥ 1.96 (~95%). The median gap is shown for context. Groups with fewer than 5 women or men are **suppressed entirely** (no averages), so figures can't reveal individual salaries |
+| Raise cost         | Per currency over the filtered active employees (all employment types): current total, increase (each person's raise rounded to a minor unit), new total                                                                                                                                                                                                                                                         |
 
 Only **active** employees count in insights.
+
+**Why full-time only for fairness:** part-time pay reflects hours, which we don't record. Mixing it in made "gaps" appear wherever one gender had more part-timers.
+
+**Why a significance marker:** tried on the seeded 10k data, a plain 5% rule flagged 95 of ~150 groups, almost all noise from small teams, and the real (planted) gap was buried. The legal 5% flag stays, because that's the obligation. Significance ranks what to look at first. With ~150 groups at 95% confidence, a few will still be significant by chance, so the UI presents these as "review", not "proven".
 
 ## 6. API Conventions
 

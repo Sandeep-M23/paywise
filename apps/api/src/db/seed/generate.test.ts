@@ -77,9 +77,11 @@ describe("generateEmployees", () => {
 
     it("plants a gender pay gap of roughly 8% for software engineers in Germany", () => {
       const salaries = (gender: string) =>
-        group("DE", "Software Engineer", (p) => p.employee.gender === gender).map(
-          (p) => p.employee.salaryAmount,
-        );
+        group(
+          "DE",
+          "Software Engineer",
+          (p) => p.employee.gender === gender && p.employee.employmentType === "full_time",
+        ).map((p) => p.employee.salaryAmount);
       const gap = 1 - mean(salaries("female")) / mean(salaries("male"));
       expect(gap).toBeGreaterThan(0.05);
       expect(gap).toBeLessThan(0.12);

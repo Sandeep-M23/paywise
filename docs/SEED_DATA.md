@@ -8,17 +8,17 @@ Generation is a pure function, `generateEmployees({ count, seed, today })` in `a
 
 ## Shape
 
-| Aspect     | How it's generated                                                                                                                                                                   |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Countries  | US 25%, IN 30%, GB 10%, DE 10%, CA 7%, JP 7%, AU 6%, SG 5%                                                                                                                           |
-| Roles      | 20 job titles in 10 departments; engineering and support roles most common                                                                                                           |
-| Salary     | Role's US median × local market factor (e.g. ×25 for INR, ×95 for JPY) × random spread (±25%) × small tenure premium, rounded to a nice number (₹10,000 / ¥10,000 / 1,000 elsewhere) |
-| Part-time  | 60% of the full-time rate                                                                                                                                                            |
-| Hire dates | 2012 to one month before the reference date, skewed towards recent years                                                                                                             |
-| History    | ~33% of people with 1+ year of tenure get 1–3 raises (4–12% each; merit, promotion or market adjustment)                                                                             |
-| Inactive   | ~3% are deactivated ("Resigned")                                                                                                                                                     |
-| Gender     | 42% female, 54% male, 2% non-binary, 2% undisclosed                                                                                                                                  |
-| Names      | Locale-appropriate (Indian, German, English; romanised Japanese so emails stay ASCII)                                                                                                |
+| Aspect     | How it's generated                                                                                                                                                                                            |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Countries  | US 25%, IN 30%, GB 10%, DE 10%, CA 7%, JP 7%, AU 6%, SG 5%                                                                                                                                                    |
+| Roles      | 20 job titles in 10 departments; engineering and support roles most common                                                                                                                                    |
+| Salary     | Role's US median × local market factor (e.g. ×25 for INR, ×95 for JPY) × random spread (±12%, a typical in-role range) × small tenure premium, rounded to a nice number (₹10,000 / ¥10,000 / 1,000 elsewhere) |
+| Part-time  | 60% of the full-time rate                                                                                                                                                                                     |
+| Hire dates | 2012 to one month before the reference date, skewed towards recent years                                                                                                                                      |
+| History    | ~33% of people with 1+ year of tenure get 1–3 raises (4–12% each; merit, promotion or market adjustment)                                                                                                      |
+| Inactive   | ~3% are deactivated ("Resigned")                                                                                                                                                                              |
+| Gender     | 42% female, 54% male, 2% non-binary, 2% undisclosed                                                                                                                                                           |
+| Names      | Locale-appropriate (Indian, German, English; romanised Japanese so emails stay ASCII)                                                                                                                         |
 
 ## Planted patterns (so features have something real to find)
 

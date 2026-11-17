@@ -134,7 +134,10 @@ export type GenderGapGroup = {
   maleMedian: number | null;
   meanGap: number | null;
   medianGap: number | null;
+  /** Mean gap of 5% or more either way (EU Pay Transparency Directive trigger). */
   flagged: boolean;
+  /** Welch t-test at ~95%: the gap is unlikely to be chance. */
+  significant: boolean;
   suppressed: boolean;
 };
 

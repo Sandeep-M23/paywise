@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import type { CountryCode, EmployeeCreateInput, Gender } from "@paywise/shared";
+import type { CountryCode, EmployeeCreateInput, EmploymentType, Gender } from "@paywise/shared";
 import { createEmployeeService } from "../src/services/employees";
 import { createFairnessService } from "../src/services/fairness";
 import { fixedClock } from "../src/lib/clock";
@@ -21,6 +21,7 @@ async function hire(
   salaryAmount: number,
   gender: Gender = "undisclosed",
   department = "Engineering",
+  employmentType: EmploymentType = "full_time",
 ) {
   n += 1;
   const employees = createEmployeeService({ db: testDb.db, clock: fixedClock("2026-06-30") });
@@ -33,7 +34,7 @@ async function hire(
     countryCode,
     salaryAmount,
     gender,
-    employmentType: "full_time",
+    employmentType,
     hireDate: "2022-01-01",
   };
   return employees.create(input);
@@ -71,6 +72,11 @@ describe("outliers", () => {
     expect(outliers[0]!.deviation).toBeCloseTo(195_000 / 105_000, 5);
   });
 
+  it("compares full-time employees only (part-time pay isn't like-for-like)", async () => {
+    await hire("IN", "Software Engineer", 40_000, "undisclosed", "Engineering", "part_time");
+    expect(await fairness.outliers({})).toHaveLength(1);
+  });
+
   it("filters by country and job title", async () => {
     expect(await fairness.outliers({ country: "US" })).toEqual([]);
     expect(await fairness.outliers({ jobTitle: "Product Manager" })).toEqual([]);
@@ -82,6 +88,8 @@ describe("genderGaps", () => {
    * DE Software Engineer: 5 women at 90k, 5 men at 100k  -> 10% gap, flagged
    * GB Software Engineer: 5 women at 99k, 5 men at 100k  ->  1% gap, not flagged
    * US Software Engineer: 2 women, 5 men                 -> suppressed
+   * CA Software Engineer: women 60,140,90,110,100 (mean 100); men 70,150,100,120,110
+   *   (mean 110) -> 9.1% gap, flagged, but far too noisy to be significant
    */
   beforeEach(async () => {
     await testDb.reset();
@@ -95,6 +103,10 @@ describe("genderGaps", () => {
     await hire("US", "Software Engineer", 5_000_000, "female");
     await hire("US", "Software Engineer", 5_000_000, "female");
     await hire("DE", "Software Engineer", 1_000_000, "non_binary"); // not part of the comparison
+    for (const amount of [60_000, 140_000, 90_000, 110_000, 100_000]) {
+      await hire("CA", "Software Engineer", amount, "female");
+      await hire("CA", "Software Engineer", amount + 10_000, "male");
+    }
   });
 
   it("computes mean and median gaps and flags those of 5% or more", async () => {
@@ -107,6 +119,7 @@ describe("genderGaps", () => {
       femaleMean: 9_000_000,
       maleMean: 10_000_000,
       flagged: true,
+      significant: true,
       suppressed: false,
     });
     expect(de.meanGap).toBeCloseTo(0.1, 10);
@@ -132,13 +145,20 @@ describe("genderGaps", () => {
       meanGap: null,
       medianGap: null,
       flagged: false,
+      significant: false,
       suppressed: true,
     });
   });
 
-  it("lists flagged groups first, largest gap first, suppressed last", async () => {
+  it("flags a 5% mean gap even when it is not statistically significant", async () => {
+    const ca = (await fairness.genderGaps({})).find((g) => g.countryCode === "CA")!;
+    expect(ca.meanGap).toBeCloseTo(10_000 / 110_000, 10);
+    expect(ca).toMatchObject({ flagged: true, significant: false });
+  });
+
+  it("lists significant flagged gaps first, then flagged, then the rest, suppressed last", async () => {
     const groups = await fairness.genderGaps({});
-    expect(groups.map((g) => g.countryCode)).toEqual(["DE", "GB", "US"]);
+    expect(groups.map((g) => g.countryCode)).toEqual(["DE", "CA", "GB", "US"]);
   });
 });
 
