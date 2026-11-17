@@ -153,8 +153,8 @@ describe("csv export", () => {
 
   it("starts with a UTF-8 BOM and uses CRLF line endings for Excel", () => {
     const csv = toCsv(["name"], [["José"]]);
-    expect(csv.startsWith("﻿")).toBe(true);
-    expect(csv).toBe("﻿name\r\nJosé\r\n");
+    expect(csv.startsWith("\uFEFF")).toBe(true);
+    expect(csv).toBe("\uFEFFname\r\nJosé\r\n");
   });
 
   it("round-trips: an exported employee imports back to the same values", () => {
