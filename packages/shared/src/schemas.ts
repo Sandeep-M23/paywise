@@ -104,3 +104,22 @@ export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
 export type SalaryRevisionCreateInput = z.infer<typeof salaryRevisionCreateSchema>;
 export type EmployeeListQuery = z.infer<typeof employeeListQuerySchema>;
+
+export const fairnessQuerySchema = z.object({
+  country: z.enum(COUNTRY_CODES).optional(),
+  jobTitle: z.string().trim().min(1).max(100).optional(),
+});
+
+export const raiseCostRequestSchema = z.object({
+  percent: z
+    .number()
+    .positive("Raise must be greater than 0%")
+    .max(100, "Raise can be at most 100%")
+    .multipleOf(0.01, "Use at most two decimal places"),
+  country: z.enum(COUNTRY_CODES).optional(),
+  jobTitle: z.string().trim().min(1).max(100).optional(),
+  department: z.string().trim().min(1).max(100).optional(),
+});
+
+export type FairnessQuery = z.infer<typeof fairnessQuerySchema>;
+export type RaiseCostRequest = z.infer<typeof raiseCostRequestSchema>;

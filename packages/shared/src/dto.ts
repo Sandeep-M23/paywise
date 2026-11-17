@@ -103,3 +103,45 @@ export type ImportLogEntry = {
   status: "committed" | "reverted";
   createdAt: string;
 };
+
+export type PayOutlier = {
+  id: string;
+  employeeCode: string;
+  fullName: string;
+  countryCode: string;
+  jobTitle: string;
+  department: string;
+  salary: Money;
+  peerCount: number;
+  peerMedian: number;
+  lowerFence: number;
+  upperFence: number;
+  direction: "above" | "below";
+  /** Distance from the peer median as a fraction of it (0.5 = 50% above). */
+  deviation: number;
+};
+
+/** Values are null when a group is too small to report without identifying people. */
+export type GenderGapGroup = {
+  countryCode: string;
+  jobTitle: string;
+  currency: string;
+  femaleCount: number;
+  maleCount: number;
+  femaleMean: number | null;
+  maleMean: number | null;
+  femaleMedian: number | null;
+  maleMedian: number | null;
+  meanGap: number | null;
+  medianGap: number | null;
+  flagged: boolean;
+  suppressed: boolean;
+};
+
+export type RaiseCost = {
+  currency: string;
+  headcount: number;
+  currentTotal: number;
+  increase: number;
+  newTotal: number;
+};
