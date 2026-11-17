@@ -125,6 +125,13 @@ describe("formatMoney", () => {
     expect(formatMoney(9_000_000, "jpy", "en-US")).toBe("¥9,000,000");
   });
 
+  it("can hide a zero fraction, or round to whole units for aggregates", () => {
+    expect(formatMoney(180_000_000, "inr", "en-IN", "auto")).toBe("₹18,00,000");
+    expect(formatMoney(8_500_050, "usd", "en-US", "auto")).toBe("$85,000.50");
+    expect(formatMoney(294_563_242, "inr", "en-IN", "none")).toBe("₹29,45,632");
+    expect(formatMoney(9_000_000, "jpy", "en-US", "none")).toBe("¥9,000,000");
+  });
+
   it("uses locale grouping", () => {
     expect(formatMoney(180_000_000, "inr", "en-IN")).toBe("₹18,00,000.00");
   });

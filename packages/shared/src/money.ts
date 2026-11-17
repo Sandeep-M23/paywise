@@ -94,13 +94,31 @@ export function toMajorString(amount: number, currency: string): string {
   return `${padded.slice(0, -exponent)}.${padded.slice(-exponent)}`;
 }
 
-export function formatMoney(amount: number, currency: string, locale = "en-US"): string {
+/**
+ * Display formatting.
+ * - "always": every minor digit (₹18,00,000.00); for exact records.
+ * - "auto": minor digits only when not zero (₹18,00,000 but $85,000.50).
+ * - "none": rounded to whole major units; for averages and totals, where
+ *   paise and cents are noise.
+ */
+export type FractionDisplay = "always" | "auto" | "none";
+
+export function formatMoney(
+  amount: number,
+  currency: string,
+  locale = "en-US",
+  fraction: FractionDisplay = "always",
+): string {
   const exponent = currencyExponent(currency);
+  const perMajor = 10 ** exponent;
+  const value = fraction === "none" ? Math.round(amount / perMajor) * perMajor : amount;
+  const digits =
+    fraction === "always" || (fraction === "auto" && value % perMajor !== 0) ? exponent : 0;
   // Dividing to a float is fine here: this is display only, never stored or summed.
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency: currency.toUpperCase(),
-    minimumFractionDigits: exponent,
-    maximumFractionDigits: exponent,
-  }).format(amount / 10 ** exponent);
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).format(value / perMajor);
 }
