@@ -31,6 +31,9 @@ flowchart LR
 - **One source of truth for validation:** Zod schemas in `shared` are used by both the web forms and the API.
 - **Layering:** routes handle only HTTP concerns; services own the business rules and transactions; repositories own SQL. Repositories receive a `db` handle, so tests inject an in-process Postgres (PGlite).
 - **Aggregates run in SQL** (`GROUP BY`, `percentile_cont`, `width_bucket`). The API never loads 10k rows into memory to compute statistics.
+- **One origin for the browser:** the web app rewrites `/api/*` to the API deployment, so the signed session cookie is first-party: no CORS, and no third-party cookie blocking. `proxy.ts` (Next 16's middleware) only redirects visitors without a cookie to `/login`; the API verifies the session on every request.
+- **State on the client:** TanStack Query owns everything fetched (keys per resource; every write invalidates employees, insights, fairness and filter options). Directory filters, sort and page live in the **URL**, so views can be shared and reloaded. Jotai holds only transient UI state: the open employee panel, the insights country, and the import wizard (kept when navigating away).
+- **Deploy:** the API is bundled with esbuild into one Vercel Function (Hono's Vercel adapter); the web app is a standard Next.js project. See `DEPLOY.md`.
 
 ## 2. Data Model
 

@@ -1,0 +1,43 @@
+# Performance
+
+## Measured (10,000 seeded employees, local Postgres 17 in Docker, MacBook)
+
+From `npm run measure -w @paywise/api`: 7 runs each (3 for heavier calls), API over HTTP.
+
+| Call                                   | p50        | Notes                                      |
+| -------------------------------------- | ---------- | ------------------------------------------ |
+| List page 1 (25 rows)                  | 3 ms       | `LIMIT/OFFSET` + `count(*)` in parallel    |
+| List sorted by salary, page 200        | 5 ms       |                                            |
+| List filtered (IN, Engineering)        | 1 ms       | `(country_code, department)` index         |
+| Search "shar" (name/email/code)        | 10 ms      | `ILIKE`; trigram GIN index on name         |
+| Country summaries                      | 4 ms       | one `GROUP BY` with `percentile_cont`      |
+| Job titles / distribution (IN)         | 2 ms       |                                            |
+| Gender gaps / outliers (all)           | 8 ms       | one query each                             |
+| Raise cost (IN)                        | 2 ms       |                                            |
+| Export all (CSV, ~1 MB)                | 51 ms      |                                            |
+| Import preview, 9,727 rows (2.6 MB)    | 177 ms     | three set-based lookups for the whole file |
+| Import commit, 9,727 updates           | **853 ms** | was 2,637 ms; see below                    |
+| Seed 10,000 employees + ~16k revisions | ~1.0 s     | batches of 1,000 in one transaction        |
+
+The web app keeps the previous page on screen while the next loads, debounces search (300 ms), and caches aggregates for 5 minutes. Every write invalidates them.
+
+## What changed because of measuring
+
+**Import commit: 2.6 s → 0.85 s, about 9,700 statements → about 20.** The first version updated each existing employee with its own `UPDATE`. That's fine locally, but it's one network round trip per row once the API (Vercel) and database (Neon) are on different machines. Updates now go out as one `UPDATE … FROM (VALUES …)` per 1,000 rows, and new employees and salary revisions are batch-inserted the same way.
+
+**Fairness checks** weren't a speed problem but a usefulness one: see `DESIGN.md` §5.
+
+## Design choices for scale
+
+- **Never ship 10k rows to the browser**: server-side paging, sorting and filtering.
+- **Aggregates in SQL**: no endpoint loads all employees into Node to compute statistics.
+- **Indexes match the queries**: `(country_code, job_title)`, `(country_code, department)`, `status`, unique `employee_code`, unique `lower(email)`, trigram GIN on `full_name`, and `(employee_id, effective_on)` on revisions.
+- **`salary_amount` is denormalised** onto `employees` (the latest revision), so lists and aggregates never need a "latest revision per employee" subquery. It's written only in the same transaction as the revision.
+- **Import limits**: at most 10,000 rows per file and a 4.4 MB request body (Vercel Functions cap at 4.5 MB), with a clear 413 message.
+- **Small connection pool** (max 5) per function instance.
+
+## At 10× or 100× scale
+
+- **About 100k employees**: still comfortable. The `count(*)` for paging is the first thing to cost; switch to an estimate or keyset pagination for deep pages.
+- **About 1M employees, or many concurrent HR users**: precompute insights (materialized views refreshed after writes or imports), keyset pagination, and an import that streams in chunks through a background job instead of one request.
+- **Name search across 1M**: the trigram index already covers `ILIKE` on names; add trigram indexes on email and code if that search becomes common.
