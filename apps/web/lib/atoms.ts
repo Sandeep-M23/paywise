@@ -1,5 +1,6 @@
 import { atom } from "jotai";
 import type { ImportField, ImportPreview, ImportResult } from "@paywise/shared";
+import type { ParsedFile } from "./import-file";
 
 /*
  * Jotai holds transient UI state. Directory filters live in the URL instead
@@ -15,11 +16,13 @@ export const insightsCountryAtom = atom<string>("IN");
 
 export type ImportStep = "upload" | "map" | "preview" | "done";
 
+/** Survives navigating away and back, so a half-finished import isn't lost. */
+
 export type ImportWizard = {
   step: ImportStep;
   filename: string;
   headers: string[];
-  records: Record<string, string>[];
+  records: ParsedFile["records"];
   mapping: Record<ImportField, string | null>;
   preview: ImportPreview | null;
   result: ImportResult | null;
