@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Wallet } from "lucide-react";
+import { Logo } from "@/components/app/logo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,12 +37,7 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-sm">
       <CardHeader>
-        <div className="mb-2 flex items-center gap-2 font-semibold lg:hidden">
-          <span className="bg-primary text-primary-foreground grid size-7 place-items-center rounded-md">
-            <Wallet className="size-4" aria-hidden />
-          </span>
-          Paywise
-        </div>
+        <Logo className="mb-3 lg:hidden" />
         <CardTitle>Sign in</CardTitle>
         <CardDescription>Salary data is confidential. HR access only.</CardDescription>
       </CardHeader>

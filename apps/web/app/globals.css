@@ -51,88 +51,88 @@
 }
 
 /*
- * Theme tokens. Layered neutral surfaces in the style of the shadcn/ui Figma
- * kit and Vercel's dashboard: a slightly cool canvas, white (or raised dark)
- * cards, hairline borders, one brand blue. Every text/background pair below
+ * Theme tokens, after the Charts Mega UI Kit references: near-black layered
+ * surfaces in dark mode, a violet accent with a lime highlight for positive
+ * values, pill controls and roomy rounded cards. Every text/background pair below
  * clears WCAG AA (4.5:1) in its theme.
  */
 :root {
   color-scheme: light;
-  --canvas: #f6f7f9; /* page background behind cards */
+  --canvas: #f5f5f8;
   --background: #ffffff;
-  --foreground: #0f1729;
+  --foreground: #111018;
   --card: #ffffff;
-  --card-foreground: #0f1729;
+  --card-foreground: #111018;
   --popover: #ffffff;
-  --popover-foreground: #0f1729;
-  --primary: #256abf; /* brand blue (dataviz ramp 500): 5.3:1 with white text */
+  --popover-foreground: #111018;
+  --primary: #7c3aed; /* violet 600: 5.7:1 with white text */
   --primary-foreground: #ffffff;
-  --secondary: #f1f3f6;
-  --secondary-foreground: #0f1729;
-  --muted: #f1f3f6;
-  --muted-foreground: #5b6474; /* 5.9:1 on white */
-  --accent: #eef2f8;
-  --accent-foreground: #0f1729;
+  --secondary: #f2f1f6;
+  --secondary-foreground: #111018;
+  --muted: #f2f1f6;
+  --muted-foreground: #5e5c6b; /* 6.3:1 on white */
+  --accent: #f3efff;
+  --accent-foreground: #2e1065;
   --destructive: #c4321f;
-  --success: #12754b;
+  --success: #3f6b0b; /* lime 800: 6.2:1 */
   --warning: #a35200;
-  --border: #e4e7ec;
-  --input: #d9dde4;
-  --ring: #3987e5;
-  --scrollbar: #c5cbd5;
-  --chart-1: #2a78d6; /* dataviz reference blue 450 */
+  --border: #e7e5ee;
+  --input: #dcdae4;
+  --ring: #8b5cf6;
+  --scrollbar: #cbc8d6;
+  --chart-1: #7c3aed; /* validated: dataviz checks pass on white */
   --chart-2: #8b95a5;
   --chart-3: #5b6474;
   --chart-4: #3d4552;
   --chart-5: #262c36;
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #0f1729;
-  --sidebar-primary: #256abf;
+  --sidebar-foreground: #111018;
+  --sidebar-primary: #7c3aed;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef2f8;
-  --sidebar-accent-foreground: #0f1729;
-  --sidebar-border: #e4e7ec;
-  --sidebar-ring: #3987e5;
+  --sidebar-accent: #f3efff;
+  --sidebar-accent-foreground: #2e1065;
+  --sidebar-border: #e7e5ee;
+  --sidebar-ring: #8b5cf6;
 }
 
 .dark {
   color-scheme: dark; /* native controls (date pickers, scrollbars) follow the theme */
-  --canvas: #0a0c10;
-  --background: #0f1218;
-  --foreground: #e8ecf2;
-  --card: #12161d; /* raised a step above the canvas instead of using shadows */
-  --card-foreground: #e8ecf2;
-  --popover: #171c25;
-  --popover-foreground: #e8ecf2;
-  --primary: #6da7ec; /* lighter brand blue on dark, with dark text: 7.6:1 */
-  --primary-foreground: #0b1a2e;
-  --secondary: #1b212c;
-  --secondary-foreground: #e8ecf2;
-  --muted: #1b212c;
-  --muted-foreground: #9aa4b5; /* 7.2:1 on the card surface */
-  --accent: #1c2533;
-  --accent-foreground: #e8ecf2;
+  --canvas: #070708;
+  --background: #0c0c0e;
+  --foreground: #f2f1f6;
+  --card: #141416; /* one step above the canvas, no shadows */
+  --card-foreground: #f2f1f6;
+  --popover: #1a1a1e;
+  --popover-foreground: #f2f1f6;
+  --primary: #a78bfa; /* violet 400 with near-black text: 8.9:1 */
+  --primary-foreground: #17093a;
+  --secondary: #1d1d22;
+  --secondary-foreground: #f2f1f6;
+  --muted: #1d1d22;
+  --muted-foreground: #a1a0ad; /* 7.4:1 on cards */
+  --accent: #231b38;
+  --accent-foreground: #ede9fe;
   --destructive: #f2705e;
-  --success: #4cc38a;
+  --success: #bef264; /* lime highlight */
   --warning: #f0b44c;
-  --border: rgb(255 255 255 / 0.08);
-  --input: rgb(255 255 255 / 0.14);
-  --ring: #5598e7;
-  --scrollbar: #2c3340;
-  --chart-1: #3987e5; /* blue 400 on dark */
+  --border: rgb(255 255 255 / 0.07);
+  --input: rgb(255 255 255 / 0.12);
+  --ring: #8b5cf6;
+  --scrollbar: #2a2a31;
+  --chart-1: #9b7bf7; /* validated: dataviz checks pass on #141416 */
   --chart-2: #6b7586;
   --chart-3: #8b95a5;
   --chart-4: #aab3c2;
   --chart-5: #c9d0db;
-  --sidebar: #0f1218;
-  --sidebar-foreground: #e8ecf2;
-  --sidebar-primary: #6da7ec;
-  --sidebar-primary-foreground: #0b1a2e;
-  --sidebar-accent: #1c2533;
-  --sidebar-accent-foreground: #e8ecf2;
-  --sidebar-border: rgb(255 255 255 / 0.08);
-  --sidebar-ring: #5598e7;
+  --sidebar: #0c0c0e;
+  --sidebar-foreground: #f2f1f6;
+  --sidebar-primary: #a78bfa;
+  --sidebar-primary-foreground: #17093a;
+  --sidebar-accent: #231b38;
+  --sidebar-accent-foreground: #ede9fe;
+  --sidebar-border: rgb(255 255 255 / 0.07);
+  --sidebar-ring: #8b5cf6;
 }
 
 @layer base {

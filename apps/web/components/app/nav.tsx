@@ -13,12 +13,13 @@ import {
   Menu,
   Scale,
   Users,
-  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { CommandPalette } from "./command-palette";
+import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 
 const LINKS = [
@@ -32,11 +33,8 @@ const LINKS = [
 
 function Brand() {
   return (
-    <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-      <span className="bg-primary text-primary-foreground grid size-7 place-items-center rounded-md">
-        <Wallet className="size-4" aria-hidden />
-      </span>
-      Paywise
+    <Link href="/" aria-label="Paywise home">
+      <Logo />
     </Link>
   );
 }
@@ -109,7 +107,8 @@ export function Nav() {
         <div className="flex h-14 items-center border-b px-4">
           <Brand />
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-3">
+          <CommandPalette />
           <NavLinks />
         </div>
         <Account />
@@ -126,7 +125,7 @@ export function Nav() {
           <SheetTitle className="flex h-14 items-center border-b px-4">
             <Brand />
           </SheetTitle>
-          <div className="flex-1 p-3">
+          <div className="flex flex-1 flex-col gap-4 p-3">
             <NavLinks onNavigate={() => setOpen(false)} />
           </div>
           <Account />

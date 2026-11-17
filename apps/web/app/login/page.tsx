@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BarChart3, FileUp, History, Scale } from "lucide-react";
+import { LogoMark } from "@/components/app/logo";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -15,8 +16,10 @@ const POINTS = [
 export default function LoginPage() {
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <section className="bg-primary text-primary-foreground hidden flex-col justify-between p-12 lg:flex">
-        <p className="text-lg font-semibold tracking-tight">Paywise</p>
+      <section className="relative hidden flex-col justify-between overflow-hidden bg-[radial-gradient(120%_80%_at_0%_0%,#8b5cf6_0%,#4c1d95_45%,#120a24_100%)] p-12 text-white lg:flex">
+        <span className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
+          <LogoMark className="size-9" /> Paywise
+        </span>
         <div className="max-w-md">
           <h1 className="text-3xl font-semibold tracking-tight">Salary data you can trust.</h1>
           <ul className="mt-8 flex flex-col gap-4">
