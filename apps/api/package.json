@@ -13,8 +13,10 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
     "@faker-js/faker": "^10.6.0",
+    "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",
+    "papaparse": "^5.7.1",
     "tsx": "^4.23.15"
   },
   "dependencies": {
