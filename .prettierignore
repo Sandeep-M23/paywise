@@ -6,3 +6,4 @@ package-lock.json
 **/drizzle/meta
 apps/web/components/ui
 apps/web/.next
+apps/api/api
