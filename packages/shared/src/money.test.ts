@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { currencyExponent, formatMoney, parseMoneyInput, toMajorString } from "./money";
+import {
+  currencyExponent,
+  formatMoney,
+  formatMoneyParts,
+  parseMoneyInput,
+  toMajorString,
+} from "./money";
 
 describe("currencyExponent", () => {
   it("defaults to 2 decimal places", () => {
@@ -134,5 +140,19 @@ describe("formatMoney", () => {
 
   it("uses locale grouping", () => {
     expect(formatMoney(180_000_000, "inr", "en-IN")).toBe("₹18,00,000.00");
+  });
+});
+
+describe("formatMoneyParts", () => {
+  it("splits symbol, number and fraction and joins back to formatMoney", () => {
+    const parts = formatMoneyParts(8_500_050, "usd", "en-US");
+    expect(parts.map((p) => p.value).join("")).toBe(formatMoney(8_500_050, "usd", "en-US"));
+    expect(parts.filter((p) => p.type === "currency").map((p) => p.value)).toEqual(["$"]);
+    expect(
+      parts
+        .filter((p) => p.type === "fraction")
+        .map((p) => p.value)
+        .join(""),
+    ).toBe(".50");
   });
 });

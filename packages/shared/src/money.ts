@@ -122,3 +122,35 @@ export function formatMoney(
     maximumFractionDigits: digits,
   }).format(value / perMajor);
 }
+
+/**
+ * The same formatting as formatMoney, split into parts so a UI can style the
+ * currency symbol and fraction separately (e.g. dim them in a hero number).
+ */
+export function formatMoneyParts(
+  amount: number,
+  currency: string,
+  locale = "en-US",
+  fraction: FractionDisplay = "always",
+): { type: "currency" | "fraction" | "number"; value: string }[] {
+  const exponent = currencyExponent(currency);
+  const perMajor = 10 ** exponent;
+  const value = fraction === "none" ? Math.round(amount / perMajor) * perMajor : amount;
+  const digits =
+    fraction === "always" || (fraction === "auto" && value % perMajor !== 0) ? exponent : 0;
+  const parts = new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  }).formatToParts(value / perMajor);
+  return parts.map((part) => ({
+    type:
+      part.type === "currency"
+        ? "currency"
+        : part.type === "fraction" || part.type === "decimal"
+          ? "fraction"
+          : "number",
+    value: part.value,
+  }));
+}
