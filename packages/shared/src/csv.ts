@@ -274,7 +274,7 @@ export function unescapeCsvCell(value: string): string {
 /** UTF-8 BOM so Excel detects the encoding; CRLF because that's what Excel writes. */
 export function toCsv(headers: readonly string[], rows: string[][]): string {
   const lines = [headers, ...rows].map((cells) => cells.map(escapeCsvCell).join(","));
-  return `﻿${lines.join("\r\n")}\r\n`;
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
 }
 
 // --- Import API contract -------------------------------------------------------
