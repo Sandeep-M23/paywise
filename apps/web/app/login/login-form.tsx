@@ -27,7 +27,7 @@ export function LoginForm() {
       });
       // Only allow same-site relative paths, never an open redirect.
       const next = searchParams.get("next");
-      window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/employees");
+      window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not sign in. Try again.");
       setPending(false);
@@ -35,10 +35,13 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-sm">
       <CardHeader>
-        <div className="mb-2 flex items-center gap-2 font-semibold">
-          <Wallet className="text-primary size-5" aria-hidden /> Paywise
+        <div className="mb-2 flex items-center gap-2 font-semibold lg:hidden">
+          <span className="bg-primary text-primary-foreground grid size-7 place-items-center rounded-md">
+            <Wallet className="size-4" aria-hidden />
+          </span>
+          Paywise
         </div>
         <CardTitle>Sign in</CardTitle>
         <CardDescription>Salary data is confidential. HR access only.</CardDescription>
