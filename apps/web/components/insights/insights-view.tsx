@@ -1,5 +1,6 @@
 "use client";
 
+import { BarChart3, Sigma, Target, Users, Wallet } from "lucide-react";
 import { useAtom } from "jotai";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { currencyForCountry, type CountryCode } from "@paywise/shared";
@@ -22,8 +23,10 @@ import {
 } from "@/components/ui/table";
 import { scrollTable, stickyHeader } from "@/components/app/sticky";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { HeroMoney } from "@/components/app/hero-money";
+import { CountryLabel, DepartmentLabel } from "@/components/data/visuals";
 import { insightsCountryAtom } from "@/lib/atoms";
-import { compactMoney, countryName, money } from "@/lib/format";
+import { compactMoney, money } from "@/lib/format";
 import {
   useCountrySummaries,
   useDepartmentSummaries,
@@ -53,6 +56,7 @@ export function InsightsView() {
     <>
       <PageHeader
         title="Pay insights"
+        icon={BarChart3}
         description="How we pay people, in each country's own currency. Active employees only; medians match Excel's PERCENTILE.INC."
       />
 
@@ -79,7 +83,9 @@ export function InsightsView() {
                   active && "border-primary ring-primary/20 ring-2",
                 )}
               >
-                <span className="text-sm font-medium">{countryName(c.countryCode)}</span>
+                <span className="text-sm font-medium">
+                  <CountryLabel code={c.countryCode} />
+                </span>
                 <span className="text-muted-foreground text-xs tabular-nums">
                   {c.headcount.toLocaleString()} ·{" "}
                   {compactMoney(c.median, c.currency, c.countryCode)} median
@@ -90,18 +96,64 @@ export function InsightsView() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Employees" value={summary ? summary.headcount.toLocaleString() : "–"} />
-        <Stat label="Median salary" value={summary ? fmt(summary.median) : "–"} />
         <Stat
+          icon={Users}
+          label="Employees"
+          value={summary ? summary.headcount.toLocaleString() : "–"}
+        />
+        <Stat
+          icon={Target}
+          label="Median salary"
+          value={
+            summary ? (
+              <HeroMoney
+                amount={summary.median}
+                currency={currency}
+                countryCode={country}
+                fraction="none"
+              />
+            ) : (
+              "–"
+            )
+          }
+        />
+        <Stat
+          icon={Sigma}
           label="Average salary"
-          value={summary ? fmt(summary.mean) : "–"}
+          value={
+            summary ? (
+              <HeroMoney
+                amount={summary.mean}
+                currency={currency}
+                countryCode={country}
+                fraction="none"
+              />
+            ) : (
+              "–"
+            )
+          }
           hint={
             summary && summary.mean > summary.median
               ? "Above the median: a few high earners pull the average up."
               : undefined
           }
         />
-        <Stat label="Annual payroll" value={summary ? fmt(summary.total) : "–"} />
+        <Stat
+          icon={Wallet}
+          label="Annual payroll"
+          value={
+            summary ? (
+              <HeroMoney
+                amount={summary.total}
+                currency={currency}
+                countryCode={country}
+                fraction="none"
+              />
+            ) : (
+              "–"
+            )
+          }
+        />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -282,7 +334,9 @@ export function InsightsView() {
                   {departments.isLoading && <LoadingRows columns={5} />}
                   {departments.data?.map((d) => (
                     <TableRow key={d.department}>
-                      <TableCell>{d.department}</TableCell>
+                      <TableCell>
+                        <DepartmentLabel name={d.department} />
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">{d.headcount}</TableCell>
                       <TableCell className="text-right tabular-nums">{short(d.median)}</TableCell>
                       <TableCell className="text-right tabular-nums">{short(d.mean)}</TableCell>
@@ -312,7 +366,9 @@ export function InsightsView() {
                       className={cn("cursor-pointer", c.countryCode === country && "bg-accent")}
                       onClick={() => setCountry(c.countryCode)}
                     >
-                      <TableCell className="font-medium">{countryName(c.countryCode)}</TableCell>
+                      <TableCell className="font-medium">
+                        <CountryLabel code={c.countryCode} />
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {c.headcount.toLocaleString()}
                       </TableCell>

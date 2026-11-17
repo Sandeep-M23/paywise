@@ -14,6 +14,17 @@
 | 5   | Research real HR problems; broader search; add CSV import                                    | 12 sourced HR problems; CSV import UX and security research   | Picked 5 features tied to problems, with a cut order (`RESEARCH.md`)                                                 |
 | 6   | "Write RESEARCH.md, update PLAN.md", then "let's start" / "let me know once it is completed" | Requirements, design, then the build                          | Reviewed scope: soft delete, `employee_code` as import key, skip-error-rows policy                                   |
 
+## Phase 3: UI/UX iterations (user-directed)
+
+| My prompt                                                                             | What changed                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| "Make the UI and UX better"                                                           | Reviewed every page at desktop and phone width first: the sidebar took half a phone screen. Added a responsive shell, an Overview page, peer comparison in the employee panel, and less scrolling on insights and fairness                                   |
+| "Improve scroll, light and dark mode; take inspiration from a real Figma file"        | The AI had no Figma access and said so, then used public dashboard-kit conventions. Theme tokens were rewritten for both modes with AA contrast, plus sticky table headers, thin themed scrollbars and smooth scrolling                                      |
+| "Add infinite scroll" + Muzli and Dribbble links                                      | Infinite and **virtualised** directory (infinite alone would grow to 10k DOM rows). Muzli frames were read in headless Chrome: violet and lime accents, pill controls, hero numbers. The Dribbble shot never rendered without a login, which the AI reported |
+| "Icons across the platform, better logo, buttons and selects; more shadcn components" | Custom logo mark; icon badges, flags, department icons, avatars; searchable filter comboboxes, status toggle group, ⌘K command palette, HoverCard previews, Progress, Kbd                                                                                    |
+
+UI work was checked by screenshotting every page in both themes on desktop and phone after each change. That caught a `new Date()` render error under Cache Components, a crashed command palette (missing `<Command>` wrapper), stale CSS from the dev server, and an invisible toggle state.
+
 ## Phase 2: Build (test-first for core logic)
 
 Shared logic (money, schemas, CSV helpers), the employee service, insights, the seed generator, import and fairness were each specified as a failing `test:` commit before the `feat:` commit. Fixtures are small and hand-computed (e.g. a 6-person group whose quartiles and fences are worked out in a comment).

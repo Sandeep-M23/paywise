@@ -14,16 +14,24 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { PageHeader } from "@/components/app/page-header";
 import { EmployeeFormDialog } from "@/components/employees/employee-form-dialog";
 import { EmployeeSheet } from "@/components/employees/employee-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { CountryLabel, EmployeeAvatar, IconBadge } from "@/components/data/visuals";
 import { insightsCountryAtom, selectedEmployeeIdAtom } from "@/lib/atoms";
+import { useClientNow } from "@/lib/hooks/use-client-now";
 import { countryName, money, percent } from "@/lib/format";
 import { useCountrySummaries, useGenderGaps, useImportLog, useOutliers } from "@/lib/queries";
+
+function greeting(now: Date | null) {
+  if (!now) return "Welcome";
+  const hour = now.getHours();
+  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+}
 
 /** The HR manager's starting point: where things stand and what needs a look. */
 export function OverviewView() {
@@ -31,6 +39,7 @@ export function OverviewView() {
   const selectEmployee = useSetAtom(selectedEmployeeIdAtom);
   const setInsightsCountry = useSetAtom(insightsCountryAtom);
   const [adding, setAdding] = useState(false);
+  const now = useClientNow();
   const countries = useCountrySummaries();
   const gaps = useGenderGaps({});
   const outliers = useOutliers({});
@@ -43,22 +52,31 @@ export function OverviewView() {
 
   return (
     <>
-      <PageHeader
-        title="Overview"
-        description="Where pay stands today, and what needs a look."
-        actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link href="/import">
-                <FileUp className="size-4" aria-hidden /> Import CSV
-              </Link>
-            </Button>
-            <Button onClick={() => setAdding(true)}>
-              <Plus className="size-4" aria-hidden /> Add employee
-            </Button>
-          </>
-        }
-      />
+      <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-muted-foreground h-5 text-sm">
+            {now?.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+          </p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+            {greeting(now)}, <span className="text-muted-foreground">HR team</span>
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            {headcount === undefined
+              ? "Loading…"
+              : `${headcount.toLocaleString()} active employees across ${countries.data?.length} countries.`}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/import">
+              <FileUp className="size-4" aria-hidden /> Import CSV
+            </Link>
+          </Button>
+          <Button onClick={() => setAdding(true)}>
+            <Plus className="size-4" aria-hidden /> Add employee
+          </Button>
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi
@@ -74,7 +92,7 @@ export function OverviewView() {
           value={gaps.data ? review.length : undefined}
           hint="≥ 5% and unlikely to be chance"
           href="/fairness"
-          tone={review.length > 0 ? "warn" : undefined}
+          tone={review.length > 0 ? "warning" : undefined}
         />
         <Kpi
           icon={TrendingUp}
@@ -120,16 +138,18 @@ export function OverviewView() {
                   setInsightsCountry(c.countryCode);
                   router.push("/insights");
                 }}
-                className="hover:bg-muted group grid grid-cols-[7.5rem_1fr_auto] items-center gap-3 rounded-md px-2 py-2 text-left text-sm"
+                className="hover:bg-muted group grid grid-cols-[9rem_1fr_auto] items-center gap-3 rounded-xl px-2 py-2 text-left text-sm"
               >
-                <span className="truncate font-medium">{countryName(c.countryCode)}</span>
-                <span className="flex items-center gap-2">
-                  <span
-                    className="bg-primary/70 h-2 rounded-full"
-                    style={{ width: `${(c.headcount / largest) * 100}%` }}
-                    aria-hidden
+                <span className="truncate font-medium">
+                  <CountryLabel code={c.countryCode} />
+                </span>
+                <span className="flex items-center gap-3">
+                  <Progress
+                    value={(c.headcount / largest) * 100}
+                    className="h-2"
+                    aria-label={`${countryName(c.countryCode)} headcount`}
                   />
-                  <span className="text-muted-foreground shrink-0 tabular-nums">
+                  <span className="text-muted-foreground w-12 shrink-0 text-right tabular-nums">
                     {c.headcount.toLocaleString()}
                   </span>
                 </span>
@@ -198,10 +218,13 @@ export function OverviewView() {
                   onClick={() => selectEmployee(o.id)}
                   className="hover:bg-muted flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm"
                 >
-                  <span className="min-w-0 truncate">
-                    {o.fullName}{" "}
-                    <span className="text-muted-foreground">
-                      · {o.jobTitle}, {o.countryCode}
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <EmployeeAvatar name={o.fullName} className="size-7" />
+                    <span className="min-w-0 truncate">
+                      {o.fullName}{" "}
+                      <span className="text-muted-foreground">
+                        · {o.jobTitle}, {o.countryCode}
+                      </span>
                     </span>
                   </span>
                   <span className="shrink-0 tabular-nums">
@@ -234,7 +257,7 @@ export function OverviewView() {
 }
 
 function Kpi({
-  icon: Icon,
+  icon,
   label,
   value,
   hint,
@@ -246,25 +269,26 @@ function Kpi({
   value: string | number | undefined;
   hint?: string;
   href: string;
-  tone?: "warn";
+  tone?: "warning";
 }) {
   return (
     <Link href={href} className="group">
-      <Card className="group-hover:border-primary/40 h-full gap-1 py-4 transition-colors">
-        <CardContent className="flex flex-col gap-1 px-4">
-          <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-            <Icon className="size-3.5" aria-hidden /> {label}
-          </span>
-          {value === undefined ? (
-            <Skeleton className="mt-1 h-7 w-20" />
-          ) : (
-            <span
-              className={`text-2xl font-semibold tabular-nums ${tone === "warn" ? "text-warning" : ""}`}
-            >
-              {value}
-            </span>
-          )}
-          {hint && <span className="text-muted-foreground truncate text-xs">{hint}</span>}
+      <Card className="group-hover:ring-primary/30 h-full gap-0 py-4 transition-shadow">
+        <CardContent className="flex items-start justify-between gap-3 px-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <span className="text-muted-foreground text-xs font-medium">{label}</span>
+            {value === undefined ? (
+              <Skeleton className="mt-1 h-8 w-20" />
+            ) : (
+              <span
+                className={`text-3xl font-semibold tracking-tight tabular-nums ${tone === "warning" ? "text-warning" : ""}`}
+              >
+                {value}
+              </span>
+            )}
+            {hint && <span className="text-muted-foreground truncate text-xs">{hint}</span>}
+          </div>
+          <IconBadge icon={icon} tone={tone ?? "primary"} />
         </CardContent>
       </Card>
     </Link>

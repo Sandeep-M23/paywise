@@ -1,20 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Briefcase, Building2, Globe, Search, UserCheck, Users, UserX, X } from "lucide-react";
+import { FilterCombobox } from "@/components/data/filter-combobox";
+import { countryFlag, departmentIcon } from "@/components/data/visuals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Kbd } from "@/components/ui/kbd";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { useFilterOptions, type DirectoryFilters as Filters } from "@/lib/queries";
-
-const ALL = "__all__";
 
 export function DirectoryFilters({
   query,
@@ -50,109 +45,102 @@ export function DirectoryFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the debounced text
   }, [debounced]);
 
-  const filtered = Boolean(
-    query.q || query.country || query.jobTitle || query.department || query.status !== "active",
-  );
+  const active = [query.q, query.country, query.jobTitle, query.department].filter(Boolean).length;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative w-full sm:max-w-xs">
-        <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" aria-hidden />
-        <Input
-          ref={searchRef}
-          type="search"
-          aria-label="Search by name, email or employee code"
-          placeholder="Search name, email or code"
-          className="bg-card pr-9 pl-8"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <kbd className="text-muted-foreground bg-muted pointer-events-none absolute top-2 right-2 hidden rounded border px-1.5 font-mono text-[10px] leading-5 sm:block">
-          /
-        </kbd>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <div className="relative w-full lg:max-w-sm">
+          <Search
+            className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2"
+            aria-hidden
+          />
+          <Input
+            ref={searchRef}
+            type="search"
+            aria-label="Search by name, email or employee code"
+            placeholder="Search name, email or code"
+            className="bg-card pr-10 pl-9 shadow-xs"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Kbd className="absolute top-1/2 right-2.5 hidden -translate-y-1/2 sm:inline-flex">/</Kbd>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:flex lg:flex-1">
+          <FilterCombobox
+            className="lg:w-48"
+            label="Country"
+            icon={Globe}
+            value={query.country}
+            options={(options?.countries ?? []).map((c) => ({
+              value: c.code,
+              label: c.name,
+              icon: <span aria-hidden>{countryFlag(c.code)}</span>,
+            }))}
+            onChange={(country) => onChange({ country: country as Filters["country"] })}
+          />
+          <FilterCombobox
+            className="lg:w-52"
+            label="Department"
+            icon={Building2}
+            value={query.department}
+            options={(options?.departments ?? []).map((d) => {
+              const Icon = departmentIcon(d);
+              return {
+                value: d,
+                label: d,
+                icon: <Icon className="text-muted-foreground size-4" aria-hidden />,
+              };
+            })}
+            onChange={(department) => onChange({ department })}
+          />
+          <FilterCombobox
+            className="lg:w-56"
+            label="Job title"
+            icon={Briefcase}
+            value={query.jobTitle}
+            options={(options?.jobTitles ?? []).map((t) => ({ value: t, label: t }))}
+            onChange={(jobTitle) => onChange({ jobTitle })}
+          />
+        </div>
       </div>
-      <FilterSelect
-        label="Country"
-        allLabel="All countries"
-        value={query.country}
-        options={(options?.countries ?? []).map((c) => ({ value: c.code, label: c.name }))}
-        onChange={(country) => onChange({ country: country as Filters["country"] })}
-      />
-      <FilterSelect
-        label="Department"
-        allLabel="All departments"
-        value={query.department}
-        options={(options?.departments ?? []).map((d) => ({ value: d, label: d }))}
-        onChange={(department) => onChange({ department })}
-      />
-      <FilterSelect
-        label="Job title"
-        allLabel="All job titles"
-        value={query.jobTitle}
-        options={(options?.jobTitles ?? []).map((t) => ({ value: t, label: t }))}
-        onChange={(jobTitle) => onChange({ jobTitle })}
-      />
-      <Select
-        value={query.status}
-        onValueChange={(status) => onChange({ status: status as Filters["status"] })}
-      >
-        <SelectTrigger className="bg-card w-[calc(50%-0.25rem)] sm:w-32" aria-label="Status">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="active">Active</SelectItem>
-          <SelectItem value="inactive">Inactive</SelectItem>
-          <SelectItem value="all">All</SelectItem>
-        </SelectContent>
-      </Select>
-      {filtered && (
-        <Button
-          variant="ghost"
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ToggleGroup
+          type="single"
+          variant="outline"
           size="sm"
-          onClick={() => {
-            setSearch("");
-            onChange({
-              q: undefined,
-              country: undefined,
-              jobTitle: undefined,
-              department: undefined,
-              status: "active",
-            });
-          }}
+          value={query.status}
+          onValueChange={(status) => status && onChange({ status: status as Filters["status"] })}
+          aria-label="Employment status"
         >
-          <X className="size-4" aria-hidden /> Clear
-        </Button>
-      )}
+          <ToggleGroupItem value="active" aria-label="Active employees">
+            <UserCheck className="size-4" aria-hidden /> Active
+          </ToggleGroupItem>
+          <ToggleGroupItem value="inactive" aria-label="Inactive employees">
+            <UserX className="size-4" aria-hidden /> Inactive
+          </ToggleGroupItem>
+          <ToggleGroupItem value="all" aria-label="All employees">
+            <Users className="size-4" aria-hidden /> All
+          </ToggleGroupItem>
+        </ToggleGroup>
+        {active > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              onChange({
+                q: undefined,
+                country: undefined,
+                jobTitle: undefined,
+                department: undefined,
+              });
+            }}
+          >
+            <X className="size-4" aria-hidden /> Clear {active} filter{active > 1 ? "s" : ""}
+          </Button>
+        )}
+      </div>
     </div>
-  );
-}
-
-function FilterSelect({
-  label,
-  allLabel,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  allLabel: string;
-  value: string | undefined;
-  options: { value: string; label: string }[];
-  onChange: (value: string | undefined) => void;
-}) {
-  return (
-    <Select value={value ?? ALL} onValueChange={(v) => onChange(v === ALL ? undefined : v)}>
-      <SelectTrigger className="bg-card w-[calc(50%-0.25rem)] sm:w-44" aria-label={label}>
-        <SelectValue placeholder={label} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ALL}>{allLabel}</SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }

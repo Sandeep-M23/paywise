@@ -1,5 +1,6 @@
 "use client";
 
+import { Calculator } from "lucide-react";
 import { useState } from "react";
 import { raiseCostRequestSchema, type CountryCode } from "@paywise/shared";
 import { PageHeader } from "@/components/app/page-header";
@@ -50,6 +51,7 @@ export function RaisePlanner() {
     <>
       <PageHeader
         title="Raise planner"
+        icon={Calculator}
         description="What would a raise cost? A what-if only; nothing is saved."
       />
       <Card>
@@ -127,13 +129,13 @@ export function RaisePlanner() {
                     {row.headcount.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {money(row.currentTotal, row.currency)}
+                    {money(row.currentTotal, row.currency, undefined, "none")}
                   </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">
-                    +{money(row.increase, row.currency)}
+                  <TableCell className="text-success text-right font-semibold tabular-nums">
+                    +{money(row.increase, row.currency, undefined, "none")}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {money(row.newTotal, row.currency)}
+                    {money(row.newTotal, row.currency, undefined, "none")}
                   </TableCell>
                 </TableRow>
               ))}

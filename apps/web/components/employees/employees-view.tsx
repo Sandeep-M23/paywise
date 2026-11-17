@@ -2,7 +2,7 @@
 
 import { useSetAtom } from "jotai";
 import { useState } from "react";
-import { Download, Plus } from "lucide-react";
+import { Download, Plus, Users } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { toQueryString } from "@/lib/api";
@@ -29,6 +29,7 @@ export function EmployeesView() {
     <>
       <PageHeader
         title="Employees"
+        icon={Users}
         description="Search, filter and maintain salary records. Select a row to see history and make changes."
         actions={
           <>

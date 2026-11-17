@@ -15,8 +15,10 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HeroMoney } from "@/components/app/hero-money";
+import { CountryLabel, DepartmentLabel, EmployeeAvatar } from "@/components/data/visuals";
 import { selectedEmployeeIdAtom } from "@/lib/atoms";
-import { countryName, date, humanize, money } from "@/lib/format";
+import { date, humanize } from "@/lib/format";
 import { useEmployee } from "@/lib/queries";
 import { ChangeSalaryDialog } from "./change-salary-dialog";
 import { DeactivateDialog } from "./deactivate-dialog";
@@ -51,20 +53,27 @@ export function EmployeeSheet() {
           <>
             {/* Name, salary and actions stay in view while the history scrolls. */}
             <div className="bg-popover sticky top-0 z-10 flex flex-col gap-4 border-b px-4 pt-4 pb-4">
-              <SheetHeader className="p-0 pr-8">
-                <SheetTitle className="flex items-center gap-2">
-                  {employee.fullName}
-                  {employee.status === "inactive" && <Badge variant="secondary">Inactive</Badge>}
-                </SheetTitle>
-                <SheetDescription>
-                  {employee.jobTitle} · {employee.department} · {countryName(employee.countryCode)}
-                </SheetDescription>
+              <SheetHeader className="flex-row items-center gap-3 p-0 pr-8">
+                <EmployeeAvatar name={employee.fullName} className="size-11 text-sm" />
+                <div className="min-w-0">
+                  <SheetTitle className="flex items-center gap-2 text-base">
+                    {employee.fullName}
+                    {employee.status === "inactive" && <Badge variant="secondary">Inactive</Badge>}
+                  </SheetTitle>
+                  <SheetDescription className="flex flex-wrap items-center gap-x-2">
+                    {employee.jobTitle} · <DepartmentLabel name={employee.department} /> ·{" "}
+                    <CountryLabel code={employee.countryCode} />
+                  </SheetDescription>
+                </div>
               </SheetHeader>
               <div>
                 <p className="text-muted-foreground text-xs uppercase">Annual salary</p>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {money(employee.salary.amount, employee.salary.currency, employee.countryCode)}
-                </p>
+                <HeroMoney
+                  amount={employee.salary.amount}
+                  currency={employee.salary.currency}
+                  countryCode={employee.countryCode}
+                  className="text-3xl"
+                />
               </div>
               {employee.status === "active" ? (
                 <div className="flex flex-wrap gap-2">

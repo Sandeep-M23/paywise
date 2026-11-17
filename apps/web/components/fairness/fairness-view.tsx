@@ -1,5 +1,6 @@
 "use client";
 
+import { AlertTriangle, EyeOff, Layers, Scale } from "lucide-react";
 import { useSetAtom } from "jotai";
 import { useState } from "react";
 import type { CountryCode } from "@paywise/shared";
@@ -19,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CountryLabel, EmployeeAvatar } from "@/components/data/visuals";
 import { selectedEmployeeIdAtom } from "@/lib/atoms";
 import { compactMoney, countryName, money, percent } from "@/lib/format";
 import { useGenderGaps, useOutliers } from "@/lib/queries";
@@ -38,6 +40,7 @@ export function FairnessView() {
     <>
       <PageHeader
         title="Pay fairness"
+        icon={Scale}
         description="Compares full-time employees with peers in the same job title and country."
         actions={<CountryPicker value={country} onChange={setCountry} allowAll />}
       />
@@ -62,13 +65,17 @@ export function FairnessView() {
             </p>
           </details>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Stat label="Groups compared" value={gaps.data ? reported.length : "–"} />
+            <Stat icon={Layers} label="Groups compared" value={gaps.data ? reported.length : "–"} />
             <Stat
+              icon={AlertTriangle}
+              tone="warning"
               label="Need review"
               value={gaps.data ? review : "–"}
               hint="Gap ≥ 5% and statistically significant"
             />
             <Stat
+              icon={EyeOff}
+              tone="muted"
               label="Too small to report"
               value={gaps.data ? gaps.data.length - reported.length : "–"}
             />
@@ -93,7 +100,9 @@ export function FairnessView() {
                   {gaps.data?.map((g) => (
                     <TableRow key={`${g.countryCode}-${g.jobTitle}`}>
                       <TableCell className="font-medium">{g.jobTitle}</TableCell>
-                      <TableCell>{countryName(g.countryCode)}</TableCell>
+                      <TableCell>
+                        <CountryLabel code={g.countryCode} />
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {g.femaleCount} / {g.maleCount}
                       </TableCell>
@@ -163,13 +172,19 @@ export function FairnessView() {
                       onKeyDown={(e) => e.key === "Enter" && select(o.id)}
                     >
                       <TableCell className="font-medium">
+                        <EmployeeAvatar
+                          name={o.fullName}
+                          className="mr-2.5 inline-flex size-7 align-middle"
+                        />
                         {o.fullName}
                         <span className="text-muted-foreground ml-2 font-mono text-xs">
                           {o.employeeCode}
                         </span>
                       </TableCell>
                       <TableCell>{o.jobTitle}</TableCell>
-                      <TableCell>{countryName(o.countryCode)}</TableCell>
+                      <TableCell>
+                        <CountryLabel code={o.countryCode} />
+                      </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {money(o.salary.amount, o.salary.currency, o.countryCode)}
                       </TableCell>

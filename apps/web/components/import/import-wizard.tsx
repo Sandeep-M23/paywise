@@ -110,6 +110,7 @@ export function ImportWizard() {
     <>
       <PageHeader
         title="Import from CSV"
+        icon={FileUp}
         description="Bring in data from Excel. Every row is checked before anything is saved."
         actions={
           <Button variant="outline" asChild>

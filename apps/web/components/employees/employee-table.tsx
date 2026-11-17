@@ -16,7 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { countryName, date, money } from "@/lib/format";
+import { date, humanize, money } from "@/lib/format";
+import { CountryLabel, DepartmentLabel, EmployeeAvatar } from "@/components/data/visuals";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Mail, CalendarDays, Hash } from "lucide-react";
 import type { DirectoryFilters } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +36,7 @@ const COLUMNS: { field: SortField; label: string; className?: string }[] = [
   { field: "hireDate", label: "Hired", className: "hidden lg:table-cell" },
 ];
 
-const ROW_HEIGHT = 49;
+const ROW_HEIGHT = 53;
 // Start loading the next batch this many rows before the end, so scrolling doesn't stall.
 const PREFETCH_ROWS = 20;
 
@@ -186,25 +189,39 @@ export function EmployeeTable({
                 onClick={() => onSelect(employee.id)}
                 onKeyDown={(e) => e.key === "Enter" && onSelect(employee.id)}
               >
-                <TableCell className="py-2.5">
-                  <div className="flex items-center gap-2 font-medium">
-                    {employee.fullName}
-                    {employee.status === "inactive" && <Badge variant="secondary">Inactive</Badge>}
-                  </div>
-                  {/* On small screens the hidden columns' key facts move under the name. */}
-                  <div className="text-muted-foreground text-xs md:hidden">
-                    {employee.jobTitle} · {employee.countryCode}
+                <TableCell className="py-2">
+                  <div className="flex items-center gap-3">
+                    <EmployeeAvatar name={employee.fullName} />
+                    <div className="min-w-0">
+                      <HoverCard openDelay={400}>
+                        <HoverCardTrigger asChild>
+                          <span className="flex items-center gap-2 font-medium">
+                            {employee.fullName}
+                            {employee.status === "inactive" && (
+                              <Badge variant="secondary">Inactive</Badge>
+                            )}
+                          </span>
+                        </HoverCardTrigger>
+                        <HoverCardContent align="start" className="w-72">
+                          <EmployeePreview employee={employee} />
+                        </HoverCardContent>
+                      </HoverCard>
+                      {/* On small screens the hidden columns' key facts move under the name. */}
+                      <div className="text-muted-foreground truncate text-xs md:hidden">
+                        {employee.jobTitle} · {employee.countryCode}
+                      </div>
+                    </div>
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground hidden font-mono text-xs xl:table-cell">
                   {employee.employeeCode}
                 </TableCell>
                 <TableCell className="hidden md:table-cell">{employee.jobTitle}</TableCell>
-                <TableCell className="text-muted-foreground hidden lg:table-cell">
-                  {employee.department}
+                <TableCell className="hidden lg:table-cell">
+                  <DepartmentLabel name={employee.department} className="text-muted-foreground" />
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
-                  {countryName(employee.countryCode)}
+                  <CountryLabel code={employee.countryCode} />
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
                   {money(employee.salary.amount, employee.salary.currency, employee.countryCode)}
@@ -268,6 +285,36 @@ export function EmployeeTable({
           <ChevronsUp className="size-4" aria-hidden /> Back to top
         </Button>
       )}
+    </div>
+  );
+}
+
+function EmployeePreview({ employee }: { employee: EmployeeSummary }) {
+  return (
+    <div className="flex flex-col gap-3 text-sm">
+      <div className="flex items-center gap-3">
+        <EmployeeAvatar name={employee.fullName} className="size-10" />
+        <div className="min-w-0">
+          <p className="truncate font-medium">{employee.fullName}</p>
+          <p className="text-muted-foreground truncate text-xs">{employee.jobTitle}</p>
+        </div>
+      </div>
+      <div className="text-muted-foreground flex flex-col gap-1.5 text-xs">
+        <span className="flex items-center gap-2">
+          <Mail className="size-3.5" aria-hidden /> {employee.email}
+        </span>
+        <span className="flex items-center gap-2">
+          <Hash className="size-3.5" aria-hidden /> {employee.employeeCode} ·{" "}
+          {humanize(employee.employmentType)}
+        </span>
+        <span className="flex items-center gap-2">
+          <CalendarDays className="size-3.5" aria-hidden /> Hired {date(employee.hireDate)}
+        </span>
+      </div>
+      <p className="text-base font-semibold tabular-nums">
+        {money(employee.salary.amount, employee.salary.currency, employee.countryCode)}
+        <span className="text-muted-foreground text-xs font-normal"> / year</span>
+      </p>
     </div>
   );
 }
