@@ -14,8 +14,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={cn("font-sans antialiased", geist.variable)}>
-      <body className="bg-muted/30 min-h-screen">
+    // suppressHydrationWarning: next-themes sets the theme class before React hydrates.
+    <html
+      lang="en"
+      className={cn("font-sans antialiased", geist.variable)}
+      suppressHydrationWarning
+    >
+      <body className="bg-canvas min-h-screen">
         <Providers>{children}</Providers>
       </body>
     </html>

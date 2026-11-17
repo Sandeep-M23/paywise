@@ -3,11 +3,22 @@
 import * as React from "react"
 import { cn } from "cn"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+// Local change: containerClassName/containerRef let a table be its own
+// scroll container (e.g. max-h + overflow-auto) so a sticky header works.
+function Table({
+  className,
+  containerClassName,
+  containerRef,
+  ...props
+}: React.ComponentProps<"table"> & {
+  containerClassName?: string
+  containerRef?: React.Ref<HTMLDivElement>
+}) {
   return (
     <div
+      ref={containerRef}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className={cn("relative w-full overflow-x-auto", containerClassName)}
     >
       <table
         data-slot="table"

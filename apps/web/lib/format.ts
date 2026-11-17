@@ -1,12 +1,26 @@
-import { COUNTRIES, currencyExponent, findCountry, formatMoney } from "@paywise/shared";
+import {
+  COUNTRIES,
+  currencyExponent,
+  findCountry,
+  formatMoney,
+  type FractionDisplay,
+} from "@paywise/shared";
 
-/** Money in the conventions of the country it is paid in (₹18,00,000.00, €65.000,00). */
-export function money(amount: number, currency: string, countryCode?: string) {
+/**
+ * Money in the conventions of the country it is paid in (₹18,00,000, 65.000 €).
+ * Defaults to hiding a ".00" fraction; pass "none" for averages and totals.
+ */
+export function money(
+  amount: number,
+  currency: string,
+  countryCode?: string,
+  fraction: FractionDisplay = "auto",
+) {
   // Without a country (e.g. per-currency totals), use the locale of the country paid in it.
   const locale = countryCode
     ? findCountry(countryCode)?.locale
     : COUNTRIES.find((c) => c.currency === currency.toLowerCase())?.locale;
-  return formatMoney(amount, currency, locale ?? "en-US");
+  return formatMoney(amount, currency, locale ?? "en-US", fraction);
 }
 
 /**
