@@ -3,10 +3,12 @@
 Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a change contradicts them, update the doc in the same commit or stop and ask.
 
 ## Stack
+
 - npm workspaces: `apps/api` (Hono + Drizzle + Postgres), `apps/web` (Next.js App Router + shadcn/ui + Tailwind + Jotai + TanStack Query + Recharts), `packages/shared` (Zod schemas, money, CSV helpers, countries).
 - TypeScript strict everywhere. Vitest for all tests; PGlite for DB tests.
 
 ## Non-negotiable rules
+
 1. **Money:** integer minor units + lowercase ISO currency. Convert only through `packages/shared/src/money.ts`. Never use floats for money, and never `parseFloat(x) * 100`.
 2. **Validation:** define it once as a Zod schema in `packages/shared`; the API and the web forms both import it.
 3. **Salary changes** go only through the salary-revision service (one transaction that inserts the revision and updates `employees.salary_amount`).
@@ -15,6 +17,7 @@ Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a
 6. **CSV export:** always UTF-8 BOM + formula-injection escaping.
 
 ## Workflow
+
 - **Test first** for `packages/shared` and services: commit `test:` and then `feat:`, or one commit that contains both, with the test visible.
 - Tests must be fast and deterministic: no network, no real clock (inject `today`), no unseeded randomness, small hand-computed fixtures.
 - Conventional Commits (`feat(api): …`, `test(shared): …`, `docs: …`). Keep commits small and focused.
@@ -22,6 +25,7 @@ Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a
 - Log notable AI prompts, accepted output and corrections in `docs/ai/PROMPTS.md`.
 
 ## Style
-- Match the surrounding code. Comments explain *why*, not *what*.
+
+- Match the surrounding code. Comments explain _why_, not _what_.
 - Prefer small pure functions; keep side effects at the edges.
 - No new dependencies without a reason noted in the commit message.

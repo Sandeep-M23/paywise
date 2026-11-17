@@ -17,20 +17,20 @@ More than 150 candidates build the same baseline (list, CRUD, averages, seed). W
 
 ## 1. Locked Decisions
 
-| Area | Choice | Notes |
-|---|---|---|
-| Backend | **Node.js + TypeScript**, **Hono** | Small, typed, runs natively as Vercel Functions. Validates requests with Zod. |
-| ORM / SQL | **Drizzle ORM** + `drizzle-kit` migrations | Type-safe schema, but stays close to SQL for `GROUP BY` and `percentile_cont`. |
-| Database | **PostgreSQL** (Neon via the Vercel Marketplace; Docker locally) | `percentile_cont` = Excel `PERCENTILE.INC`, so medians reconcile with HR's spreadsheets. |
-| Frontend | **Next.js (App Router) + shadcn/ui + TailwindCSS** | shadcn `DataTable` (TanStack Table) for the grid. |
-| Client state | **Jotai** | UI state only: filters, sort, page, selected country, dialogs, import wizard step and column mapping. |
-| Server state | **TanStack Query** | All API reads and writes: caching, `keepPreviousData`, mutations with invalidation. |
-| Charts | **Recharts** (via shadcn `chart`) | |
-| CSV | **Papa Parse** (browser parsing for an instant preview) + a small serializer for export | Server re-validates everything; it never trusts the client. |
-| Deploy | **Vercel** (web + api as two projects in one monorepo) + Neon | 4.5 MB request limit, so imports are capped at 10k rows. |
-| Money | **Stripe-style:** integer amount in the **smallest currency unit** + lowercase ISO 4217 code | See §3.2. |
-| Tests | **Vitest**, **PGlite** (in-process Postgres), React Testing Library + MSW | Fast and deterministic, with no Docker needed to run the tests. |
-| Tooling | npm workspaces (`@paywise/api`, `@paywise/web`, `@paywise/shared`), ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI | npm over pnpm: zero extra install for reviewers; workspaces cover our needs. |
+| Area         | Choice                                                                                                                  | Notes                                                                                                 |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Backend      | **Node.js + TypeScript**, **Hono**                                                                                      | Small, typed, runs natively as Vercel Functions. Validates requests with Zod.                         |
+| ORM / SQL    | **Drizzle ORM** + `drizzle-kit` migrations                                                                              | Type-safe schema, but stays close to SQL for `GROUP BY` and `percentile_cont`.                        |
+| Database     | **PostgreSQL** (Neon via the Vercel Marketplace; Docker locally)                                                        | `percentile_cont` = Excel `PERCENTILE.INC`, so medians reconcile with HR's spreadsheets.              |
+| Frontend     | **Next.js (App Router) + shadcn/ui + TailwindCSS**                                                                      | shadcn `DataTable` (TanStack Table) for the grid.                                                     |
+| Client state | **Jotai**                                                                                                               | UI state only: filters, sort, page, selected country, dialogs, import wizard step and column mapping. |
+| Server state | **TanStack Query**                                                                                                      | All API reads and writes: caching, `keepPreviousData`, mutations with invalidation.                   |
+| Charts       | **Recharts** (via shadcn `chart`)                                                                                       |                                                                                                       |
+| CSV          | **Papa Parse** (browser parsing for an instant preview) + a small serializer for export                                 | Server re-validates everything; it never trusts the client.                                           |
+| Deploy       | **Vercel** (web + api as two projects in one monorepo) + Neon                                                           | 4.5 MB request limit, so imports are capped at 10k rows.                                              |
+| Money        | **Stripe-style:** integer amount in the **smallest currency unit** + lowercase ISO 4217 code                            | See §3.2.                                                                                             |
+| Tests        | **Vitest**, **PGlite** (in-process Postgres), React Testing Library + MSW                                               | Fast and deterministic, with no Docker needed to run the tests.                                       |
+| Tooling      | npm workspaces (`@paywise/api`, `@paywise/web`, `@paywise/shared`), ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI | npm over pnpm: zero extra install for reviewers; workspaces cover our needs.                          |
 
 **Why a separate API rather than Next.js route handlers?** Clear layering (routes → services → repositories), testable without Next, and the backend stays visible as its own piece for reviewers. Trade-off: two Vercel projects plus CORS. Recorded in `docs/TRADEOFFS.md`.
 
@@ -39,29 +39,32 @@ More than 150 candidates build the same baseline (list, CRUD, averages, seed). W
 ## 2. Feature Scope
 
 ### Core (the baseline: must be solid)
-| Feature | Details |
-|---|---|
-| Employee directory | Server-side pagination, sort, debounced search (name / email / code), filters (country, job title, department, status). Filters live in the URL. |
-| Add / edit employee | Shared Zod schema on client and server; currency derived from country. Salary is **not** edited here (see Change salary). |
-| Remove employee | **Deactivate** (soft delete) with a reason. History is kept; insights count active employees only. |
-| Insights | Per country: headcount, total, min / max / avg / **median**. Per job title in a country: min / median / avg / max. Department breakdown. Salary distribution histogram. |
-| Seed | 10,000 deterministic employees across 8 countries (includes JPY, a zero-decimal currency), **with planted patterns** for the features to find. |
+
+| Feature             | Details                                                                                                                                                                 |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Employee directory  | Server-side pagination, sort, debounced search (name / email / code), filters (country, job title, department, status). Filters live in the URL.                        |
+| Add / edit employee | Shared Zod schema on client and server; currency derived from country. Salary is **not** edited here (see Change salary).                                               |
+| Remove employee     | **Deactivate** (soft delete) with a reason. History is kept; insights count active employees only.                                                                      |
+| Insights            | Per country: headcount, total, min / max / avg / **median**. Per job title in a country: min / median / avg / max. Department breakdown. Salary distribution histogram. |
+| Seed                | 10,000 deterministic employees across 8 countries (includes JPY, a zero-decimal currency), **with planted patterns** for the features to find.                          |
 
 ### Researched additions
-| # | Feature | Solves (RESEARCH §3) | Priority |
-|---|---|---|---|
-| A | **CSV import**: template, column mapping, preview, row errors, all-or-nothing commit | #9, #1 | **Must** |
-| B | **Salary history**: change salary as its own action; old → new, effective date, reason, source | #2, #12 | **Must** |
-| C | **CSV export**: current filtered view, Excel-safe, re-importable | #2, #9, #11 | **Must** |
-| D | **Pay fairness**: outliers vs. peers (IQR) + gender gap ≥ 5% per job title × country | #4, #5, #10 | Should |
-| E | **Raise cost calculator**: pick a group + %, see the cost per currency (read-only) | #6, #11 | Should |
-| F | **Single-user login**: an HR password gate (env-configured, httpOnly session cookie) | #8 | Should |
-| G | **Undo import**: revert a whole import batch if nothing changed since | #9 | Stretch |
-| H | **Pay compression view**: new hires vs. 3+ years in the same role and country | #3 | Stretch |
+
+| #   | Feature                                                                                        | Solves (RESEARCH §3) | Priority |
+| --- | ---------------------------------------------------------------------------------------------- | -------------------- | -------- |
+| A   | **CSV import**: template, column mapping, preview, row errors, all-or-nothing commit           | #9, #1               | **Must** |
+| B   | **Salary history**: change salary as its own action; old → new, effective date, reason, source | #2, #12              | **Must** |
+| C   | **CSV export**: current filtered view, Excel-safe, re-importable                               | #2, #9, #11          | **Must** |
+| D   | **Pay fairness**: outliers vs. peers (IQR) + gender gap ≥ 5% per job title × country           | #4, #5, #10          | Should   |
+| E   | **Raise cost calculator**: pick a group + %, see the cost per currency (read-only)             | #6, #11              | Should   |
+| F   | **Single-user login**: an HR password gate (env-configured, httpOnly session cookie)           | #8                   | Should   |
+| G   | **Undo import**: revert a whole import batch if nothing changed since                          | #9                   | Stretch  |
+| H   | **Pay compression view**: new hires vs. 3+ years in the same role and country                  | #3                   | Stretch  |
 
 **If time is short, cut in this order:** H → G → E → F → D. A, B and C stay.
 
 ### Deliberately out of scope (goes in REQUIREMENTS with reasons)
+
 - Payroll, tax, net pay, payslips: a different product (country tax engines).
 - Live FX / one-currency org totals: needs a rate source and has staleness; comparisons stay within a country.
 - Pay ranges / compa-ratio: needs HR to define ranges first. First v2 item after import.
@@ -74,6 +77,7 @@ More than 150 candidates build the same baseline (list, CRUD, averages, seed). W
 ## 3. Design
 
 ### 3.1 Data model (Drizzle / Postgres)
+
 ```
 employees
   id               uuid PK
@@ -114,6 +118,7 @@ INDEXES
 ```
 
 **Domain rules** (each one covered by a test):
+
 1. Currency is derived from the country, never typed in.
 2. `employees.salary_amount` changes **only** by writing a revision, in the same transaction.
 3. Revisions are append-only. Mistakes are fixed with a `correction` revision.
@@ -123,6 +128,7 @@ INDEXES
 7. Gender is used only in aggregates; groups with < 5 of either gender are suppressed.
 
 ### 3.2 Money (Stripe-style)
+
 - `salary_amount` is an integer in the smallest unit: `usd 85,000.00` → `8500000`, `jpy ¥9,000,000` → `9000000`.
 - `packages/shared/money.ts` is the **only** place that converts:
   - `CURRENCY_EXPONENT` (default 2; `jpy`/`krw`/`vnd` = 0; `bhd`/`kwd`/`omr` = 3)
@@ -132,6 +138,7 @@ INDEXES
 - Aggregates are computed in minor units in SQL and rounded to an integer in the repository layer.
 
 ### 3.3 API (REST, Hono + Zod)
+
 ```
 POST   /api/auth/login | /api/auth/logout | GET /api/auth/me
 
@@ -159,11 +166,13 @@ POST   /api/imports/:id/revert                  -> stretch
 
 GET    /api/meta/filters | GET /api/health
 ```
+
 - Zod schemas live in `packages/shared` and are reused by the API and the web forms.
 - Errors: `{ error: { code, message, details? } }`. 400 bad query, 401, 404, 409 duplicate, 413 import too large, 422 validation.
 - Sort columns are whitelisted.
 
 ### 3.4 CSV import design
+
 ```
 [1 Template] → [2 Upload + map columns] → [3 Preview (nothing saved)] → [4 Confirm]
    download     Papa Parse in browser         POST /imports/preview        POST /imports
@@ -173,8 +182,9 @@ GET    /api/meta/filters | GET /api/health
                                               + diff for updates           (reason=import, import_id)
                                               + download errors CSV        + imports row
 ```
+
 - **Matching:** by `employee_code`. A known code is an update; a new code is a create. Duplicate codes or emails within the file are errors.
-- **Salary change via import** writes a revision with `reason=import` and `import_id`, so history shows "Imported from *file.csv* on *date*".
+- **Salary change via import** writes a revision with `reason=import` and `import_id`, so history shows "Imported from _file.csv_ on _date_".
 - **Preview is stateless:** the commit request re-sends the rows and the server re-validates them. Nothing is staged, so there is no stale state to manage.
 - **Commit policy:** error rows are **skipped** (the user sees exactly which ones in the preview and confirms). Valid rows are saved **all-or-nothing** in one transaction. Documented as a trade-off vs. "reject the whole file".
 - **Limits:** ≤ 10,000 rows (Vercel 4.5 MB body). Over that returns a 413 with a clear message.
@@ -182,11 +192,13 @@ GET    /api/meta/filters | GET /api/health
 - **Export:** UTF-8 **with BOM**, formula-injection-safe (`=`, `+`, `-`, `@`, tab and CR prefixed with `'`), and its columns are a superset of the import columns, so the round trip works.
 
 ### 3.5 Fairness and raise calculations
+
 - **Outliers:** within a job title × country group (n ≥ 5), salary < Q1 − 1.5·IQR or > Q3 + 1.5·IQR (Tukey fences via `percentile_cont`).
 - **Gender gap:** per job title × country, `(avg_male − avg_female) / avg_male`, with the median gap shown too. Flagged at |gap| ≥ 5% (EU Directive threshold). Suppressed if either gender has < 5 people.
 - **Raise cost:** for the filtered active employees, per currency: current total, increase, new total. Read-only, nothing saved.
 
 ### 3.6 Architecture
+
 ```
 Next.js (Vercel) ──fetch/JSON + cookie──► Hono API (Vercel Functions)
   shadcn + Tailwind + Recharts              routes       (HTTP, Zod parse, auth middleware)
@@ -198,6 +210,7 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, country/currency co
 ```
 
 ### 3.7 Seed (deterministic, with planted patterns)
+
 - `generateEmployees(count, seed)` is a **pure function** using a seeded faker. Salary = title base band × country multiplier × spread.
 - 8 countries: US/usd, IN/inr, DE/eur, GB/gbp, JP/jpy, CA/cad, AU/aud, SG/sgd.
 - Each employee gets a hire revision; about 30% get 1–3 historical raises.
@@ -207,6 +220,7 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, country/currency co
 ---
 
 ## 4. Repo Layout
+
 ```
 /
 ├── README.md  CLAUDE.md  PLAN.md
@@ -227,12 +241,14 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, country/currency co
 ## 5. Build Sequence (incremental commits; `test:` before `feat:` for core logic)
 
 ### Foundation
+
 1. `chore: init npm workspaces monorepo, tsconfig, eslint, prettier, vitest`
 2. `docs: add research` → `docs: one-page requirements` → `docs: design notes` → `docs: CLAUDE.md agent instructions`
 3. `test(shared)` → `feat(shared): money parse/format with currency exponents`
 4. `test(shared)` → `feat(shared): countries and employee/revision zod schemas`
 
 ### Backend core
+
 5. `chore(api): Hono app, drizzle schema, migrations, docker-compose postgres`
 6. `test(api): PGlite harness (migrated DB per file, truncate between tests)`
 7. `feat(api): create/read/update/deactivate employee + hire revision`
@@ -243,18 +259,21 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, country/currency co
 12. `ci: lint, typecheck, test on GitHub Actions`
 
 ### Import / export
+
 13. `test(shared)` → `feat(shared): CSV helpers` (header synonyms, BOM, date, money, normalisation, formula escaping)
 14. `feat(api): import preview` (classify create/update/unchanged/error, in-file duplicates, diffs)
 15. `feat(api): import commit` (one transaction, revisions with import_id, imports log, 413 limit)
 16. `feat(api): CSV export + template` (BOM, injection-safe, round-trip test: export → import = all unchanged)
 
 ### Fairness and calculator
+
 17. `feat(api): outlier and gender-gap endpoints` (fixture tests: fences, 5% flag, suppression)
 18. `feat(api): raise cost endpoint`
 19. `feat(api): single-user auth (session cookie) + middleware`
 20. `perf(api): indexes, EXPLAIN ANALYZE, timings in docs/PERFORMANCE.md`
 
 ### Frontend
+
 21. `chore(web): Next.js, Tailwind, shadcn, Jotai, TanStack Query provider, typed API client`
 22. `feat(web): login page + auth guard`
 23. `feat(web): employees table` (URL-synced Jotai filters, `useQuery` + `keepPreviousData`)
@@ -269,6 +288,7 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, country/currency co
 32. `feat(web): loading skeletons, empty and error states`
 
 ### Ship
+
 33. `chore: Vercel projects (api + web), env vars, CORS, Neon via Marketplace`
 34. `chore: run migrations + seed in prod`
 35. `docs: README (live URL, video, start-here), TRADEOFFS, SEED_DATA, ai/PROMPTS`
@@ -278,21 +298,22 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, country/currency co
 
 ## 6. Testing Strategy
 
-| Layer | What | Tooling |
-|---|---|---|
-| Money + CSV helpers | Exponents, Indian/Western grouping, rejects, BOM, dates, header synonyms, formula escaping | Vitest (pure) |
-| Schemas | Field rules, country ↔ currency | Vitest (pure) |
-| Services | Domain rules 1–7, revision transactions, import classify/commit, export round trip | Vitest + **PGlite** |
-| Insights / fairness | Hand-computed fixtures: medians, IQR fences, gap %, suppression | Vitest + PGlite |
-| API routes | Status codes, error shape, auth required, 413 | Vitest + Hono `app.request()` |
-| Seed generator | Count, validity, determinism, uniqueness, planted patterns present | Vitest (pure) |
-| UI | Forms, import mapping and preview, filter ↔ URL | RTL + MSW |
+| Layer               | What                                                                                       | Tooling                       |
+| ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------- |
+| Money + CSV helpers | Exponents, Indian/Western grouping, rejects, BOM, dates, header synonyms, formula escaping | Vitest (pure)                 |
+| Schemas             | Field rules, country ↔ currency                                                            | Vitest (pure)                 |
+| Services            | Domain rules 1–7, revision transactions, import classify/commit, export round trip         | Vitest + **PGlite**           |
+| Insights / fairness | Hand-computed fixtures: medians, IQR fences, gap %, suppression                            | Vitest + PGlite               |
+| API routes          | Status codes, error shape, auth required, 413                                              | Vitest + Hono `app.request()` |
+| Seed generator      | Count, validity, determinism, uniqueness, planted patterns present                         | Vitest (pure)                 |
+| UI                  | Forms, import mapping and preview, filter ↔ URL                                            | RTL + MSW                     |
 
 Rules: no network, a fixed seed and clock, an isolated DB per file, no 10k rows in unit tests. Target: the whole suite in under 15 s.
 
 ---
 
 ## 7. Performance → `docs/PERFORMANCE.md`
+
 - Server-side pagination; never ship 10k rows to the browser.
 - Composite indexes match the filter and group-by patterns; `pg_trgm` covers search. Verify with `EXPLAIN ANALYZE`.
 - Each insight is one SQL query. TanStack Query uses a long `staleTime` for insights and metadata; mutations and import commits invalidate `['employees']` and `['insights']`.
@@ -303,6 +324,7 @@ Rules: no network, a fixed seed and clock, an isolated DB per file, no 10k rows 
 ---
 
 ## 8. AI Usage Artifacts → `docs/ai/`
+
 - `CLAUDE.md`: stack, folder conventions, test-first for `shared/` and services, "money only via `money.ts`", Conventional Commits.
 - `docs/ai/PROMPTS.md`: key prompts, what was accepted, and **what was corrected and why**.
 - "Where AI was wrong" log, e.g. float money math, unbounded sort params, wrong even-count median, missing BOM, CSV injection.
@@ -310,30 +332,32 @@ Rules: no network, a fixed seed and clock, an isolated DB per file, no 10k rows 
 ---
 
 ## 9. Demo Video (4–5 min), told as the HR manager's day
-1. "We live in Excel." Import her CSV: mapping, preview with 3 errors, download errors, confirm. *(#9)*
-2. Find someone across 10k rows; open their history. *(#2)*
+
+1. "We live in Excel." Import her CSV: mapping, preview with 3 errors, download errors, confirm. _(#9)_
+2. Find someone across 10k rows; open their history. _(#2)_
 3. Give a promotion raise and see it in the history. Try a bad effective date and see the validation.
-4. "How do we pay engineers in India?": medians and the distribution. *(#11)*
-5. Fairness: the planted outlier and the gender gap flagged at 5%. *(#4, #5)*
-6. "What does 6% for Germany Engineering cost?": the calculator. *(#6)*
-7. Export to Excel; names render correctly. *(#2)*
+4. "How do we pay engineers in India?": medians and the distribution. _(#11)_
+5. Fairness: the planted outlier and the gender gap flagged at 5%. _(#4, #5)_
+6. "What does 6% for Germany Engineering cost?": the calculator. _(#6)_
+7. Export to Excel; names render correctly. _(#2)_
 8. A minute of code: monorepo, money and CSV tests, a green fast suite, CI, commit history, what's next.
 
 ---
 
 ## 10. Suggested Timeline (about 4 working days)
 
-| Day | Work |
-|---|---|
-| 1 | Monorepo, docs (research, requirements, design, CLAUDE.md), shared money/schemas (TDD), API skeleton + PGlite harness |
-| 2 | Employee CRUD + revisions, listing, insights, seed, CI |
-| 3 | CSV helpers, import preview/commit, export, fairness, raise calculator, auth |
-| 4 | Frontend: table, detail/history, forms, import wizard, insights, fairness |
-| 5 (half) | Deploy, performance numbers, README, demo video, review commit history |
+| Day      | Work                                                                                                                  |
+| -------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1        | Monorepo, docs (research, requirements, design, CLAUDE.md), shared money/schemas (TDD), API skeleton + PGlite harness |
+| 2        | Employee CRUD + revisions, listing, insights, seed, CI                                                                |
+| 3        | CSV helpers, import preview/commit, export, fairness, raise calculator, auth                                          |
+| 4        | Frontend: table, detail/history, forms, import wizard, insights, fairness                                             |
+| 5 (half) | Deploy, performance numbers, README, demo video, review commit history                                                |
 
 ---
 
 ## 11. Submission Checklist
+
 - [ ] Research + requirements committed before the first feature commit
 - [ ] Incremental Conventional Commits; `test:` before `feat:` visible for core logic
 - [ ] Money: integer minor units + currency; no floats anywhere in the money path
