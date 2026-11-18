@@ -1,8 +1,9 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { useState, type ChangeEvent } from "react";
-import { ArrowLeft, CheckCircle2, Download, FileUp, Upload } from "lucide-react";
+import { useEffect, useState, type ChangeEvent } from "react";
+import { ArrowLeft } from "lucide-react";
+import { CheckCircle2, Download, FileUp } from "@/components/icons";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -13,7 +14,6 @@ import {
   type ImportPreview,
   type ImportResult,
 } from "@paywise/shared";
-import { PageHeader } from "@/components/app/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,8 +36,10 @@ import { api, ApiError } from "@/lib/api";
 import { emptyImportWizard, importWizardAtom } from "@/lib/atoms";
 import { buildImportRequest, downloadText, errorReportCsv, parseCsvText } from "@/lib/import-file";
 import { useInvalidateEmployeeData } from "@/lib/queries";
+import { cn } from "@/lib/utils";
 import { ImportLog } from "./import-log";
 import { PreviewTable } from "./preview-table";
+import { TableFrame } from "@/components/data/table-frame";
 
 const STEPS = ["Upload", "Match columns", "Review", "Done"] as const;
 const NOT_IN_FILE = "__none__";
@@ -49,11 +51,29 @@ export function ImportWizard() {
   const invalidate = useInvalidateEmployeeData();
   const stepIndex = ["upload", "map", "preview", "done"].indexOf(wizard.step);
 
+  const [dragging, setDragging] = useState(false);
+  const [edited, setEdited] = useState(0);
+
+  // A finished import shouldn't greet you next time: coming back starts fresh.
+  // (An import in progress is kept, so you can check employees mid-way.)
+  useEffect(() => {
+    if (wizard.step === "done") setWizard(emptyImportWizard);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on arrival
+  }, []);
+
   async function onFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file) return;
+    if (file) await readFile(file);
+  }
+
+  async function readFile(file: File) {
+    if (!/\.csv$/i.test(file.name) && file.type !== "text/csv") {
+      setError("That isn't a CSV file. In Excel: File → Save As → “CSV UTF-8”.");
+      return;
+    }
     setError(null);
+    setEdited(0);
     try {
       const { headers, records } = parseCsvText(await file.text());
       setWizard({
@@ -81,6 +101,7 @@ export function ImportWizard() {
         json: request(),
       });
       setWizard({ ...wizard, step: "preview", preview });
+      setEdited(0);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Could not check the file.");
     } finally {
@@ -94,7 +115,7 @@ export function ImportWizard() {
     try {
       const result = await api<ImportResult>("/imports", { method: "POST", json: request() });
       await invalidate();
-      setWizard({ ...wizard, step: "done", result });
+      setWizard({ ...wizard, step: "done", result, preview: null, records: [] });
       toast.success("Import complete");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Import failed. Nothing was saved.");
@@ -103,24 +124,31 @@ export function ImportWizard() {
     }
   }
 
+  function editCell(line: number, field: string, value: string) {
+    const header = wizard.mapping[field as keyof typeof wizard.mapping];
+    if (!header) return;
+    setWizard({
+      ...wizard,
+      records: wizard.records.map((record) =>
+        record.line === line
+          ? { ...record, values: { ...record.values, [header]: value } }
+          : record,
+      ),
+    });
+    setEdited((n) => n + 1);
+  }
+
+  const cellValue = (line: number, field: string) => {
+    const header = wizard.mapping[field as keyof typeof wizard.mapping];
+    if (!header) return undefined;
+    return wizard.records.find((record) => record.line === line)?.values[header] ?? "";
+  };
+
   const summary = wizard.preview?.summary;
   const toSave = summary ? summary.create + summary.update : 0;
 
   return (
     <>
-      <PageHeader
-        title="Import from CSV"
-        icon={FileUp}
-        description="Bring in data from Excel. Every row is checked before anything is saved."
-        actions={
-          <Button variant="outline" asChild>
-            <a href="/api/imports/template.csv" download>
-              <Download className="size-4" aria-hidden /> Template
-            </a>
-          </Button>
-        }
-      />
-
       <ol className="flex flex-wrap gap-2 text-sm" aria-label="Import steps">
         {STEPS.map((label, i) => (
           <li
@@ -128,10 +156,10 @@ export function ImportWizard() {
             aria-current={i === stepIndex ? "step" : undefined}
             className={
               i === stepIndex
-                ? "bg-primary text-primary-foreground rounded-full px-3 py-1"
+                ? "bg-primary text-primary-foreground rounded-md px-3 py-1"
                 : i < stepIndex
-                  ? "bg-muted rounded-full px-3 py-1"
-                  : "text-muted-foreground rounded-full border px-3 py-1"
+                  ? "bg-muted rounded-md px-3 py-1"
+                  : "text-muted-foreground rounded-md border px-3 py-1"
             }
           >
             {i + 1}. {label}
@@ -148,21 +176,63 @@ export function ImportWizard() {
       {wizard.step === "upload" && (
         <>
           <Card>
-            <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-              <FileUp className="text-muted-foreground size-10" aria-hidden />
-              <div>
-                <p className="font-medium">Choose a CSV file</p>
-                <p className="text-muted-foreground text-sm">
+            <CardContent className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  const file = e.dataTransfer.files[0];
+                  if (file) void readFile(file);
+                }}
+                className={cn(
+                  "flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors",
+                  dragging ? "border-foreground bg-lime/20" : "hover:bg-muted",
+                )}
+              >
+                <span className="bg-lime text-lime-foreground grid size-12 place-items-center rounded-full">
+                  <FileUp className="size-6" aria-hidden />
+                </span>
+                <span className="font-medium">Drop a CSV here, or click to choose</span>
+                <span className="text-muted-foreground max-w-md text-sm">
                   In Excel: File → Save As → “CSV UTF-8”. Up to 10,000 rows. Existing employees are
-                  matched by employee code and updated.
+                  matched by employee code and updated; new codes are added.
+                </span>
+                <input type="file" accept=".csv,text/csv" className="sr-only" onChange={onFile} />
+              </label>
+              <div className="flex flex-col gap-3 text-sm">
+                <p className="font-semibold">Columns your file needs</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {IMPORT_FIELDS.map((field) => (
+                    <li
+                      key={field}
+                      className={cn(
+                        "rounded-md px-2.5 py-1 text-xs",
+                        (REQUIRED_IMPORT_FIELDS as readonly string[]).includes(field)
+                          ? "bg-foreground text-background"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {IMPORT_FIELD_LABELS[field].replace(/ \(optional\)$/, "")}
+                      {(REQUIRED_IMPORT_FIELDS as readonly string[]).includes(field)
+                        ? ""
+                        : " · optional"}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-muted-foreground">
+                  Names don’t have to match exactly: you’ll match columns in the next step.
                 </p>
+                <Button variant="outline" size="sm" className="w-fit" asChild>
+                  <a href="/api/imports/template.csv" download>
+                    <Download className="size-4" aria-hidden /> Download a sample file
+                  </a>
+                </Button>
               </div>
-              <Button asChild>
-                <label className="cursor-pointer">
-                  <Upload className="size-4" aria-hidden /> Select file
-                  <input type="file" accept=".csv,text/csv" className="sr-only" onChange={onFile} />
-                </label>
-              </Button>
             </CardContent>
           </Card>
           <ImportLog />
@@ -179,62 +249,66 @@ export function ImportWizard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Paywise field</TableHead>
-                  <TableHead>Column in your file</TableHead>
-                  <TableHead>First row</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {IMPORT_FIELDS.map((field) => {
-                  const header = wizard.mapping[field];
-                  return (
-                    <TableRow key={field}>
-                      <TableCell className="font-medium">
-                        {IMPORT_FIELD_LABELS[field]}
-                        {field !== "gender" && !header && (
-                          <span className="text-destructive ml-2 text-xs">required</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Select
-                          value={header ?? NOT_IN_FILE}
-                          onValueChange={(value) =>
-                            setWizard({
-                              ...wizard,
-                              mapping: {
-                                ...wizard.mapping,
-                                [field]: value === NOT_IN_FILE ? null : value,
-                              },
-                            })
-                          }
-                        >
-                          <SelectTrigger
-                            className="w-56"
-                            aria-label={`Column for ${IMPORT_FIELD_LABELS[field]}`}
+            <TableFrame
+              footer={`${IMPORT_FIELDS.length} Paywise fields · ${wizard.headers.length} columns in your file`}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Paywise field</TableHead>
+                    <TableHead>Column in your file</TableHead>
+                    <TableHead>First row</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {IMPORT_FIELDS.map((field) => {
+                    const header = wizard.mapping[field];
+                    return (
+                      <TableRow key={field}>
+                        <TableCell className="font-medium">
+                          {IMPORT_FIELD_LABELS[field]}
+                          {field !== "gender" && !header && (
+                            <span className="text-destructive ml-2 text-xs">required</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={header ?? NOT_IN_FILE}
+                            onValueChange={(value) =>
+                              setWizard({
+                                ...wizard,
+                                mapping: {
+                                  ...wizard.mapping,
+                                  [field]: value === NOT_IN_FILE ? null : value,
+                                },
+                              })
+                            }
                           >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={NOT_IN_FILE}>Not in file</SelectItem>
-                            {wizard.headers.map((h) => (
-                              <SelectItem key={h} value={h}>
-                                {h}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground max-w-56 truncate">
-                        {header ? wizard.records[0]?.values[header] : "–"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                            <SelectTrigger
+                              className="w-56"
+                              aria-label={`Column for ${IMPORT_FIELD_LABELS[field]}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={NOT_IN_FILE}>Not in file</SelectItem>
+                              {wizard.headers.map((h) => (
+                                <SelectItem key={h} value={h}>
+                                  {h}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground max-w-56 truncate">
+                          {header ? wizard.records[0]?.values[header] : "–"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableFrame>
             <div className="flex justify-between">
               <Button variant="ghost" onClick={() => setWizard(emptyImportWizard)}>
                 <ArrowLeft className="size-4" aria-hidden /> Choose another file
@@ -263,25 +337,35 @@ export function ImportWizard() {
             <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
               <div>
                 <CardTitle>Review before importing</CardTitle>
-                <CardDescription>Nothing has been saved yet.</CardDescription>
+                <CardDescription>
+                  Nothing has been saved yet.
+                  {summary.error > 0 && " Fix a bad value right in the table, then re-check."}
+                </CardDescription>
               </div>
-              {summary.error > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    downloadText(
-                      errorReportCsv(wizard.headers, wizard.records, wizard.preview!.rows),
-                      wizard.filename.replace(/\.csv$/i, "") + "-errors.csv",
-                    )
-                  }
-                >
-                  <Download className="size-4" aria-hidden /> Download {summary.error} rows to fix
-                </Button>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {edited > 0 && (
+                  <Button size="sm" onClick={checkRows} disabled={busy}>
+                    {busy ? "Checking…" : `Re-check with ${edited} fix${edited === 1 ? "" : "es"}`}
+                  </Button>
+                )}
+                {summary.error > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      downloadText(
+                        errorReportCsv(wizard.headers, wizard.records, wizard.preview!.rows),
+                        wizard.filename.replace(/\.csv$/i, "") + "-errors.csv",
+                      )
+                    }
+                  >
+                    <Download className="size-4" aria-hidden /> Download {summary.error} rows to fix
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
-              <PreviewTable rows={wizard.preview.rows} />
+              <PreviewTable rows={wizard.preview.rows} getValue={cellValue} onEdit={editCell} />
             </CardContent>
           </Card>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -297,12 +381,14 @@ export function ImportWizard() {
                   {summary.error} row{summary.error === 1 ? "" : "s"} with errors will be skipped.
                 </span>
               )}
-              <Button onClick={commit} disabled={busy || toSave === 0}>
+              <Button onClick={commit} disabled={busy || toSave === 0 || edited > 0}>
                 {busy
                   ? "Importing…"
-                  : toSave === 0
-                    ? "Nothing to import"
-                    : `Import ${toSave.toLocaleString()} rows`}
+                  : edited > 0
+                    ? "Re-check your fixes first"
+                    : toSave === 0
+                      ? "Nothing to import"
+                      : `Import ${toSave.toLocaleString()} rows`}
               </Button>
             </div>
           </div>

@@ -19,11 +19,14 @@ import type {
   FairnessQuery,
   FilterOptions,
   GenderGapGroup,
+  ImportDetail,
   ImportLogEntry,
   JobTitleSummary,
   Page,
   PayOutlier,
   RaiseCost,
+  RaiseApplyRequest,
+  RaiseApplyResult,
   RaiseCostRequest,
   SalaryRevisionCreateInput,
 } from "@paywise/shared";
@@ -134,6 +137,23 @@ export function useRaiseCost(request: RaiseCostRequest | null) {
     queryFn: () => api<RaiseCost[]>("/insights/raise-cost", { method: "POST", json: request }),
     enabled: request !== null,
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useApplyRaises() {
+  const invalidate = useInvalidateEmployeeData();
+  return useMutation({
+    mutationFn: (input: RaiseApplyRequest) =>
+      api<RaiseApplyResult>("/employees/raises", { method: "POST", json: input }),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useImportDetail(id: string | null) {
+  return useQuery({
+    queryKey: [...keys.imports, id],
+    queryFn: () => api<ImportDetail>(`/imports/${id}`),
+    enabled: id !== null,
   });
 }
 
