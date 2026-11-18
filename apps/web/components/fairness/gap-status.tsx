@@ -1,4 +1,4 @@
-import { AlertTriangle, CircleCheck, CircleHelp, EyeOff } from "lucide-react";
+import { AlertTriangle, CircleCheck, CircleHelp, EyeOff } from "@/components/icons";
 import type { GenderGapGroup } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
 

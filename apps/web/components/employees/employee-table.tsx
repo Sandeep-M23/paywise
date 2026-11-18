@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronsUp, Loader2, SearchX } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronsUp, Loader2 } from "lucide-react";
+import { SearchX } from "@/components/icons";
 import type { EmployeeSummary } from "@paywise/shared";
-import { scrollTable, stickyHeader } from "@/components/app/sticky";
+import { fill, fillScrollTable, stickyHeader } from "@/components/app/sticky";
+import { TableFooterBar } from "@/components/data/table-frame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,15 +27,17 @@ import { cn } from "@/lib/utils";
 
 type SortField = DirectoryFilters["sort"];
 
-// Less important columns give way on smaller screens; name and salary always stay.
+// Code, name and salary always show; less important columns give way on smaller
+// screens. Widths are fixed (table-fixed) so the name column takes what is left
+// and long names truncate instead of pushing the table wider.
 const COLUMNS: { field: SortField; label: string; className?: string }[] = [
+  { field: "employeeCode", label: "Code", className: "w-28 pl-4" },
   { field: "fullName", label: "Name" },
-  { field: "employeeCode", label: "Code", className: "hidden xl:table-cell" },
-  { field: "jobTitle", label: "Job title", className: "hidden md:table-cell" },
-  { field: "department", label: "Department", className: "hidden lg:table-cell" },
-  { field: "countryCode", label: "Country", className: "hidden sm:table-cell" },
-  { field: "salaryAmount", label: "Annual salary", className: "text-right" },
-  { field: "hireDate", label: "Hired", className: "hidden lg:table-cell" },
+  { field: "jobTitle", label: "Job title", className: "hidden w-52 md:table-cell" },
+  { field: "department", label: "Department", className: "hidden w-44 lg:table-cell" },
+  { field: "countryCode", label: "Country", className: "hidden w-40 sm:table-cell" },
+  { field: "salaryAmount", label: "Annual salary", className: "w-36 text-right" },
+  { field: "hireDate", label: "Hired", className: "hidden w-32 pr-4 lg:table-cell" },
 ];
 
 const ROW_HEIGHT = 53;
@@ -105,11 +109,19 @@ export function EmployeeTable({
   const paddingBottom = virtualizer.getTotalSize() - (items.at(-1)?.end ?? 0);
 
   return (
-    <div className="bg-card relative flex flex-col overflow-hidden rounded-2xl border shadow-xs">
+    <div
+      className={cn(
+        "bg-card ring-border relative flex flex-col overflow-hidden rounded-xl ring-1",
+        fill,
+      )}
+    >
       <Table
         containerRef={scroller}
-        containerClassName={scrollTable("h-[calc(100dvh-16rem)] min-h-80")}
-        className={cn(fetching && !loadingMore && !loading && "opacity-60 transition-opacity")}
+        containerClassName={fillScrollTable}
+        className={cn(
+          "table-fixed",
+          fetching && !loadingMore && !loading && "opacity-60 transition-opacity",
+        )}
         aria-busy={fetching}
         aria-rowcount={total}
       >
@@ -121,7 +133,7 @@ export function EmployeeTable({
               return (
                 <TableHead
                   key={field}
-                  className={cn("text-muted-foreground h-11 text-xs font-medium", className)}
+                  className={cn("h-11", className)}
                   aria-sort={
                     active ? (filters.order === "asc" ? "ascending" : "descending") : "none"
                   }
@@ -129,7 +141,8 @@ export function EmployeeTable({
                   <button
                     type="button"
                     className={cn(
-                      "hover:text-foreground inline-flex items-center gap-1",
+                      "hover:text-foreground inline-flex items-center gap-1 uppercase",
+                      field === "salaryAmount" && "flex-row-reverse",
                       active && "text-foreground",
                     )}
                     onClick={() =>
@@ -149,8 +162,15 @@ export function EmployeeTable({
             Array.from({ length: 14 }, (_, i) => (
               <TableRow key={i}>
                 {COLUMNS.map((c) => (
-                  <TableCell key={c.field} className={c.className}>
-                    <Skeleton className="h-4 w-full" />
+                  <TableCell key={c.field} className={cn("h-[53px]", c.className)}>
+                    {c.field === "fullName" ? (
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-8 shrink-0 rounded-full" />
+                        <Skeleton className="h-4 w-36" />
+                      </div>
+                    ) : (
+                      <Skeleton className="h-4 w-full" />
+                    )}
                   </TableCell>
                 ))}
               </TableRow>
@@ -189,16 +209,23 @@ export function EmployeeTable({
                 onClick={() => onSelect(employee.id)}
                 onKeyDown={(e) => e.key === "Enter" && onSelect(employee.id)}
               >
+                <TableCell className="text-muted-foreground truncate pl-4 font-mono text-xs">
+                  {employee.employeeCode}
+                </TableCell>
                 <TableCell className="py-2">
-                  <div className="flex items-center gap-3">
-                    <EmployeeAvatar name={employee.fullName} />
-                    <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <EmployeeAvatar name={employee.fullName} className="shrink-0" />
+                    <div className="min-w-0 flex-1">
                       <HoverCard openDelay={400}>
                         <HoverCardTrigger asChild>
-                          <span className="flex items-center gap-2 font-medium">
-                            {employee.fullName}
+                          <span className="flex min-w-0 items-center gap-2 font-medium">
+                            <span className="truncate" title={employee.fullName}>
+                              {employee.fullName}
+                            </span>
                             {employee.status === "inactive" && (
-                              <Badge variant="secondary">Inactive</Badge>
+                              <Badge variant="secondary" className="shrink-0">
+                                Inactive
+                              </Badge>
                             )}
                           </span>
                         </HoverCardTrigger>
@@ -213,20 +240,19 @@ export function EmployeeTable({
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="text-muted-foreground hidden font-mono text-xs xl:table-cell">
-                  {employee.employeeCode}
+                <TableCell className="hidden truncate md:table-cell" title={employee.jobTitle}>
+                  {employee.jobTitle}
                 </TableCell>
-                <TableCell className="hidden md:table-cell">{employee.jobTitle}</TableCell>
-                <TableCell className="hidden lg:table-cell">
+                <TableCell className="hidden truncate lg:table-cell">
                   <DepartmentLabel name={employee.department} className="text-muted-foreground" />
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">
+                <TableCell className="hidden truncate sm:table-cell">
                   <CountryLabel code={employee.countryCode} />
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
                   {money(employee.salary.amount, employee.salary.currency, employee.countryCode)}
                 </TableCell>
-                <TableCell className="text-muted-foreground hidden lg:table-cell">
+                <TableCell className="text-muted-foreground hidden pr-4 lg:table-cell">
                   {date(employee.hireDate)}
                 </TableCell>
               </TableRow>
@@ -237,16 +263,23 @@ export function EmployeeTable({
               <td colSpan={COLUMNS.length} style={{ height: paddingBottom }} />
             </tr>
           )}
-          {loadingMore && (
-            <TableRow className="hover:bg-transparent">
-              <TableCell
-                colSpan={COLUMNS.length}
-                className="text-muted-foreground py-4 text-center text-sm"
-              >
-                <Loader2 className="mr-2 inline size-4 animate-spin" aria-hidden /> Loading more…
-              </TableCell>
-            </TableRow>
-          )}
+          {loadingMore &&
+            Array.from({ length: 3 }, (_, i) => (
+              <TableRow key={`more-${i}`} className="hover:bg-transparent" aria-hidden>
+                {COLUMNS.map((c) => (
+                  <TableCell key={c.field} className={c.className}>
+                    {c.field === "fullName" ? (
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="size-8 shrink-0 rounded-full" />
+                        <Skeleton className="h-4 w-36" />
+                      </div>
+                    ) : (
+                      <Skeleton className="h-4 w-full" />
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
           {!hasMore && rows.length > 0 && !loading && (
             <TableRow className="hover:bg-transparent">
               <TableCell
@@ -261,7 +294,7 @@ export function EmployeeTable({
         </TableBody>
       </Table>
 
-      <div className="bg-card flex items-center justify-between gap-3 border-t px-4 py-2.5 text-sm">
+      <TableFooterBar>
         <span className="text-muted-foreground tabular-nums" aria-live="polite">
           {total === undefined
             ? " "
@@ -273,7 +306,7 @@ export function EmployeeTable({
             aria-label="Loading more"
           />
         )}
-      </div>
+      </TableFooterBar>
 
       {showTop && (
         <Button

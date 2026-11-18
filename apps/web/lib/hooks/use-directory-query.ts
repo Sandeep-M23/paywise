@@ -18,7 +18,13 @@ export function useDirectoryQuery() {
   const pathname = usePathname();
 
   const query = useMemo<DirectoryFilters>(() => {
-    const parsed = employeeListQuerySchema.safeParse(Object.fromEntries(searchParams));
+    // Repeated keys (?country=IN&country=DE) are a multi-select filter.
+    const raw: Record<string, string | string[]> = {};
+    for (const key of new Set(searchParams.keys())) {
+      const values = searchParams.getAll(key);
+      raw[key] = values.length === 1 ? values[0]! : values;
+    }
+    const parsed = employeeListQuerySchema.safeParse(raw);
     if (!parsed.success) return DEFAULTS;
     const { page: _p, pageSize: _s, ...filters } = parsed.data;
     return filters;
@@ -29,6 +35,10 @@ export function useDirectoryQuery() {
       const next = { ...query, ...patch };
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(next)) {
+        if (Array.isArray(value)) {
+          for (const item of value) params.append(key, item);
+          continue;
+        }
         const isDefault = DEFAULTS[key as keyof DirectoryFilters] === value;
         if (value !== undefined && value !== "" && !isDefault) params.set(key, String(value));
       }

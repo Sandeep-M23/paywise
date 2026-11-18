@@ -2,8 +2,7 @@
 
 import { useSetAtom } from "jotai";
 import { useState } from "react";
-import { Download, Plus, Users } from "lucide-react";
-import { PageHeader } from "@/components/app/page-header";
+import { Download, Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { toQueryString } from "@/lib/api";
 import { selectedEmployeeIdAtom } from "@/lib/atoms";
@@ -27,15 +26,14 @@ export function EmployeesView() {
 
   return (
     <>
-      <PageHeader
-        title="Employees"
-        icon={Users}
-        description="Search, filter and maintain salary records. Select a row to see history and make changes."
+      <DirectoryFilters
+        query={query}
+        onChange={setQuery}
         actions={
           <>
-            <Button variant="outline" asChild>
-              <a href={exportHref} download>
-                <Download className="size-4" aria-hidden /> Export CSV
+            <Button variant="outline" className="bg-card" asChild>
+              <a href={exportHref} download title="Export these rows to CSV">
+                <Download className="size-4" aria-hidden /> Export
               </a>
             </Button>
             <Button onClick={() => setAdding(true)}>
@@ -44,7 +42,6 @@ export function EmployeesView() {
           </>
         }
       />
-      <DirectoryFilters query={query} onChange={setQuery} />
       <EmployeeTable
         rows={rows}
         total={total}

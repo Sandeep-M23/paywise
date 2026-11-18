@@ -40,10 +40,14 @@ export async function api<T>(
   return (await response.json()) as T;
 }
 
-export function toQueryString(params: Record<string, string | number | undefined | null>) {
+type QueryValue = string | number | readonly string[] | undefined | null;
+
+/** Lists become repeated keys (?country=IN&country=DE), which the API reads as a list. */
+export function toQueryString(params: Record<string, QueryValue>) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== "") search.set(key, String(value));
+    if (Array.isArray(value)) for (const item of value) search.append(key, item);
+    else if (value !== undefined && value !== null && value !== "") search.set(key, String(value));
   }
   const text = search.toString();
   return text ? `?${text}` : "";
