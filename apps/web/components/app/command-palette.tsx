@@ -4,17 +4,17 @@ import { useRouter } from "next/navigation";
 import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import {
   BarChart3,
   Calculator,
   Download,
   FileUp,
   LayoutDashboard,
-  Loader2,
   Scale,
   Search,
   Users,
-} from "lucide-react";
+} from "@/components/icons";
 import type { EmployeeSummary, Page } from "@paywise/shared";
 import { countryFlag, EmployeeAvatar } from "@/components/data/visuals";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ export function CommandPalette({ className }: { className?: string }) {
         variant="outline"
         onClick={() => setOpen(true)}
         className={cn(
-          "text-muted-foreground w-full justify-between rounded-xl font-normal",
+          "text-muted-foreground w-full justify-between rounded-md font-normal",
           className,
         )}
       >

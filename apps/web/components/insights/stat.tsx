@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import type { LucideIcon } from "lucide-react";
-import { IconBadge } from "@/components/data/visuals";
-import { Card, CardContent } from "@/components/ui/card";
+import type { AppIcon } from "@/components/icons";
+import { StatTile } from "@/components/data/visuals";
 
 export function Stat({
   label,
@@ -9,23 +8,24 @@ export function Stat({
   hint,
   icon,
   tone,
+  loading,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
-  icon?: LucideIcon;
+  icon: AppIcon;
+  /** Only "warning" changes the tile: it colours the value. */
   tone?: "primary" | "warning" | "success" | "muted";
+  loading?: boolean;
 }) {
   return (
-    <Card className="gap-1 py-4">
-      <CardContent className="flex items-start justify-between gap-3 px-4">
-        <div className="min-w-0">
-          <p className="text-muted-foreground text-xs font-medium">{label}</p>
-          <div className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{value}</div>
-          {hint && <p className="text-muted-foreground mt-1 text-xs">{hint}</p>}
-        </div>
-        {icon && <IconBadge icon={icon} tone={tone} />}
-      </CardContent>
-    </Card>
+    <StatTile
+      icon={icon}
+      label={label}
+      value={value}
+      hint={hint}
+      tone={tone === "warning" ? "warning" : undefined}
+      loading={loading}
+    />
   );
 }

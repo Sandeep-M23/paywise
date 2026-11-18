@@ -2,7 +2,7 @@
 
 import { useAtom } from "jotai";
 import { useState } from "react";
-import { Pencil, TrendingUp, UserX } from "lucide-react";
+import { Pencil, TrendingUp, UserX } from "@/components/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

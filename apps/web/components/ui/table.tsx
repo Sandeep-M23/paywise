@@ -3,8 +3,9 @@
 import * as React from "react"
 import { cn } from "cn"
 
-// Local change: containerClassName/containerRef let a table be its own
-// scroll container (e.g. max-h + overflow-auto) so a sticky header works.
+// Local changes: containerClassName/containerRef let a table be its own
+// scroll container (e.g. max-h + overflow-auto) so a sticky header works; every
+// header is a grey band with bold labels.
 function Table({
   className,
   containerClassName,
@@ -33,7 +34,10 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(
+        "bg-muted shadow-[inset_0_-1px_0_var(--border)] [&_tr]:border-b-0 [&_tr]:hover:bg-transparent",
+        className
+      )}
       {...props}
     />
   )
@@ -80,7 +84,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        "h-10 px-2 text-left align-middle text-xs font-bold tracking-wide whitespace-nowrap text-muted-foreground uppercase [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

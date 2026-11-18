@@ -2,10 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Logo } from "@/components/app/logo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, ApiError } from "@/lib/api";
@@ -34,14 +32,14 @@ export function LoginForm() {
     }
   }
 
+  // Maglo's sign-in: no card, a large greeting, tall inputs and a full-width lime button.
   return (
-    <Card className="w-full max-w-sm border-0 shadow-none sm:border sm:shadow-sm">
-      <CardHeader>
-        <Logo className="mb-3 lg:hidden" />
-        <CardTitle>Sign in</CardTitle>
-        <CardDescription>Salary data is confidential. HR access only.</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="w-full max-w-sm">
+      <h1 className="text-3xl font-semibold tracking-tight">Welcome back</h1>
+      <p className="text-muted-foreground mt-2 mb-8 text-sm">
+        Salary data is confidential. HR access only.
+      </p>
+      <div>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           {error && (
             <Alert variant="destructive">
@@ -50,11 +48,19 @@ export function LoginForm() {
           )}
           <div className="flex flex-col gap-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" autoComplete="username" required />
+            <Input
+              className="h-12"
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="username"
+              required
+            />
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="password">Password</Label>
             <Input
+              className="h-12"
               id="password"
               name="password"
               type="password"
@@ -62,11 +68,11 @@ export function LoginForm() {
               required
             />
           </div>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" size="lg" className="mt-2 h-12" disabled={pending}>
             {pending ? "Signing in…" : "Sign in"}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

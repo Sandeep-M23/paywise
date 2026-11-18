@@ -3,25 +3,15 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSetAtom } from "jotai";
-import { useState } from "react";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Download,
-  FileUp,
-  Plus,
-  Scale,
-  TrendingUp,
-  Users,
-} from "lucide-react";
-import { EmployeeFormDialog } from "@/components/employees/employee-form-dialog";
+import { ArrowRight, ChevronRight } from "lucide-react";
+import { AlertTriangle, Download, FileUp, Scale, TrendingUp, Users } from "@/components/icons";
 import { EmployeeSheet } from "@/components/employees/employee-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { CountryLabel, EmployeeAvatar, IconBadge } from "@/components/data/visuals";
+import { CountryLabel, EmployeeAvatar, StatTile } from "@/components/data/visuals";
 import { insightsCountryAtom, selectedEmployeeIdAtom } from "@/lib/atoms";
 import { useClientNow } from "@/lib/hooks/use-client-now";
 import { countryName, money, percent } from "@/lib/format";
@@ -38,7 +28,6 @@ export function OverviewView() {
   const router = useRouter();
   const selectEmployee = useSetAtom(selectedEmployeeIdAtom);
   const setInsightsCountry = useSetAtom(insightsCountryAtom);
-  const [adding, setAdding] = useState(false);
   const now = useClientNow();
   const countries = useCountrySummaries();
   const gaps = useGenderGaps({});
@@ -52,29 +41,14 @@ export function OverviewView() {
 
   return (
     <>
-      <section className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+      <section>
         <div>
           <p className="text-muted-foreground h-5 text-sm">
             {now?.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
           </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h2 className="mt-1 text-2xl font-semibold tracking-tight">
             {greeting(now)}, <span className="text-muted-foreground">HR team</span>
-          </h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            {headcount === undefined
-              ? "Loading…"
-              : `${headcount.toLocaleString()} active employees across ${countries.data?.length} countries.`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/import">
-              <FileUp className="size-4" aria-hidden /> Import CSV
-            </Link>
-          </Button>
-          <Button onClick={() => setAdding(true)}>
-            <Plus className="size-4" aria-hidden /> Add employee
-          </Button>
+          </h2>
         </div>
       </section>
 
@@ -129,7 +103,16 @@ export function OverviewView() {
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
             {countries.isLoading &&
-              Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              Array.from({ length: 8 }, (_, i) => (
+                <div
+                  key={i}
+                  className="grid grid-cols-[9rem_1fr_auto] items-center gap-3 px-2 py-3"
+                >
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-2 w-full rounded-full" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
             {sortedCountries.map((c) => (
               <button
                 key={c.countryCode}
@@ -138,7 +121,7 @@ export function OverviewView() {
                   setInsightsCountry(c.countryCode);
                   router.push("/insights");
                 }}
-                className="hover:bg-muted group grid grid-cols-[9rem_1fr_auto] items-center gap-3 rounded-xl px-2 py-2 text-left text-sm"
+                className="hover:bg-muted group grid grid-cols-[9rem_1fr_auto] items-center gap-3 rounded-lg px-2 py-2 text-left text-sm"
               >
                 <span className="truncate font-medium">
                   <CountryLabel code={c.countryCode} />
@@ -176,7 +159,13 @@ export function OverviewView() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-2">
-              {gaps.isLoading && <Skeleton className="h-24 w-full" />}
+              {gaps.isLoading &&
+                Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 px-2 py-1.5">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-5 w-12 rounded-md" />
+                  </div>
+                ))}
               {gaps.data && review.length === 0 && (
                 <p className="text-muted-foreground text-sm">Nothing needs review. 🎉</p>
               )}
@@ -197,8 +186,11 @@ export function OverviewView() {
                 </Link>
               ))}
               {review.length > 4 && (
-                <Link href="/fairness" className="text-primary px-2 text-sm hover:underline">
-                  See all {review.length}
+                <Link
+                  href="/fairness"
+                  className="text-link flex items-center gap-1 px-2 text-sm font-semibold hover:underline"
+                >
+                  See all {review.length} <ChevronRight className="size-4" aria-hidden />
                 </Link>
               )}
             </CardContent>
@@ -210,7 +202,14 @@ export function OverviewView() {
               <CardDescription>Open a record to check it.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-1">
-              {outliers.isLoading && <Skeleton className="h-24 w-full" />}
+              {outliers.isLoading &&
+                Array.from({ length: 4 }, (_, i) => (
+                  <div key={i} className="flex items-center gap-2.5 px-2 py-1.5">
+                    <Skeleton className="size-7 rounded-full" />
+                    <Skeleton className="h-4 flex-1" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                ))}
               {outliers.data?.slice(0, 4).map((o) => (
                 <button
                   key={o.id}
@@ -247,11 +246,6 @@ export function OverviewView() {
       </div>
 
       <EmployeeSheet />
-      <EmployeeFormDialog
-        open={adding}
-        onOpenChange={setAdding}
-        onSaved={(e) => selectEmployee(e.id)}
-      />
     </>
   );
 }
@@ -272,25 +266,17 @@ function Kpi({
   tone?: "warning";
 }) {
   return (
-    <Link href={href} className="group">
-      <Card className="group-hover:ring-primary/30 h-full gap-0 py-4 transition-shadow">
-        <CardContent className="flex items-start justify-between gap-3 px-4">
-          <div className="flex min-w-0 flex-col gap-1">
-            <span className="text-muted-foreground text-xs font-medium">{label}</span>
-            {value === undefined ? (
-              <Skeleton className="mt-1 h-8 w-20" />
-            ) : (
-              <span
-                className={`text-3xl font-semibold tracking-tight tabular-nums ${tone === "warning" ? "text-warning" : ""}`}
-              >
-                {value}
-              </span>
-            )}
-            {hint && <span className="text-muted-foreground truncate text-xs">{hint}</span>}
-          </div>
-          <IconBadge icon={icon} tone={tone ?? "primary"} />
-        </CardContent>
-      </Card>
+    <Link
+      href={href}
+      className="focus-visible:ring-ring/50 rounded-xl transition-transform outline-none hover:-translate-y-0.5 focus-visible:ring-3"
+    >
+      <StatTile
+        icon={icon}
+        label={label}
+        tone={tone}
+        hint={hint}
+        value={value === undefined ? <Skeleton className="h-6 w-20" /> : value}
+      />
     </Link>
   );
 }

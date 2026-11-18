@@ -1,10 +1,21 @@
 "use client";
 
-import { BarChart3, Sigma, Target, Users, Wallet } from "lucide-react";
+import {
+  BarChart3,
+  Briefcase,
+  Building2,
+  ChartPie,
+  Globe,
+  Sigma,
+  Target,
+  Users,
+  Wallet,
+  type AppIcon,
+} from "@/components/icons";
+import { TableFrame } from "@/components/data/table-frame";
 import { useAtom } from "jotai";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { currencyForCountry, type CountryCode } from "@paywise/shared";
-import { PageHeader } from "@/components/app/page-header";
+import { currencyForCountry, type CountryCode, type JobTitleSummary } from "@paywise/shared";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChartContainer,
@@ -24,9 +35,9 @@ import {
 import { scrollTable, stickyHeader } from "@/components/app/sticky";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HeroMoney } from "@/components/app/hero-money";
-import { CountryLabel, DepartmentLabel } from "@/components/data/visuals";
+import { CountryLabel, countryFlag, DepartmentLabel } from "@/components/data/visuals";
 import { insightsCountryAtom } from "@/lib/atoms";
-import { compactMoney, money } from "@/lib/format";
+import { compactMoney, countryName, money } from "@/lib/format";
 import {
   useCountrySummaries,
   useDepartmentSummaries,
@@ -36,9 +47,9 @@ import {
 import { cn } from "@/lib/utils";
 import { Stat } from "./stat";
 
-const medianChart = {
-  median: { label: "Median salary", color: "var(--chart-1)" },
-} satisfies ChartConfig;
+// Eight tiles share one row, so the two long names get their everyday short form.
+const SHORT_NAMES: Record<string, string> = { US: "USA", GB: "UK" };
+
 const countChart = { count: { label: "Employees", color: "var(--chart-1)" } } satisfies ChartConfig;
 
 export function InsightsView() {
@@ -54,20 +65,17 @@ export function InsightsView() {
 
   return (
     <>
-      <PageHeader
-        title="Pay insights"
-        icon={BarChart3}
-        description="How we pay people, in each country's own currency. Active employees only; medians match Excel's PERCENTILE.INC."
-      />
-
-      {/* Country chips: one tap to switch; scroll sideways on small screens. */}
+      {/* Every country at once, as equal tiles: flag, name, people and median. No
+          sideways scrolling, and the selected country reads at a glance. */}
       <div
         role="tablist"
         aria-label="Country"
-        className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0"
+        className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8"
       >
         {countries.isLoading &&
-          Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-14 w-32 shrink-0" />)}
+          Array.from({ length: 8 }, (_, i) => (
+            <Skeleton key={i} className="h-[3.75rem] rounded-xl" />
+          ))}
         {[...(countries.data ?? [])]
           .sort((a, b) => b.headcount - a.headcount)
           .map((c) => {
@@ -75,20 +83,35 @@ export function InsightsView() {
             return (
               <button
                 key={c.countryCode}
+                type="button"
                 role="tab"
                 aria-selected={active}
                 onClick={() => setCountry(c.countryCode)}
                 className={cn(
-                  "bg-card hover:border-primary/40 flex shrink-0 snap-start flex-col items-start rounded-lg border px-3 py-2 text-left transition-colors",
-                  active && "border-primary ring-primary/20 ring-2",
+                  "ring-border flex min-w-0 flex-col gap-1 rounded-xl px-3 py-2.5 text-left ring-1 transition-colors",
+                  active
+                    ? "dark bg-sidebar text-foreground ring-sidebar"
+                    : "bg-card hover:ring-foreground/30",
                 )}
               >
-                <span className="text-sm font-medium">
-                  <CountryLabel code={c.countryCode} />
+                <span className="flex min-w-0 items-center gap-2">
+                  <span aria-hidden className="text-lg leading-none">
+                    {countryFlag(c.countryCode)}
+                  </span>
+                  <span
+                    className="truncate text-sm font-semibold"
+                    title={countryName(c.countryCode)}
+                  >
+                    {SHORT_NAMES[c.countryCode] ?? countryName(c.countryCode)}
+                  </span>
                 </span>
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {c.headcount.toLocaleString()} ·{" "}
-                  {compactMoney(c.median, c.currency, c.countryCode)} median
+                <span
+                  className={cn(
+                    "truncate text-xs tabular-nums",
+                    active ? "text-lime font-semibold" : "text-muted-foreground",
+                  )}
+                >
+                  {c.headcount.toLocaleString()} people
                 </span>
               </button>
             );
@@ -97,13 +120,16 @@ export function InsightsView() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat
+          loading={countries.isLoading}
           icon={Users}
           label="Employees"
           value={summary ? summary.headcount.toLocaleString() : "–"}
         />
         <Stat
+          loading={countries.isLoading}
           icon={Target}
           label="Median salary"
+          hint={summary ? `Range ${short(summary.min)} – ${short(summary.max)}` : undefined}
           value={
             summary ? (
               <HeroMoney
@@ -118,6 +144,7 @@ export function InsightsView() {
           }
         />
         <Stat
+          loading={countries.isLoading}
           icon={Sigma}
           label="Average salary"
           value={
@@ -139,6 +166,7 @@ export function InsightsView() {
           }
         />
         <Stat
+          loading={countries.isLoading}
           icon={Wallet}
           label="Annual payroll"
           value={
@@ -159,75 +187,27 @@ export function InsightsView() {
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Median salary by job title</CardTitle>
-            <CardDescription>Hover a bar for the range and headcount.</CardDescription>
+            <CardTitle className="flex items-center gap-2.5">
+              <TitleIcon icon={Briefcase} /> Pay bands by job title
+            </CardTitle>
+            <CardDescription>
+              Each bar runs from the lowest to the highest salary; the mark is the median.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {titles.isLoading ? (
               <Skeleton className="h-[420px] w-full" />
             ) : (
-              <ChartContainer config={medianChart} className="h-[420px] w-full">
-                <BarChart
-                  data={[...(titles.data ?? [])].sort((a, b) => b.median - a.median)}
-                  layout="vertical"
-                  margin={{ left: 8, right: 16 }}
-                  barCategoryGap={2}
-                >
-                  <CartesianGrid horizontal={false} strokeOpacity={0.4} />
-                  <XAxis
-                    type="number"
-                    dataKey="median"
-                    tickFormatter={short}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="jobTitle"
-                    width={200}
-                    tickLine={false}
-                    axisLine={false}
-                    interval={0}
-                    fontSize={12}
-                  />
-                  <ChartTooltip
-                    cursor={{ fillOpacity: 0.08 }}
-                    content={
-                      <ChartTooltipContent
-                        formatter={(_value, _name, item) => {
-                          const row = item.payload as {
-                            median: number;
-                            min: number;
-                            max: number;
-                            headcount: number;
-                          };
-                          return (
-                            <div className="flex flex-col gap-0.5">
-                              <span>Median {fmt(row.median)}</span>
-                              <span className="text-muted-foreground">
-                                Range {short(row.min)} – {short(row.max)} · {row.headcount} people
-                              </span>
-                            </div>
-                          );
-                        }}
-                      />
-                    }
-                  />
-                  <Bar
-                    dataKey="median"
-                    fill="var(--color-median)"
-                    radius={[0, 4, 4, 0]}
-                    maxBarSize={18}
-                  />
-                </BarChart>
-              </ChartContainer>
+              <PayBands rows={titles.data ?? []} format={fmt} short={short} />
             )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Salary distribution</CardTitle>
+            <CardTitle className="flex items-center gap-2.5">
+              <TitleIcon icon={BarChart3} /> Salary distribution
+            </CardTitle>
             <CardDescription>Number of employees in each salary band.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -284,103 +264,133 @@ export function InsightsView() {
       <Card>
         <Tabs defaultValue="titles" className="gap-4">
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle>Breakdown</CardTitle>
+            <CardTitle className="flex items-center gap-2.5">
+              <TitleIcon icon={ChartPie} /> Breakdown
+            </CardTitle>
             <TabsList>
-              <TabsTrigger value="titles">Job titles</TabsTrigger>
-              <TabsTrigger value="departments">Departments</TabsTrigger>
-              <TabsTrigger value="countries">All countries</TabsTrigger>
+              <TabsTrigger value="titles">
+                <Briefcase className="size-4" aria-hidden /> Job titles
+              </TabsTrigger>
+              <TabsTrigger value="departments">
+                <Building2 className="size-4" aria-hidden /> Departments
+              </TabsTrigger>
+              <TabsTrigger value="countries">
+                <Globe className="size-4" aria-hidden /> All countries
+              </TabsTrigger>
             </TabsList>
           </CardHeader>
           <CardContent>
             <TabsContent value="titles">
-              <Table containerClassName={scrollTable("max-h-[28rem]")}>
-                <TableHeader className={stickyHeader}>
-                  <TableRow>
-                    <TableHead>Job title</TableHead>
-                    <TableHead className="text-right">People</TableHead>
-                    <TableHead className="text-right">Lowest</TableHead>
-                    <TableHead className="text-right">Median</TableHead>
-                    <TableHead className="text-right">Highest</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {titles.isLoading && <LoadingRows columns={5} />}
-                  {titles.data?.map((t) => (
-                    <TableRow key={t.jobTitle}>
-                      <TableCell>{t.jobTitle}</TableCell>
-                      <TableCell className="text-right tabular-nums">{t.headcount}</TableCell>
-                      <TableCell className="text-right tabular-nums">{short(t.min)}</TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
-                        {short(t.median)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{short(t.max)}</TableCell>
+              <TableFrame
+                footer={
+                  titles.data ? `${titles.data.length} job titles in ${countryName(country)}` : " "
+                }
+              >
+                <Table containerClassName={scrollTable("max-h-[28rem]")}>
+                  <TableHeader className={stickyHeader}>
+                    <TableRow>
+                      <TableHead>Job title</TableHead>
+                      <TableHead className="text-right">People</TableHead>
+                      <TableHead className="text-right">Lowest</TableHead>
+                      <TableHead className="text-right">Median</TableHead>
+                      <TableHead className="text-right">Highest</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {titles.isLoading && <LoadingRows columns={5} />}
+                    {titles.data?.map((t) => (
+                      <TableRow key={t.jobTitle}>
+                        <TableCell>{t.jobTitle}</TableCell>
+                        <TableCell className="text-right tabular-nums">{t.headcount}</TableCell>
+                        <TableCell className="text-right tabular-nums">{short(t.min)}</TableCell>
+                        <TableCell className="text-right font-medium tabular-nums">
+                          {short(t.median)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{short(t.max)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableFrame>
             </TabsContent>
             <TabsContent value="departments">
-              <Table containerClassName={scrollTable("max-h-[28rem]")}>
-                <TableHeader className={stickyHeader}>
-                  <TableRow>
-                    <TableHead>Department</TableHead>
-                    <TableHead className="text-right">People</TableHead>
-                    <TableHead className="text-right">Median</TableHead>
-                    <TableHead className="text-right">Average</TableHead>
-                    <TableHead className="text-right">Payroll</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {departments.isLoading && <LoadingRows columns={5} />}
-                  {departments.data?.map((d) => (
-                    <TableRow key={d.department}>
-                      <TableCell>
-                        <DepartmentLabel name={d.department} />
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{d.headcount}</TableCell>
-                      <TableCell className="text-right tabular-nums">{short(d.median)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{short(d.mean)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{short(d.total)}</TableCell>
+              <TableFrame
+                footer={
+                  departments.data
+                    ? `${departments.data.length} departments in ${countryName(country)}`
+                    : " "
+                }
+              >
+                <Table containerClassName={scrollTable("max-h-[28rem]")}>
+                  <TableHeader className={stickyHeader}>
+                    <TableRow>
+                      <TableHead>Department</TableHead>
+                      <TableHead className="text-right">People</TableHead>
+                      <TableHead className="text-right">Median</TableHead>
+                      <TableHead className="text-right">Average</TableHead>
+                      <TableHead className="text-right">Payroll</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {departments.isLoading && <LoadingRows columns={5} />}
+                    {departments.data?.map((d) => (
+                      <TableRow key={d.department}>
+                        <TableCell>
+                          <DepartmentLabel name={d.department} />
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{d.headcount}</TableCell>
+                        <TableCell className="text-right tabular-nums">{short(d.median)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{short(d.mean)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{short(d.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableFrame>
             </TabsContent>
             <TabsContent value="countries">
-              <Table containerClassName={scrollTable("max-h-[28rem]")}>
-                <TableHeader className={stickyHeader}>
-                  <TableRow>
-                    <TableHead>Country</TableHead>
-                    <TableHead className="text-right">People</TableHead>
-                    <TableHead className="text-right">Median</TableHead>
-                    <TableHead className="text-right">Average</TableHead>
-                    <TableHead className="text-right">Lowest</TableHead>
-                    <TableHead className="text-right">Highest</TableHead>
-                    <TableHead className="text-right">Payroll</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {countries.data?.map((c) => (
-                    <TableRow
-                      key={c.countryCode}
-                      className={cn("cursor-pointer", c.countryCode === country && "bg-accent")}
-                      onClick={() => setCountry(c.countryCode)}
-                    >
-                      <TableCell className="font-medium">
-                        <CountryLabel code={c.countryCode} />
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {c.headcount.toLocaleString()}
-                      </TableCell>
-                      {[c.median, c.mean, c.min, c.max, c.total].map((amount, i) => (
-                        <TableCell key={i} className="text-right tabular-nums">
-                          {money(amount, c.currency, c.countryCode, "none")}
-                        </TableCell>
-                      ))}
+              <TableFrame
+                footer={
+                  countries.data
+                    ? `${countries.data.length} countries · select a row to switch`
+                    : " "
+                }
+              >
+                <Table containerClassName={scrollTable("max-h-[28rem]")}>
+                  <TableHeader className={stickyHeader}>
+                    <TableRow>
+                      <TableHead>Country</TableHead>
+                      <TableHead className="text-right">People</TableHead>
+                      <TableHead className="text-right">Median</TableHead>
+                      <TableHead className="text-right">Average</TableHead>
+                      <TableHead className="text-right">Lowest</TableHead>
+                      <TableHead className="text-right">Highest</TableHead>
+                      <TableHead className="text-right">Payroll</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {countries.data?.map((c) => (
+                      <TableRow
+                        key={c.countryCode}
+                        className={cn("cursor-pointer", c.countryCode === country && "bg-accent")}
+                        onClick={() => setCountry(c.countryCode)}
+                      >
+                        <TableCell className="font-medium">
+                          <CountryLabel code={c.countryCode} />
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {c.headcount.toLocaleString()}
+                        </TableCell>
+                        {[c.median, c.mean, c.min, c.max, c.total].map((amount, i) => (
+                          <TableCell key={i} className="text-right tabular-nums">
+                            {money(amount, c.currency, c.countryCode, "none")}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableFrame>
             </TabsContent>
           </CardContent>
         </Tabs>
@@ -399,4 +409,66 @@ function LoadingRows({ columns }: { columns: number }) {
       ))}
     </TableRow>
   ));
+}
+
+/**
+ * Pay bands: per job title, a bar from min to max on one shared scale with a mark
+ * at the median, so both the typical pay and the spread read at a glance.
+ */
+function PayBands({
+  rows,
+  format,
+  short,
+}: {
+  rows: JobTitleSummary[];
+  format: (amount: number) => string;
+  short: (amount: number) => string;
+}) {
+  const sorted = [...rows].sort((a, b) => b.median - a.median);
+  const top = Math.max(1, ...rows.map((r) => r.max));
+  const at = (amount: number) => `${(amount / top) * 100}%`;
+  return (
+    <div className="flex max-h-[420px] flex-col overflow-y-auto pr-1">
+      <div className="text-muted-foreground grid grid-cols-[minmax(0,11rem)_1fr_5.5rem] gap-3 pb-2 text-xs font-semibold tracking-wide uppercase">
+        <span>Job title</span>
+        <span className="flex justify-between">
+          <span>{short(0)}</span>
+          <span>{short(top)}</span>
+        </span>
+        <span className="text-right">Median</span>
+      </div>
+      {sorted.map((r) => (
+        <div
+          key={r.jobTitle}
+          className="grid grid-cols-[minmax(0,11rem)_1fr_5.5rem] items-center gap-3 border-t py-1.5 text-sm"
+          title={`${r.jobTitle}: ${format(r.min)} – ${format(r.max)}, median ${format(r.median)}, ${r.headcount} people`}
+        >
+          <span className="truncate">
+            {r.jobTitle}{" "}
+            <span className="text-muted-foreground text-xs tabular-nums">{r.headcount}</span>
+          </span>
+          <span className="bg-muted relative h-3 rounded-full">
+            <span
+              className="bg-lime absolute inset-y-0 rounded-full"
+              style={{ left: at(r.min), width: `calc(${at(r.max)} - ${at(r.min)})` }}
+            />
+            <span
+              className="bg-foreground absolute -inset-y-0.5 w-1 -translate-x-1/2 rounded-full"
+              style={{ left: at(r.median) }}
+            />
+          </span>
+          <span className="text-right font-semibold tabular-nums">{short(r.median)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A small grey icon circle beside a card title, matching the stat cards. */
+function TitleIcon({ icon: Icon }: { icon: AppIcon }) {
+  return (
+    <span className="bg-muted text-muted-foreground grid size-8 shrink-0 place-items-center rounded-full">
+      <Icon className="size-4" aria-hidden />
+    </span>
+  );
 }

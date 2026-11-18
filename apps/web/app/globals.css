@@ -4,10 +4,37 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Loading: the skeleton shine and the global loading bar. */
+@theme {
+  --animate-shimmer: shimmer 1.3s ease-in-out infinite;
+  --animate-loading-bar: loading-bar 1.2s ease-in-out infinite;
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes loading-bar {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(250%);
+    }
+  }
+}
+
 @theme inline {
   --color-canvas: var(--canvas);
+  --color-skeleton: var(--skeleton);
+  --color-skeleton-shine: var(--skeleton-shine);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-link: var(--link);
+  --color-lime: var(--lime);
+  --color-lime-foreground: var(--lime-foreground);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
+  --color-highlight-muted: var(--highlight-muted);
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -51,88 +78,105 @@
 }
 
 /*
- * Theme tokens, after the Charts Mega UI Kit references: near-black layered
- * surfaces in dark mode, a violet accent with a lime highlight for positive
- * values, pill controls and roomy rounded cards. Every text/background pair below
- * clears WCAG AA (4.5:1) in its theme.
+ * Theme tokens: black-led, with lime as the accent. After the Maglo UI kit, pushed
+ * darker on request: black primary actions, black sidebar and lead stat card, lime
+ * for the active nav item and every chart, green kept for positive values.
+ * Lime is never text on white (1.3:1); it carries black text (14.2:1) or sits on
+ * black. Every text/background pair below clears WCAG AA (4.5:1).
  */
 :root {
   color-scheme: light;
-  --canvas: #f5f5f8;
+  --canvas: #f2f2ef; /* the content panel: soft grey so white cards and the black sidebar both stand apart */
   --background: #ffffff;
-  --foreground: #111018;
+  --foreground: #111111;
   --card: #ffffff;
-  --card-foreground: #111018;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #111018;
-  --primary: #7c3aed; /* violet 600: 5.7:1 with white text */
+  --popover-foreground: #111111;
+  --primary: #111111; /* black actions */
   --primary-foreground: #ffffff;
-  --secondary: #f2f1f6;
-  --secondary-foreground: #111018;
-  --muted: #f2f1f6;
-  --muted-foreground: #5e5c6b; /* 6.3:1 on white */
-  --accent: #f3efff;
-  --accent-foreground: #2e1065;
-  --destructive: #c4321f;
-  --success: #3f6b0b; /* lime 800: 6.2:1 */
+  --secondary: #f6f6f6;
+  --secondary-foreground: #111111;
+  --muted: #f6f6f6;
+  --muted-foreground: #666666; /* 5.1:1 on muted, 5.0:1 on canvas */
+  --accent: #f2f2f2;
+  --accent-foreground: #111111;
+  --lime: #c8ee44;
+  --lime-foreground: #111111; /* 14.2:1 */
+  --link: #111111;
+  --highlight: #111111; /* lead stat card */
+  --highlight-foreground: #ffffff;
+  --highlight-muted: #b3b3b3; /* 9.0:1 on black */
+  --destructive: #c8282f;
+  --success: #1d7a57;
   --warning: #a35200;
-  --border: #e7e5ee;
-  --input: #dcdae4;
-  --ring: #8b5cf6;
-  --scrollbar: #cbc8d6;
-  --chart-1: #7c3aed; /* validated: dataviz checks pass on white */
-  --chart-2: #8b95a5;
-  --chart-3: #5b6474;
-  --chart-4: #3d4552;
-  --chart-5: #262c36;
-  --radius: 0.75rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #111018;
-  --sidebar-primary: #7c3aed;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f3efff;
-  --sidebar-accent-foreground: #2e1065;
-  --sidebar-border: #e7e5ee;
-  --sidebar-ring: #8b5cf6;
+  --border: #ececec;
+  --input: #e2e2e2;
+  --ring: #111111;
+  --scrollbar: #111111;
+  --skeleton: #dadad3; /* clearly grey on white cards and on the grey canvas */
+  --skeleton-shine: #f7f7f4;
+  --chart-1: #c8ee44; /* lime marks, on request; values are also printed or in tooltips */
+  --chart-2: #111111;
+  --chart-3: #8f8f8f;
+  --chart-4: #d4d4d4;
+  --chart-5: #1d7a57;
+  --radius: 0.625rem;
+  --sidebar: #050505; /* the sidebar is always black; it renders inside a .dark scope */
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #c8ee44;
+  --sidebar-primary-foreground: #111111;
+  --sidebar-accent: #1c1c1c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.08);
+  --sidebar-ring: #c8ee44;
 }
 
 .dark {
   color-scheme: dark; /* native controls (date pickers, scrollbars) follow the theme */
-  --canvas: #070708;
-  --background: #0c0c0e;
-  --foreground: #f2f1f6;
-  --card: #141416; /* one step above the canvas, no shadows */
-  --card-foreground: #f2f1f6;
-  --popover: #1a1a1e;
-  --popover-foreground: #f2f1f6;
-  --primary: #a78bfa; /* violet 400 with near-black text: 8.9:1 */
-  --primary-foreground: #17093a;
-  --secondary: #1d1d22;
-  --secondary-foreground: #f2f1f6;
-  --muted: #1d1d22;
-  --muted-foreground: #a1a0ad; /* 7.4:1 on cards */
-  --accent: #231b38;
-  --accent-foreground: #ede9fe;
-  --destructive: #f2705e;
-  --success: #bef264; /* lime highlight */
+  --canvas: #161616;
+  --background: #161616;
+  --foreground: #ffffff;
+  --card: #1e1e1e;
+  --card-foreground: #ffffff;
+  --popover: #252525;
+  --popover-foreground: #ffffff;
+  --primary: #c8ee44; /* black buttons vanish on black, so actions go lime */
+  --primary-foreground: #111111;
+  --secondary: #282828;
+  --secondary-foreground: #ffffff;
+  --muted: #282828;
+  --muted-foreground: #a3a3a3; /* 6.0:1 on muted */
+  --accent: #2a2a2a;
+  --accent-foreground: #ffffff;
+  --lime: #c8ee44;
+  --lime-foreground: #111111;
+  --link: #c8ee44;
+  --highlight: #000000;
+  --highlight-foreground: #ffffff;
+  --highlight-muted: #a3a3a3;
+  --destructive: #ff6b6f; /* 6.5:1 on cards */
+  --success: #19d076; /* 8.8:1 */
   --warning: #f0b44c;
-  --border: rgb(255 255 255 / 0.07);
-  --input: rgb(255 255 255 / 0.12);
-  --ring: #8b5cf6;
-  --scrollbar: #2a2a31;
-  --chart-1: #9b7bf7; /* validated: dataviz checks pass on #141416 */
-  --chart-2: #6b7586;
-  --chart-3: #8b95a5;
-  --chart-4: #aab3c2;
-  --chart-5: #c9d0db;
-  --sidebar: #0c0c0e;
-  --sidebar-foreground: #f2f1f6;
-  --sidebar-primary: #a78bfa;
-  --sidebar-primary-foreground: #17093a;
-  --sidebar-accent: #231b38;
-  --sidebar-accent-foreground: #ede9fe;
-  --sidebar-border: rgb(255 255 255 / 0.07);
-  --sidebar-ring: #8b5cf6;
+  --border: rgb(255 255 255 / 0.08);
+  --input: rgb(255 255 255 / 0.14);
+  --ring: #c8ee44;
+  --scrollbar: #5c5c5c;
+  --skeleton: #333333;
+  --skeleton-shine: #505050;
+  --chart-1: #c8ee44;
+  --chart-2: #ffffff;
+  --chart-3: #8f8f8f;
+  --chart-4: #444444;
+  --chart-5: #19d076;
+  --sidebar: #050505;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #c8ee44;
+  --sidebar-primary-foreground: #111111;
+  --sidebar-accent: #1c1c1c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.08);
+  --sidebar-ring: #c8ee44;
 }
 
 @layer base {
