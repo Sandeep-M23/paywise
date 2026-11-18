@@ -70,6 +70,18 @@ describe("employee routes", () => {
     expect((await send("GET", "/employees?sort=password")).status).toBe(400);
   });
 
+  it("filters by several countries given as repeated query keys", async () => {
+    await send("POST", "/employees", body);
+    const both = (await (
+      await send("GET", "/employees?country=DE&country=IN")
+    ).json()) as Page<EmployeeSummary>;
+    expect(both.total).toBe(1);
+    const neither = (await (
+      await send("GET", "/employees?country=US&country=DE")
+    ).json()) as Page<EmployeeSummary>;
+    expect(neither.total).toBe(0);
+  });
+
   it("changes a salary through the revisions endpoint", async () => {
     const { id } = (await (await send("POST", "/employees", body)).json()) as EmployeeDetail;
     const res = await send("POST", `/employees/${id}/salary-revisions`, {

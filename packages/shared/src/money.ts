@@ -29,6 +29,22 @@ const ZERO_DECIMAL = new Set([
 ]);
 const THREE_DECIMAL = new Set(["bhd", "jod", "kwd", "omr", "tnd"]);
 
+/**
+ * The salary after a percentage raise, with the raise rounded half up to a whole
+ * minor unit, as it would be paid. Integer maths (BigInt), so 5.15% is exact; it
+ * matches `round(amount * percent / 100)` in the raise SQL.
+ */
+export function applyRaise(amount: number, percent: number): number {
+  const hundredths = Math.round(percent * 100);
+  if (Math.abs(percent * 100 - hundredths) > 1e-6) {
+    throw new Error("A raise can have at most two decimal places");
+  }
+  // floor(x / d + 1/2) for x = amount * hundredths, d = 10,000 (100% x 100).
+  const increase =
+    (BigInt(amount) * BigInt(hundredths) * BigInt(2) + BigInt(10_000)) / BigInt(20_000);
+  return amount + Number(increase);
+}
+
 export function currencyExponent(currency: string): number {
   const code = currency.toLowerCase();
   if (ZERO_DECIMAL.has(code)) return 0;

@@ -7,6 +7,8 @@ import {
   type EmployeeUpdateInput,
   type Page,
   type SalaryRevisionCreateInput,
+  type RaiseApplyRequest,
+  type RaiseApplyResult,
 } from "@paywise/shared";
 import type { Db } from "../db/client";
 import type { Clock } from "../lib/clock";
@@ -56,6 +58,12 @@ export async function insertEmployeeWithHireRevision(
     importId,
   });
   return row;
+}
+
+/** "A, B, C and 4 others": enough to find the people without a wall of names. */
+function names(list: string[], shown = 3) {
+  const head = list.slice(0, shown).join(", ");
+  return list.length > shown ? `${head} and ${list.length - shown} others` : head;
 }
 
 export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
@@ -172,6 +180,43 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
         });
         await repo.updateEmployee(tx, id, { salaryAmount: input.amount });
         return loadDetail(tx, id);
+      });
+    },
+
+    /**
+     * Applies a raise plan as salary revisions, all or nothing: the same rules as
+     * changeSalary for every person, checked in SQL against locked rows.
+     */
+    async applyRaises(request: RaiseApplyRequest): Promise<RaiseApplyResult> {
+      assertNotFuture("effectiveOn", request.effectiveOn, "Effective date");
+      const plan = {
+        ...request,
+        percent: request.percent ?? 0,
+        overrides: request.overrides ?? [],
+      };
+      return db.transaction(async (tx) => {
+        await repo.lockRaisePlan(tx, plan);
+        const problems = await repo.raisePlanProblems(tx, plan, request.effectiveOn);
+        if (problems.notActive > 0) {
+          throw invalid("overrides", "Individual raises can only go to active employees");
+        }
+        if (problems.notRaised.length > 0) {
+          throw invalid(
+            "overrides",
+            `A new salary must be above the current one (${names(problems.notRaised)})`,
+          );
+        }
+        if (problems.tooEarly.length > 0) {
+          throw invalid(
+            "effectiveOn",
+            `Effective date is before the hire date or latest salary change for ${names(problems.tooEarly)}`,
+          );
+        }
+        return repo.applyRaisePlan(tx, plan, {
+          effectiveOn: request.effectiveOn,
+          reason: request.reason,
+          note: request.note ?? null,
+        });
       });
     },
   };

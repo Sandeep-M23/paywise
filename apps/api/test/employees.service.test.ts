@@ -256,9 +256,16 @@ describe("list", () => {
   });
 
   it("filters by country, department and job title", async () => {
-    expect((await service.list({ ...defaults, country: "IN" })).total).toBe(2);
-    expect((await service.list({ ...defaults, department: "Product" })).total).toBe(1);
-    expect((await service.list({ ...defaults, jobTitle: "Software Engineer" })).total).toBe(3);
+    expect((await service.list({ ...defaults, country: ["IN"] })).total).toBe(2);
+    expect((await service.list({ ...defaults, department: ["Product"] })).total).toBe(1);
+    expect((await service.list({ ...defaults, jobTitle: ["Software Engineer"] })).total).toBe(3);
+  });
+
+  it("matches any of several values within a filter, and all filters together", async () => {
+    expect((await service.list({ ...defaults, country: ["IN", "JP"] })).total).toBe(3);
+    expect(
+      (await service.list({ ...defaults, country: ["IN", "DE"], department: ["Product"] })).total,
+    ).toBe(1);
   });
 
   it("searches name, email and code case-insensitively", async () => {
@@ -276,7 +283,7 @@ describe("list", () => {
   it("sorts by salary", async () => {
     const page = await service.list({
       ...defaults,
-      country: "IN",
+      country: ["IN"],
       sort: "salaryAmount",
       order: "desc",
     });
@@ -294,5 +301,115 @@ describe("list", () => {
   it("does not expose gender in list results", async () => {
     const page = await service.list(defaults);
     expect(page.data[0]).not.toHaveProperty("gender");
+  });
+});
+
+describe("applyRaises", () => {
+  /*
+   * Priya IN 180,000,000 ; Rahul IN 120,000,001 ; Anna DE 6,000,000 (all hired 2022).
+   * 10% for IN: Priya +18,000,000 ; Rahul +12,000,000 (12,000,000.1 rounds down).
+   * Anna individually to 6,600,000.
+   */
+  let ids: { priya: string; rahul: string; anna: string };
+  beforeEach(async () => {
+    const priyaRow = await service.create(priya);
+    const rahul = await service.create({
+      ...priya,
+      employeeCode: "EMP-00002",
+      fullName: "Rahul Verma",
+      email: "rahul@acme.test",
+      salaryAmount: 120_000_001,
+    });
+    const anna = await service.create({
+      ...priya,
+      employeeCode: "EMP-00003",
+      fullName: "Anna Schmidt",
+      email: "anna@acme.test",
+      countryCode: "DE",
+      salaryAmount: 6_000_000,
+    });
+    ids = { priya: priyaRow.id, rahul: rahul.id, anna: anna.id };
+  });
+
+  const when = { effectiveOn: TODAY, reason: "merit" as const };
+
+  it("applies a group raise and individual raises together, as salary revisions", async () => {
+    const result = await service.applyRaises({
+      percent: 10,
+      country: "IN",
+      overrides: [{ employeeId: ids.anna, newAmount: 6_600_000 }],
+      ...when,
+    });
+
+    expect(result).toEqual({ applied: 3, skipped: 0 });
+    expect((await service.get(ids.priya)).salary.amount).toBe(198_000_000);
+    expect((await service.get(ids.rahul)).salary.amount).toBe(132_000_001);
+    const anna = await service.get(ids.anna);
+    expect(anna.salary.amount).toBe(6_600_000);
+    expect(anna.revisions[0]).toMatchObject({
+      amount: 6_600_000,
+      previousAmount: 6_000_000,
+      currency: "eur",
+      effectiveOn: TODAY,
+      reason: "merit",
+    });
+  });
+
+  it("is all or nothing: one bad date rejects the plan and changes nobody", async () => {
+    await service.changeSalary(ids.priya, {
+      amount: 190_000_000,
+      effectiveOn: "2026-06-15",
+      reason: "promotion",
+    });
+
+    await expectAppError(
+      service.applyRaises({
+        percent: 10,
+        country: "IN",
+        effectiveOn: "2026-06-01",
+        reason: "merit",
+      }),
+      422,
+    );
+    expect((await service.get(ids.rahul)).salary.amount).toBe(120_000_001);
+    expect((await service.get(ids.priya)).salary.amount).toBe(190_000_000);
+  });
+
+  it("rejects an effective date in the future", async () => {
+    await expectAppError(
+      service.applyRaises({ percent: 5, effectiveOn: "2026-07-01", reason: "merit" }),
+      422,
+    );
+  });
+
+  it("rejects an individual raise that is not above the current salary", async () => {
+    await expectAppError(
+      service.applyRaises({
+        overrides: [{ employeeId: ids.anna, newAmount: 5_000_000 }],
+        ...when,
+      }),
+      422,
+    );
+  });
+
+  it("rejects individual raises for inactive people", async () => {
+    await service.deactivate(ids.anna, { reason: "Resigned" });
+    await expectAppError(
+      service.applyRaises({ overrides: [{ employeeId: ids.anna, percent: 5 }], ...when }),
+      422,
+    );
+  });
+
+  it("skips people whose raise rounds to nothing", async () => {
+    const tiny = await service.create({
+      ...priya,
+      employeeCode: "EMP-00004",
+      email: "tiny@acme.test",
+      countryCode: "JP",
+      salaryAmount: 10,
+    });
+    const result = await service.applyRaises({ percent: 1, country: "JP", ...when });
+    expect(result).toEqual({ applied: 0, skipped: 1 });
+    expect((await service.get(tiny.id)).salary.amount).toBe(10);
   });
 });

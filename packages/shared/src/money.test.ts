@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyRaise,
   currencyExponent,
   formatMoney,
   formatMoneyParts,
@@ -154,5 +155,27 @@ describe("formatMoneyParts", () => {
         .map((p) => p.value)
         .join(""),
     ).toBe(".50");
+  });
+});
+
+describe("applyRaise", () => {
+  it("adds the percentage, rounded to a whole minor unit", () => {
+    expect(applyRaise(180_000_000, 5)).toBe(189_000_000);
+    expect(applyRaise(10_001, 2.5)).toBe(10_251); // 250.025 rounds to 250
+    expect(applyRaise(10_002, 2.5)).toBe(10_252); // 250.05 rounds to 250
+    expect(applyRaise(101, 0.5)).toBe(102); // 0.505 rounds half up to 1
+  });
+
+  it("is exact where floating point is not", () => {
+    // 5.15% of 1,000,000 is 51,500; float maths gives 51499.99999999999.
+    expect(applyRaise(1_000_000, 5.15)).toBe(1_051_500);
+  });
+
+  it("handles salaries far above float precision of intermediate products", () => {
+    expect(applyRaise(9_000_000_000_000, 33.33)).toBe(11_999_700_000_000);
+  });
+
+  it("rejects more than two decimal places", () => {
+    expect(() => applyRaise(100, 1.234)).toThrow();
   });
 });

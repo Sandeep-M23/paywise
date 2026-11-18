@@ -8,6 +8,7 @@ import type {
 } from "@paywise/shared";
 import type { Db } from "../db/client";
 import { employees } from "../db/schema";
+import { raisePlanCost } from "../repositories/employees";
 
 /*
  * Fairness checks compare like with like: full-time employees in the same job
@@ -180,18 +181,12 @@ export function createFairnessService({ db }: { db: Db }) {
       );
     },
 
-    /** What-if: the cost of a raise for a group, per currency. Read-only. */
-    async raiseCost({ percent, ...filters }: RaiseCostRequest): Promise<RaiseCost[]> {
-      // Each person's raise is rounded to a whole minor unit, as it would be paid.
-      const { rows } = await db.execute(sql`
-        SELECT salary_currency AS currency, count(*) AS headcount,
-               sum(salary_amount) AS current_total,
-               sum(round(salary_amount * ${String(percent)}::numeric / 100)) AS increase
-        FROM ${employees}
-        WHERE ${activeWhere(filters)}
-        GROUP BY salary_currency
-        ORDER BY salary_currency
-      `);
+    /**
+     * What-if: the cost of a raise plan (a group raise and/or individual raises),
+     * per currency. Read-only.
+     */
+    async raiseCost(plan: RaiseCostRequest): Promise<RaiseCost[]> {
+      const rows = await raisePlanCost(db, plan);
       return rows.map((r) => ({
         currency: String(r.currency),
         headcount: num(r.headcount),

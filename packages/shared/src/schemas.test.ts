@@ -5,6 +5,8 @@ import {
   employeeCreateSchema,
   employeeListQuerySchema,
   employeeUpdateSchema,
+  raiseApplySchema,
+  raisePlanSchema,
   salaryRevisionCreateSchema,
 } from "./schemas";
 
@@ -130,7 +132,7 @@ describe("employeeListQuerySchema", () => {
     expect(employeeListQuerySchema.parse({})).toEqual({
       page: 1,
       pageSize: 25,
-      sort: "fullName",
+      sort: "employeeCode",
       order: "asc",
       status: "active",
     });
@@ -143,8 +145,103 @@ describe("employeeListQuerySchema", () => {
     });
   });
 
+  it("takes one or several countries, job titles and departments as a list", () => {
+    expect(employeeListQuerySchema.parse({ country: "IN" }).country).toEqual(["IN"]);
+    // Repeated query keys arrive as an array; duplicates are dropped.
+    expect(employeeListQuerySchema.parse({ country: ["IN", "DE", "IN"] }).country).toEqual([
+      "IN",
+      "DE",
+    ]);
+    // Commas belong to the value, so a job title like this still filters as one.
+    expect(employeeListQuerySchema.parse({ jobTitle: "VP, Sales" }).jobTitle).toEqual([
+      "VP, Sales",
+    ]);
+    expect(employeeListQuerySchema.parse({}).department).toBeUndefined();
+    expect(employeeListQuerySchema.safeParse({ country: ["IN", "XX"] }).success).toBe(false);
+    expect(employeeListQuerySchema.safeParse({ country: [] }).success).toBe(false);
+  });
+
   it("caps page size and whitelists sort columns", () => {
     expect(employeeListQuerySchema.safeParse({ pageSize: "500" }).success).toBe(false);
     expect(employeeListQuerySchema.safeParse({ sort: "password" }).success).toBe(false);
+  });
+});
+
+describe("raisePlanSchema", () => {
+  const id = "4b0b8f0e-2f6d-4a39-9d5e-0c8f2f5f9a11";
+  const other = "9a3c1e2d-7b6f-4c5a-8e9d-1f2a3b4c5d6e";
+
+  it("accepts a group raise with no individual raises", () => {
+    expect(raisePlanSchema.parse({ percent: 5, country: "IN" })).toEqual({
+      percent: 5,
+      country: ["IN"],
+      overrides: [],
+    });
+  });
+
+  it("targets several countries, departments or job titles at once", () => {
+    expect(
+      raisePlanSchema.parse({ percent: 3, country: ["IN", "DE"], department: ["Sales", "Data"] }),
+    ).toMatchObject({ country: ["IN", "DE"], department: ["Sales", "Data"] });
+  });
+
+  it("accepts individual raises alone, as a percent or a new salary", () => {
+    const plan = raisePlanSchema.parse({
+      percent: 0,
+      overrides: [
+        { employeeId: id, percent: 12.5 },
+        { employeeId: other, newAmount: 250_000_000 },
+      ],
+    });
+    expect(plan.overrides).toHaveLength(2);
+  });
+
+  it("needs a group raise or at least one individual raise", () => {
+    const result = raisePlanSchema.safeParse({ percent: 0 });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.message).toMatch(/group raise|individual/i);
+  });
+
+  it("needs exactly one of percent or new salary per person", () => {
+    expect(raisePlanSchema.safeParse({ overrides: [{ employeeId: id }] }).success).toBe(false);
+    expect(
+      raisePlanSchema.safeParse({
+        overrides: [{ employeeId: id, percent: 5, newAmount: 100 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects the same person twice", () => {
+    const result = raisePlanSchema.safeParse({
+      overrides: [
+        { employeeId: id, percent: 5 },
+        { employeeId: id, percent: 6 },
+      ],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("keeps the percent limits and two decimal places", () => {
+    expect(raisePlanSchema.safeParse({ percent: 101 }).success).toBe(false);
+    expect(raisePlanSchema.safeParse({ percent: 1.234 }).success).toBe(false);
+    expect(raisePlanSchema.safeParse({ percent: -1 }).success).toBe(false);
+  });
+});
+
+describe("raiseApplySchema", () => {
+  it("adds when and why to the plan", () => {
+    const parsed = raiseApplySchema.parse({
+      percent: 3,
+      effectiveOn: "2026-07-01",
+      reason: "merit",
+    });
+    expect(parsed).toMatchObject({ percent: 3, effectiveOn: "2026-07-01", reason: "merit" });
+  });
+
+  it("only allows reasons a person can choose", () => {
+    expect(
+      raiseApplySchema.safeParse({ percent: 3, effectiveOn: "2026-07-01", reason: "import" })
+        .success,
+    ).toBe(false);
   });
 });

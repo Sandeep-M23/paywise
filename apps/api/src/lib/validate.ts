@@ -25,7 +25,14 @@ export async function parseBody<T extends z.ZodType>(c: Context, schema: T): Pro
 
 /** Validates query-string parameters; failures are a 400 (the request itself is malformed). */
 export function parseQuery<T extends z.ZodType>(c: Context, schema: T): z.output<T> {
-  const result = schema.safeParse(c.req.query());
+  // A key given more than once (?country=IN&country=DE) becomes a list.
+  const query = Object.fromEntries(
+    Object.entries(c.req.queries()).map(([key, values]) => [
+      key,
+      values.length === 1 ? values[0] : values,
+    ]),
+  );
+  const result = schema.safeParse(query);
   if (!result.success) {
     throw new AppError(400, "invalid_query", "Invalid query parameters", toDetails(result.error));
   }

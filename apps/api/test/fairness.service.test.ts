@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { CountryCode, EmployeeCreateInput, EmploymentType, Gender } from "@paywise/shared";
 import { createEmployeeService } from "../src/services/employees";
@@ -38,6 +39,14 @@ async function hire(
     hireDate: "2022-01-01",
   };
   return employees.create(input);
+}
+
+/** Fixture salaries are distinct, so salary identifies the person. */
+async function idsBySalary() {
+  const { rows } = await testDb.db.execute<{ id: string; salary_amount: string }>(
+    sql`SELECT id, salary_amount FROM employees`,
+  );
+  return new Map(rows.map((r) => [Number(r.salary_amount), r.id]));
 }
 
 describe("outliers", () => {
@@ -180,6 +189,48 @@ describe("raiseCost", () => {
     expect(await fairness.raiseCost({ percent: 10, department: "Engineering" })).toEqual([
       { currency: "eur", headcount: 1, currentTotal: 50_000, increase: 5_000, newTotal: 55_000 },
       { currency: "inr", headcount: 2, currentTotal: 300_001, increase: 30_000, newTotal: 330_001 },
+    ]);
+  });
+
+  it("lets individual raises replace the group raise and reach people outside the group", async () => {
+    const ids = await idsBySalary();
+    /*
+     * Group: 10% for IN Engineering (100,001 -> +10,000; 200,000 is overridden).
+     * Overrides: 200,000 -> new salary 250,000 (+50,000); IN Product 300,000 at 5% (+15,000).
+     * INR: 3 people, 600,001 now, +75,000.
+     */
+    expect(
+      await fairness.raiseCost({
+        percent: 10,
+        country: "IN",
+        department: "Engineering",
+        overrides: [
+          { employeeId: ids.get(200_000)!, newAmount: 250_000 },
+          { employeeId: ids.get(300_000)!, percent: 5 },
+        ],
+      }),
+    ).toEqual([
+      { currency: "inr", headcount: 3, currentTotal: 600_001, increase: 75_000, newTotal: 675_001 },
+    ]);
+  });
+
+  it("costs individual raises on their own when there is no group raise", async () => {
+    const ids = await idsBySalary();
+    expect(
+      await fairness.raiseCost({
+        percent: 0,
+        overrides: [{ employeeId: ids.get(50_000)!, newAmount: 60_000 }],
+      }),
+    ).toEqual([
+      { currency: "eur", headcount: 1, currentTotal: 50_000, increase: 10_000, newTotal: 60_000 },
+    ]);
+  });
+
+  it("raises everyone in any of the chosen countries", async () => {
+    const cost = await fairness.raiseCost({ percent: 10, country: ["IN", "DE"] });
+    expect(cost.map((row) => [row.currency, row.headcount])).toEqual([
+      ["eur", 1],
+      ["inr", 3],
     ]);
   });
 

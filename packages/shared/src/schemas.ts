@@ -15,6 +15,19 @@ export const REVISION_REASONS = ["hire", "import", ...MANUAL_REVISION_REASONS] a
 
 const text = (max: number) => z.string().trim().min(1, "Required").max(max);
 
+/**
+ * A filter that matches any of several values. Takes one value or a list (repeated
+ * query keys arrive as a list; a comma is part of the value, as in "VP, Sales") and
+ * gives back a de-duplicated list.
+ */
+const anyOf = <T extends z.ZodType>(item: T) =>
+  z
+    .union([item, z.array(item).min(1).max(50)])
+    .transform((value) => [...new Set(Array.isArray(value) ? value : [value])] as z.output<T>[])
+    .optional();
+
+const filterText = z.string().trim().min(1).max(100);
+
 export const employeeCodeSchema = z
   .string()
   .trim()
@@ -87,13 +100,14 @@ export const EMPLOYEE_SORT_FIELDS = [
 export const employeeListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
-  sort: z.enum(EMPLOYEE_SORT_FIELDS).default("fullName"),
+  // Employee code by default: a stable order HR recognises, unlike names.
+  sort: z.enum(EMPLOYEE_SORT_FIELDS).default("employeeCode"),
   order: z.enum(["asc", "desc"]).default("asc"),
   status: z.enum([...EMPLOYEE_STATUSES, "all"]).default("active"),
   q: z.string().trim().min(1).max(100).optional(),
-  country: z.enum(COUNTRY_CODES).optional(),
-  jobTitle: z.string().trim().min(1).max(100).optional(),
-  department: z.string().trim().min(1).max(100).optional(),
+  country: anyOf(z.enum(COUNTRY_CODES)),
+  jobTitle: anyOf(filterText),
+  department: anyOf(filterText),
 });
 
 export type Gender = (typeof GENDERS)[number];
@@ -110,16 +124,59 @@ export const fairnessQuerySchema = z.object({
   jobTitle: z.string().trim().min(1).max(100).optional(),
 });
 
-export const raiseCostRequestSchema = z.object({
-  percent: z
-    .number()
-    .positive("Raise must be greater than 0%")
-    .max(100, "Raise can be at most 100%")
-    .multipleOf(0.01, "Use at most two decimal places"),
-  country: z.enum(COUNTRY_CODES).optional(),
-  jobTitle: z.string().trim().min(1).max(100).optional(),
-  department: z.string().trim().min(1).max(100).optional(),
-});
+const raisePercentSchema = z
+  .number()
+  .max(100, "Raise can be at most 100%")
+  .multipleOf(0.01, "Use at most two decimal places");
+
+/** One person's raise in a plan: a percentage or a new annual salary, not both. */
+export const raiseOverrideSchema = z
+  .object({
+    employeeId: z.uuid(),
+    percent: raisePercentSchema.positive("Raise must be greater than 0%").optional(),
+    newAmount: minorAmountSchema.optional(),
+  })
+  .refine((o) => (o.percent === undefined) !== (o.newAmount === undefined), {
+    message: "Give either a raise % or a new salary",
+    path: ["percent"],
+  });
+
+/**
+ * A raise plan: a group raise for everyone active matching the filters, and/or
+ * individual raises that replace the group raise for those people (they need not
+ * match the filters). Used for the what-if cost and, with a date and reason, to apply it.
+ */
+export const raisePlanSchema = z
+  .object({
+    percent: raisePercentSchema.min(0, "Raise cannot be negative").default(0),
+    country: anyOf(z.enum(COUNTRY_CODES)),
+    jobTitle: anyOf(filterText),
+    department: anyOf(filterText),
+    overrides: z.array(raiseOverrideSchema).max(500, "At most 500 individual raises").default([]),
+  })
+  .refine((p) => p.percent > 0 || p.overrides.length > 0, {
+    message: "Set a group raise above 0% or add an individual raise",
+    path: ["percent"],
+  })
+  .refine((p) => new Set(p.overrides.map((o) => o.employeeId)).size === p.overrides.length, {
+    message: "Each person can only have one individual raise",
+    path: ["overrides"],
+  });
+
+/** Kept for the what-if endpoint: the cost of a plan. */
+export const raiseCostRequestSchema = raisePlanSchema;
+
+export const raiseApplySchema = raisePlanSchema.and(
+  z.object({
+    effectiveOn: isoDateSchema,
+    reason: z.enum(MANUAL_REVISION_REASONS),
+    note: z.string().trim().max(500).optional(),
+  }),
+);
 
 export type FairnessQuery = z.infer<typeof fairnessQuerySchema>;
-export type RaiseCostRequest = z.infer<typeof raiseCostRequestSchema>;
+export type RaiseCostRequest = z.input<typeof raiseCostRequestSchema>;
+export type RaisePlan = z.infer<typeof raisePlanSchema>;
+export type RaiseOverride = z.infer<typeof raiseOverrideSchema>;
+export type RaiseApplyInput = z.infer<typeof raiseApplySchema>;
+export type RaiseApplyRequest = z.input<typeof raiseApplySchema>;
