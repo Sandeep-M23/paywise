@@ -3,7 +3,8 @@ import { bodyLimit } from "hono/body-limit";
 import { employeeListQuerySchema, importRequestSchema } from "@paywise/shared";
 import type { ImportService } from "../services/imports";
 import type { ExportService } from "../services/exports";
-import { AppError } from "../lib/errors";
+import { z } from "zod";
+import { AppError, notFound } from "../lib/errors";
 import { parseBody, parseQuery } from "../lib/validate";
 
 // Vercel Functions reject request bodies over 4.5 MB; fail early with a clear message.
@@ -25,14 +26,22 @@ const csvResponse = (csv: string, filename: string) =>
   });
 
 export function importRoutes(service: ImportService, exports: ExportService) {
-  return new Hono()
+  return new Hono<{ Variables: { userEmail?: string } }>()
     .get("/", async (c) => c.json(await service.list()))
     .get("/template.csv", () => csvResponse(exports.templateCsv(), "paywise-import-template.csv"))
+    .get("/:id", async (c) => {
+      const id = z.uuid().safeParse(c.req.param("id"));
+      if (!id.success) throw notFound("Import");
+      return c.json(await service.get(id.data));
+    })
     .post("/preview", limitImportBody, async (c) =>
       c.json(await service.preview(await parseBody(c, importRequestSchema))),
     )
     .post("/", limitImportBody, async (c) =>
-      c.json(await service.commit(await parseBody(c, importRequestSchema)), 201),
+      c.json(
+        await service.commit(await parseBody(c, importRequestSchema), { by: c.get("userEmail") }),
+        201,
+      ),
     );
 }
 

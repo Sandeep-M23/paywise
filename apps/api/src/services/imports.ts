@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, inArray, min, ne, sql } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray, min, ne, sql } from "drizzle-orm";
 import {
   currencyForCountry,
   parseImportRow,
   type EmployeeImportInput,
   type ImportChange,
+  type ImportDetail,
   type ImportFieldError,
   type ImportLogEntry,
   type ImportPreview,
@@ -13,9 +14,15 @@ import {
   type ImportResult,
 } from "@paywise/shared";
 import type { Db } from "../db/client";
-import { employees, imports, salaryRevisions, type EmployeeRow } from "../db/schema";
+import {
+  employees,
+  imports,
+  salaryRevisions,
+  type EmployeeRow,
+  type ImportRow,
+} from "../db/schema";
 import type { Clock } from "../lib/clock";
-import { invalid, mapDbError } from "../lib/errors";
+import { invalid, mapDbError, notFound } from "../lib/errors";
 import * as repo from "../repositories/employees";
 
 /*
@@ -215,6 +222,20 @@ function chunks<T>(items: T[]): T[][] {
   );
 }
 
+function toLogEntry(row: Omit<ImportRow, "rows">): ImportLogEntry {
+  return {
+    id: row.id,
+    filename: row.filename,
+    rowCount: row.rowCount,
+    createdCount: row.createdCount,
+    updatedCount: row.updatedCount,
+    skippedCount: row.skippedCount,
+    status: row.status as ImportLogEntry["status"],
+    createdBy: row.createdBy,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
 export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
   return {
     async preview(request: ImportRequest): Promise<ImportPreview> {
@@ -222,7 +243,7 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
       return { summary: summarise(rows), rows };
     },
 
-    async commit(request: ImportRequest): Promise<ImportResult> {
+    async commit(request: ImportRequest, { by }: { by?: string } = {}): Promise<ImportResult> {
       const today = clock.today();
       return db
         .transaction(async (tx) => {
@@ -240,6 +261,8 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
               createdCount: summary.create,
               updatedCount: summary.update,
               skippedCount: summary.error,
+              createdBy: by ?? null,
+              rows: rows.filter((row) => row.status !== "unchanged"),
             })
             .returning({ id: imports.id });
           const importId = log!.id;
@@ -318,12 +341,20 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
     },
 
     async list(): Promise<ImportLogEntry[]> {
-      const rows = await db.select().from(imports).orderBy(desc(imports.createdAt)).limit(50);
-      return rows.map((row) => ({
-        ...row,
-        status: row.status as ImportLogEntry["status"],
-        createdAt: row.createdAt.toISOString(),
-      }));
+      // The per-row record can be large; the list doesn't need it.
+      const { rows: _rows, ...columns } = getTableColumns(imports);
+      const rows = await db
+        .select(columns)
+        .from(imports)
+        .orderBy(desc(imports.createdAt))
+        .limit(50);
+      return rows.map(toLogEntry);
+    },
+
+    async get(id: string): Promise<ImportDetail> {
+      const [row] = await db.select().from(imports).where(eq(imports.id, id));
+      if (!row) throw notFound("Import");
+      return { ...toLogEntry(row), rows: row.rows };
     },
   };
 }

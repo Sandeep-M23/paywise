@@ -216,3 +216,39 @@ describe("commit", () => {
     expect(await count("imports")).toBe(0);
   });
 });
+
+describe("detail", () => {
+  it("records who ran the import and what each row did", async () => {
+    const { importId } = await imports.commit(
+      request({ ...existingRow, salary: "20,00,000" }, newRow, { ...newRow, email: "x" }),
+      { by: "hr@acme.test" },
+    );
+
+    const detail = await imports.get(importId);
+    expect(detail).toMatchObject({ id: importId, createdBy: "hr@acme.test", createdCount: 1 });
+    expect(detail.rows.map((r) => r.status)).toEqual(["update", "create", "error"]);
+    expect(detail.rows[0]!.changes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ to: expect.anything() })]),
+    );
+    expect(detail.rows[2]!.errors?.[0]).toMatchObject({ field: "email" });
+  });
+
+  it("leaves unchanged rows out of the record", async () => {
+    const { importId } = await imports.commit(request(existingRow, newRow));
+    const detail = await imports.get(importId);
+    expect(detail.rows.map((r) => r.status)).toEqual(["create"]);
+    expect(detail.createdBy).toBeNull();
+  });
+
+  it("is 404 for an unknown import", async () => {
+    await expect(imports.get("00000000-0000-4000-8000-000000000000")).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("shows who ran each import in the list", async () => {
+    await imports.commit(request(newRow), { by: "hr@acme.test" });
+    const [log] = await imports.list();
+    expect(log).toMatchObject({ createdBy: "hr@acme.test" });
+  });
+});

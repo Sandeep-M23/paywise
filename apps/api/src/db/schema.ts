@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { ImportPreviewRow } from "@paywise/shared";
 import {
   bigint,
   char,
@@ -6,6 +7,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -62,6 +64,10 @@ export const imports = pgTable("imports", {
   updatedCount: integer("updated_count").notNull(),
   skippedCount: integer("skipped_count").notNull(),
   status: text("status").notNull().default("committed"),
+  // Who ran it (the signed-in HR email) and what each created, updated or skipped
+  // row did, so the import log can show its detail. Unchanged rows are left out.
+  createdBy: text("created_by"),
+  rows: jsonb("rows").$type<ImportPreviewRow[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

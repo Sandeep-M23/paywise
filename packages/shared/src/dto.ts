@@ -101,8 +101,12 @@ export type ImportLogEntry = {
   updatedCount: number;
   skippedCount: number;
   status: "committed" | "reverted";
+  createdBy: string | null;
   createdAt: string;
 };
+
+/** An import with what each created, updated or skipped row did. */
+export type ImportDetail = ImportLogEntry & { rows: ImportPreviewRow[] };
 
 export type PayOutlier = {
   id: string;
@@ -140,6 +144,8 @@ export type GenderGapGroup = {
   significant: boolean;
   suppressed: boolean;
 };
+
+export type RaiseApplyResult = { applied: number; skipped: number };
 
 export type RaiseCost = {
   currency: string;

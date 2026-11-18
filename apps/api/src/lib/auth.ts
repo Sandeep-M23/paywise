@@ -71,9 +71,10 @@ export async function readSession(
 export function requireSession(config: AuthConfig, publicPaths: string[]): MiddlewareHandler {
   return async (c, next) => {
     if (publicPaths.includes(c.req.path)) return next();
-    if (!(await readSession(c, config))) {
-      throw new AppError(401, "unauthenticated", "Please sign in");
-    }
+    const session = await readSession(c, config);
+    if (!session) throw new AppError(401, "unauthenticated", "Please sign in");
+    // Routes that record who did something read it as c.get("userEmail").
+    c.set("userEmail", session.email);
     return next();
   };
 }
