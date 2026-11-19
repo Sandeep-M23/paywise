@@ -17,7 +17,7 @@ flowchart LR
   subgraph Vercel Functions
     R[Hono routes + controllers<br/>Zod parse, auth, origin check]
     S[Services<br/>domain rules, transactions, audit]
-    D[Repositories<br/>SQL aggregates; Drizzle today,<br/>Sequelize + pg planned]
+    D[Repositories<br/>Sequelize models +<br/>SQL aggregates]
   end
   CRON[Vercel Cron<br/>promote due revisions, planned]
   DB[(PostgreSQL<br/>any host)]
@@ -34,7 +34,7 @@ flowchart LR
 - **Monorepo** (npm workspaces): `apps/api`, `apps/web`, `packages/shared`.
 - **One source of truth for validation:** Zod schemas in `shared` are used by both the web forms and the API.
 - **Layering:** routes declare paths; controllers handle only HTTP concerns (validate, call a service, shape the response); services own the business rules, transactions and audit entries; repositories own SQL. Folders follow the Outbox backend starter: `routes/<feature>/`, `controllers/<feature>/`, `services/<feature>/` (`-service.ts` and `-repository.ts`), plus `middlewares/`, `validators/`, `interfaces/`, `config/` and `models/`. Repositories receive the database handle, so tests inject an in-process Postgres (PGlite).
-- **Data layer (revision 2.1, planned):** Drizzle is being replaced by `pg` + **Sequelize**, as in the Outbox backends: PascalCase models for CRUD and row locks, and `sequelize.query` with named replacements for every statistic and bulk write. The schema comes from the models via `npm run db:sync` (`sync({ alter: true })`) plus an idempotent `schema.sql` for what `sync()` can't express (`CHECK`s, partial and covering indexes, deferred composite FKs, the audit trigger). Any Postgres host works, configured by `DB_*` variables. Details: `PLAN.md` §3.11.
+- **Data layer:** PostgreSQL through `pg` + **Sequelize**, as in the Outbox backends (no other ORM, no vendor driver): PascalCase models for CRUD and row locks, and `sequelize.query` with named replacements for every statistic and bulk write. The schema comes from the models via `npm run db:sync` (`sync({ alter: true })`) plus an idempotent `schema.sql` for what `sync()` can't express (`CHECK`s, partial and covering indexes, deferred composite FKs, the audit trigger). Any Postgres host works, configured by `DB_*` variables. `config/db.ts` gives every repository a `Db` handle (`{ sequelize, transaction? }`) and `select` / `execute` helpers, so a function runs the same inside or outside a transaction. `bigint` money arrives as an exact JS number (an `int8` type parser; every amount is far below 2⁵³). Details: `PLAN.md` §3.11.
 - **Aggregates run in SQL** (`GROUP BY`, `percentile_cont`, `width_bucket`). The API never loads 10k rows into memory to compute statistics.
 - **One origin for the browser:** the web app rewrites `/api/*` to the API deployment, so the signed session cookie is first-party: no CORS, and no third-party cookie blocking. `proxy.ts` (Next 16's middleware) only redirects visitors without a cookie to `/login`; the API verifies the session on every request.
 - **State on the client:** TanStack Query owns everything fetched (keys per resource; every write invalidates employees, insights, fairness and filter options). Directory filters, sort and page live in the **URL**, so views can be shared and reloaded; a filter with several values repeats its key (`?country=IN&country=DE`), which the API reads as "any of", so commas inside values such as "VP, Sales" are safe. Jotai holds only transient UI state.

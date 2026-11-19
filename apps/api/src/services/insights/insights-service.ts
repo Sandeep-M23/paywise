@@ -1,4 +1,3 @@
-import { and, asc, count, eq, max, min, sql, type SQL } from "drizzle-orm";
 import {
   COUNTRIES,
   currencyForCountry,
@@ -10,8 +9,7 @@ import {
   type FilterOptions,
   type JobTitleSummary,
 } from "@paywise/shared";
-import type { Db } from "../../config/db";
-import { employees } from "../../models";
+import { select, type Db } from "../../config/db";
 
 /*
  * All statistics run in SQL over active employees, in minor units of the
@@ -22,34 +20,44 @@ import { employees } from "../../models";
 
 const toInt = (value: unknown) => Math.round(Number(value));
 
-const stats = {
-  headcount: count(),
-  total: sql<number>`sum(${employees.salaryAmount})`.mapWith(toInt),
-  min: sql<number>`min(${employees.salaryAmount})`.mapWith(toInt),
-  max: sql<number>`max(${employees.salaryAmount})`.mapWith(toInt),
-  mean: sql<number>`avg(${employees.salaryAmount})`.mapWith(toInt),
-  median:
-    sql<number>`percentile_cont(0.5) within group (order by ${employees.salaryAmount})`.mapWith(
-      toInt,
-    ),
+// The statistics every summary shares, over salary_amount (minor units).
+const STATS = `count(*) AS headcount, sum(salary_amount) AS total,
+  min(salary_amount) AS min, max(salary_amount) AS max, avg(salary_amount) AS mean,
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_amount) AS median`;
+
+type StatsRow = {
+  headcount: number;
+  total: string;
+  min: number;
+  max: number;
+  mean: string;
+  median: number;
 };
 
-const active = eq(employees.status, "active");
-const activeIn = (country: CountryCode): SQL => and(active, eq(employees.countryCode, country))!;
+const toStats = (r: StatsRow) => ({
+  headcount: Number(r.headcount),
+  total: toInt(r.total),
+  min: toInt(r.min),
+  max: toInt(r.max),
+  mean: toInt(r.mean),
+  median: toInt(r.median),
+});
+
+const ACTIVE_IN = "status = 'active' AND country_code = :country";
 
 export function createInsightsService({ db }: { db: Db }) {
   return {
     /** Distinct values for the directory filters. */
     async filterOptions(): Promise<FilterOptions> {
       const [titles, departments] = await Promise.all([
-        db
-          .selectDistinct({ value: employees.jobTitle })
-          .from(employees)
-          .orderBy(asc(employees.jobTitle)),
-        db
-          .selectDistinct({ value: employees.department })
-          .from(employees)
-          .orderBy(asc(employees.department)),
+        select<{ value: string }>(
+          db,
+          "SELECT DISTINCT job_title AS value FROM employees ORDER BY job_title",
+        ),
+        select<{ value: string }>(
+          db,
+          "SELECT DISTINCT department AS value FROM employees ORDER BY department",
+        ),
       ]);
       return {
         countries: COUNTRIES.map(({ code, name, currency }) => ({ code, name, currency })),
@@ -59,42 +67,44 @@ export function createInsightsService({ db }: { db: Db }) {
     },
 
     async countrySummaries(): Promise<CountrySummary[]> {
-      const rows = await db
-        .select({
-          countryCode: employees.countryCode,
-          currency: employees.salaryCurrency,
-          ...stats,
-        })
-        .from(employees)
-        .where(active)
-        .groupBy(employees.countryCode, employees.salaryCurrency)
-        .orderBy(asc(employees.countryCode));
-      return rows;
+      const rows = await select<StatsRow & { country_code: string; currency: string }>(
+        db,
+        `SELECT country_code, salary_currency AS currency, ${STATS}
+         FROM employees WHERE status = 'active'
+         GROUP BY country_code, salary_currency
+         ORDER BY country_code`,
+      );
+      return rows.map((r) => ({
+        countryCode: r.country_code,
+        currency: r.currency,
+        ...toStats(r),
+      }));
     },
 
     async jobTitles(country: CountryCode): Promise<JobTitleSummary[]> {
-      const { total: _total, ...titleStats } = stats;
-      return db
-        .select({ jobTitle: employees.jobTitle, ...titleStats })
-        .from(employees)
-        .where(activeIn(country))
-        .groupBy(employees.jobTitle)
-        .orderBy(asc(employees.jobTitle));
+      const rows = await select<StatsRow & { job_title: string }>(
+        db,
+        `SELECT job_title, ${STATS} FROM employees WHERE ${ACTIVE_IN}
+         GROUP BY job_title ORDER BY job_title`,
+        { country },
+      );
+      return rows.map((r) => {
+        const { total: _total, ...stats } = toStats(r);
+        return { jobTitle: r.job_title, ...stats };
+      });
     },
 
     async departments(country: CountryCode): Promise<DepartmentSummary[]> {
-      return db
-        .select({
-          department: employees.department,
-          headcount: stats.headcount,
-          total: stats.total,
-          mean: stats.mean,
-          median: stats.median,
-        })
-        .from(employees)
-        .where(activeIn(country))
-        .groupBy(employees.department)
-        .orderBy(asc(employees.department));
+      const rows = await select<StatsRow & { department: string }>(
+        db,
+        `SELECT department, ${STATS} FROM employees WHERE ${ACTIVE_IN}
+         GROUP BY department ORDER BY department`,
+        { country },
+      );
+      return rows.map((r) => {
+        const { headcount, total, mean, median } = toStats(r);
+        return { department: r.department, headcount, total, mean, median };
+      });
     },
 
     /**
@@ -103,10 +113,11 @@ export function createInsightsService({ db }: { db: Db }) {
      */
     async distribution(country: CountryCode, bucketCount: number): Promise<Distribution> {
       const currency = currencyForCountry(country);
-      const [range] = await db
-        .select({ low: min(employees.salaryAmount), high: max(employees.salaryAmount) })
-        .from(employees)
-        .where(activeIn(country));
+      const [range] = await select<{ low: number | null; high: number | null }>(
+        db,
+        `SELECT min(salary_amount) AS low, max(salary_amount) AS high FROM employees WHERE ${ACTIVE_IN}`,
+        { country },
+      );
       if (range?.low == null || range.high == null) return { currency, buckets: [] };
 
       const low = Number(range.low);
@@ -121,15 +132,13 @@ export function createInsightsService({ db }: { db: Db }) {
         }),
       );
 
-      const index = sql<number>`floor((${employees.salaryAmount} - ${low}) / ${width})`.mapWith(
-        Number,
+      const counts = await select<{ index: number; count: number }>(
+        db,
+        `SELECT floor((salary_amount - :low) / :width)::int AS index, count(*) AS count
+         FROM employees WHERE ${ACTIVE_IN} GROUP BY 1`,
+        { country, low, width },
       );
-      const counts = await db
-        .select({ index, count: count() })
-        .from(employees)
-        .where(activeIn(country))
-        .groupBy(sql`1`);
-      for (const row of counts) buckets[row.index]!.count = row.count;
+      for (const row of counts) buckets[Number(row.index)]!.count = Number(row.count);
 
       return { currency, buckets };
     },

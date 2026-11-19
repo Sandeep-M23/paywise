@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { select } from "../src/config/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ImportRequest, ImportRowValues } from "@paywise/shared";
 import { createEmployeeService } from "../src/services/employees/employees-service";
@@ -62,12 +62,9 @@ const request = (...rows: ImportRowValues[]): ImportRequest => ({
   rows: rows.map((values, i) => ({ line: i + 2, values })),
 });
 
+// `table` is always a literal from this file, never input.
 const count = async (table: string) =>
-  (
-    (await testDb.db.execute(sql.raw(`SELECT count(*)::int AS n FROM ${table}`))).rows[0] as {
-      n: number;
-    }
-  ).n;
+  (await select<{ n: number }>(testDb.db, `SELECT count(*)::int AS n FROM ${table}`))[0]!.n;
 
 describe("preview", () => {
   it("classifies rows without saving anything", async () => {

@@ -21,6 +21,8 @@ From `npm run measure -w @paywise/api`: 7 runs each (3 for heavier calls), API o
 
 The web app keeps the previous page on screen while the next loads, debounces search (300 ms), and caches aggregates for 5 minutes. Every write invalidates them.
 
+**After moving to `pg` + Sequelize (19 Nov 2026), read-only calls re-timed** (8 runs, p50): list 2.2 ms, sorted page 200 3.6 ms, filtered 1.1 ms, search 9.0 ms, country summaries 3.7 ms, job titles 1.8 ms, gender gaps 7.7 ms, outliers 8.9 ms, export 41 ms. The SQL is the same, so timings match or beat the table above. The import and seed rows weren't re-run: the measure script commits a 9,727-row import, which would change the local data.
+
 ## What changed because of measuring
 
 **Import commit: 2.6 s → 0.85 s, about 9,700 statements → about 20.** The first version updated each existing employee with its own `UPDATE`. That's fine locally, but it's one network round trip per row once the API (Vercel) and database (Neon) are on different machines. Updates now go out as one `UPDATE … FROM (VALUES …)` per 1,000 rows, and new employees and salary revisions are batch-inserted the same way.

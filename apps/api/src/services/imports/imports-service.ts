@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, getTableColumns, inArray, min, ne, sql } from "drizzle-orm";
 import {
   currencyForCountry,
   parseImportRow,
@@ -13,14 +12,8 @@ import {
   type ImportRequest,
   type ImportResult,
 } from "@paywise/shared";
-import type { Db } from "../../config/db";
-import {
-  employees,
-  imports,
-  salaryRevisions,
-  type EmployeeRow,
-  type ImportRow,
-} from "../../models";
+import { execute, inTransaction, select, type Db } from "../../config/db";
+import { Employee, Import, SalaryRevision, type EmployeeRow, type ImportRow } from "../../models";
 import type { Clock } from "../../utils/helpers/clock";
 import { invalid, mapDbError, notFound } from "../../utils/helpers/errors";
 import * as repo from "../employees/employees-repository";
@@ -99,36 +92,34 @@ async function plan(db: Db, request: ImportRequest, today: string, lock: boolean
   // Set-based lookups: three queries for the whole file, not per row.
   const codes = [...firstLineByCode.keys()];
   const emails = [...firstLineByEmail.keys()];
-  const existingQuery = codes.length
-    ? db.select().from(employees).where(inArray(employees.employeeCode, codes))
-    : null;
-  const existingRows = existingQuery
-    ? await (lock ? existingQuery.for("update") : existingQuery)
+  const existingRows = codes.length
+    ? await select<EmployeeRow>(
+        db,
+        // Locked in id order when committing, so two imports can't deadlock.
+        `SELECT ${repo.EMPLOYEE_COLUMNS} FROM employees WHERE employee_code IN (:codes)
+         ${lock ? "ORDER BY id FOR UPDATE" : ""}`,
+        { codes },
+      )
     : [];
   const byCode = new Map(existingRows.map((row) => [row.employeeCode, row]));
 
   const emailOwners = emails.length
-    ? await db
-        .select({ code: employees.employeeCode, email: sql<string>`lower(${employees.email})` })
-        .from(employees)
-        .where(inArray(sql`lower(${employees.email})`, emails))
+    ? await select<{ code: string; email: string }>(
+        db,
+        `SELECT employee_code AS code, lower(email) AS email FROM employees
+         WHERE lower(email) IN (:emails)`,
+        { emails },
+      )
     : [];
   const ownerByEmail = new Map(emailOwners.map((o) => [o.email, o.code]));
 
   const earliestChanges = existingRows.length
-    ? await db
-        .select({ employeeId: salaryRevisions.employeeId, date: min(salaryRevisions.effectiveOn) })
-        .from(salaryRevisions)
-        .where(
-          and(
-            inArray(
-              salaryRevisions.employeeId,
-              existingRows.map((r) => r.id),
-            ),
-            ne(salaryRevisions.reason, "hire"),
-          ),
-        )
-        .groupBy(salaryRevisions.employeeId)
+    ? await select<{ employeeId: string; date: string }>(
+        db,
+        `SELECT employee_id AS "employeeId", min(effective_on) AS date FROM salary_revisions
+         WHERE employee_id IN (:ids) AND reason <> 'hire' GROUP BY employee_id`,
+        { ids: existingRows.map((r) => r.id) },
+      )
     : [];
   const earliestChangeById = new Map(earliestChanges.map((e) => [e.employeeId, e.date]));
 
@@ -245,114 +236,127 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
 
     async commit(request: ImportRequest, { by }: { by?: string } = {}): Promise<ImportResult> {
       const today = clock.today();
-      return db
-        .transaction(async (tx) => {
-          const { rows, creates, updates } = await plan(tx, request, today, true);
-          const summary = summarise(rows);
-          if (creates.length + updates.length === 0) {
-            throw invalid("rows", "Nothing to import: every row is unchanged or has errors");
-          }
+      return inTransaction(db, async (tx) => {
+        const { rows, creates, updates } = await plan(tx, request, today, true);
+        const summary = summarise(rows);
+        if (creates.length + updates.length === 0) {
+          throw invalid("rows", "Nothing to import: every row is unchanged or has errors");
+        }
 
-          const [log] = await tx
-            .insert(imports)
-            .values({
-              filename: request.filename,
-              rowCount: summary.total,
-              createdCount: summary.create,
-              updatedCount: summary.update,
-              skippedCount: summary.error,
-              createdBy: by ?? null,
-              rows: rows.filter((row) => row.status !== "unchanged"),
-            })
-            .returning({ id: imports.id });
-          const importId = log!.id;
+        const log = await Import.create(
+          {
+            filename: request.filename,
+            rowCount: summary.total,
+            createdCount: summary.create,
+            updatedCount: summary.update,
+            skippedCount: summary.error,
+            createdBy: by ?? null,
+            rows: rows.filter((row) => row.status !== "unchanged"),
+          },
+          { transaction: tx.transaction },
+        );
+        const importId = log.id;
 
-          const newEmployees = creates.map(({ input }) => ({
-            id: randomUUID(),
-            ...input,
-            gender: input.gender ?? "undisclosed",
-            salaryCurrency: currencyForCountry(input.countryCode),
-          }));
-          for (const batch of chunks(newEmployees)) {
-            await tx.insert(employees).values(batch);
-            await tx.insert(salaryRevisions).values(
-              batch.map((e) => ({
-                employeeId: e.id,
-                amount: e.salaryAmount,
-                previousAmount: null,
-                currency: e.salaryCurrency,
-                effectiveOn: e.hireDate,
-                reason: "hire",
-                importId,
-              })),
-            );
-          }
-
-          // One UPDATE ... FROM (VALUES ...) per batch instead of one per row:
-          // round trips dominate once the database is across a network.
-          for (const batch of chunks(updates)) {
-            const rows = batch.map(({ existing, input }) => {
-              const gender = input.gender ?? existing.gender;
-              return sql`(${existing.id}::uuid, ${input.fullName}, ${input.email}, ${input.jobTitle},
-                ${input.department}, ${input.employmentType}, ${input.hireDate}::date, ${gender},
-                ${input.salaryAmount}::bigint)`;
-            });
-            await tx.execute(sql`
-              UPDATE ${employees} AS e SET
-                full_name = v.full_name, email = v.email, job_title = v.job_title,
-                department = v.department, employment_type = v.employment_type,
-                hire_date = v.hire_date, gender = v.gender, salary_amount = v.salary_amount,
-                updated_at = now()
-              FROM (VALUES ${sql.join(rows, sql`, `)}) AS v(id, full_name, email, job_title,
-                department, employment_type, hire_date, gender, salary_amount)
-              WHERE e.id = v.id
-            `);
-          }
-          for (const { existing, input, changes } of updates) {
-            // Rare (a corrected hire date), so per row is fine.
-            if (changes.some((c) => c.field === "hireDate")) {
-              await repo.moveHireRevision(tx, existing.id, input.hireDate);
-            }
-          }
-          const salaryChanges = updates
-            .filter(({ existing, input }) => input.salaryAmount !== existing.salaryAmount)
-            .map(({ existing, input }) => ({
-              employeeId: existing.id,
-              amount: input.salaryAmount,
-              previousAmount: existing.salaryAmount,
-              currency: existing.salaryCurrency,
-              effectiveOn: today,
-              reason: "import",
+        const newEmployees = creates.map(({ input }) => ({
+          id: randomUUID(),
+          ...input,
+          gender: input.gender ?? "undisclosed",
+          salaryCurrency: currencyForCountry(input.countryCode),
+        }));
+        for (const batch of chunks(newEmployees)) {
+          await Employee.bulkCreate(batch, { transaction: tx.transaction });
+          await SalaryRevision.bulkCreate(
+            batch.map((e) => ({
+              employeeId: e.id,
+              amount: e.salaryAmount,
+              previousAmount: null,
+              currency: e.salaryCurrency,
+              effectiveOn: e.hireDate,
+              reason: "hire",
               importId,
-            }));
-          for (const batch of chunks(salaryChanges)) {
-            await tx.insert(salaryRevisions).values(batch);
-          }
+            })),
+            { transaction: tx.transaction },
+          );
+        }
 
-          return {
+        // One UPDATE ... FROM (VALUES ...) per batch instead of one per row:
+        // round trips dominate once the database is across a network.
+        // One UPDATE ... FROM per batch instead of one per row: round trips dominate
+        // once the database is across a network. Each batch is one JSON parameter.
+        for (const batch of chunks(updates)) {
+          const values = batch.map(({ existing, input }) => ({
+            id: existing.id,
+            full_name: input.fullName,
+            email: input.email,
+            job_title: input.jobTitle,
+            department: input.department,
+            employment_type: input.employmentType,
+            hire_date: input.hireDate,
+            gender: input.gender ?? existing.gender,
+            salary_amount: input.salaryAmount,
+          }));
+          await execute(
+            tx,
+            `UPDATE employees AS e SET
+                 full_name = v.full_name, email = v.email, job_title = v.job_title,
+                 department = v.department, employment_type = v.employment_type,
+                 hire_date = v.hire_date, gender = v.gender, salary_amount = v.salary_amount,
+                 updated_at = now()
+               FROM jsonb_to_recordset(CAST(:values AS jsonb)) AS v(id uuid, full_name text,
+                 email text, job_title text, department text, employment_type text,
+                 hire_date date, gender text, salary_amount bigint)
+               WHERE e.id = v.id`,
+            { values: JSON.stringify(values) },
+          );
+        }
+        for (const { existing, input, changes } of updates) {
+          // Rare (a corrected hire date), so per row is fine.
+          if (changes.some((c) => c.field === "hireDate")) {
+            await repo.moveHireRevision(tx, existing.id, input.hireDate);
+          }
+        }
+        const salaryChanges = updates
+          .filter(({ existing, input }) => input.salaryAmount !== existing.salaryAmount)
+          .map(({ existing, input }) => ({
+            employeeId: existing.id,
+            amount: input.salaryAmount,
+            previousAmount: existing.salaryAmount,
+            currency: existing.salaryCurrency,
+            effectiveOn: today,
+            reason: "import",
             importId,
-            created: summary.create,
-            updated: summary.update,
-            unchanged: summary.unchanged,
-            skipped: summary.error,
-          };
-        })
-        .catch(mapDbError);
+          }));
+        for (const batch of chunks(salaryChanges)) {
+          await SalaryRevision.bulkCreate(batch, { transaction: tx.transaction });
+        }
+
+        return {
+          importId,
+          created: summary.create,
+          updated: summary.update,
+          unchanged: summary.unchanged,
+          skipped: summary.error,
+        };
+      }).catch(mapDbError);
     },
 
     async list(): Promise<ImportLogEntry[]> {
       // The per-row record can be large; the list doesn't need it.
-      const { rows: _rows, ...columns } = getTableColumns(imports);
-      const rows = await db
-        .select(columns)
-        .from(imports)
-        .orderBy(desc(imports.createdAt))
-        .limit(50);
+      const rows = (await Import.findAll({
+        attributes: { exclude: ["rows"] },
+        order: [["createdAt", "DESC"]],
+        limit: 50,
+        raw: true,
+        transaction: db.transaction,
+      })) as unknown as Omit<ImportRow, "rows">[];
       return rows.map(toLogEntry);
     },
 
     async get(id: string): Promise<ImportDetail> {
-      const [row] = await db.select().from(imports).where(eq(imports.id, id));
+      const row = (await Import.findByPk(id, {
+        raw: true,
+        transaction: db.transaction,
+      })) as ImportRow | null;
       if (!row) throw notFound("Import");
       return { ...toLogEntry(row), rows: row.rows };
     },

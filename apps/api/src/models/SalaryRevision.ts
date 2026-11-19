@@ -1,40 +1,53 @@
-import { sql } from "drizzle-orm";
 import {
-  bigint,
-  char,
-  check,
-  date,
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-} from "drizzle-orm/pg-core";
-import { employees } from "./Employee";
-import { imports } from "./Import";
+  DataTypes,
+  Model,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+  type Sequelize,
+} from "sequelize";
 
-// Append-only: a mistake is fixed with a new "correction" revision.
-export const salaryRevisions = pgTable(
-  "salary_revisions",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    employeeId: uuid("employee_id")
-      .notNull()
-      .references(() => employees.id, { onDelete: "cascade" }),
-    amount: bigint("amount", { mode: "number" }).notNull(),
-    previousAmount: bigint("previous_amount", { mode: "number" }),
-    currency: char("currency", { length: 3 }).notNull(),
-    effectiveOn: date("effective_on", { mode: "string" }).notNull(),
-    reason: text("reason").notNull(),
-    note: text("note"),
-    importId: uuid("import_id").references(() => imports.id),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("salary_revisions_employee_effective_idx").on(t.employeeId, t.effectiveOn),
-    index("salary_revisions_import_idx").on(t.importId),
-    check("salary_revisions_amount_positive", sql`${t.amount} > 0`),
-  ],
-);
+/** Append-only salary history: a mistake is fixed with a new "correction" revision. */
+export class SalaryRevision extends Model<
+  InferAttributes<SalaryRevision>,
+  InferCreationAttributes<SalaryRevision>
+> {
+  declare id: CreationOptional<string>;
+  declare employeeId: string;
+  declare amount: number;
+  declare previousAmount: number | null;
+  declare currency: string;
+  declare effectiveOn: string;
+  declare reason: string;
+  declare note: CreationOptional<string | null>;
+  declare importId: CreationOptional<string | null>;
+  declare createdAt: CreationOptional<Date>;
 
-export type SalaryRevisionRow = typeof salaryRevisions.$inferSelect;
+  static initModel(sequelize: Sequelize) {
+    SalaryRevision.init(
+      {
+        id: {
+          type: DataTypes.UUID,
+          primaryKey: true,
+          defaultValue: sequelize.literal("gen_random_uuid()"),
+        },
+        employeeId: { type: DataTypes.UUID, allowNull: false },
+        amount: { type: DataTypes.BIGINT, allowNull: false },
+        previousAmount: { type: DataTypes.BIGINT, allowNull: true },
+        currency: { type: DataTypes.CHAR(3), allowNull: false },
+        effectiveOn: { type: DataTypes.DATEONLY, allowNull: false },
+        reason: { type: DataTypes.TEXT, allowNull: false },
+        note: { type: DataTypes.TEXT, allowNull: true },
+        importId: { type: DataTypes.UUID, allowNull: true },
+        createdAt: {
+          type: DataTypes.DATE,
+          allowNull: false,
+          defaultValue: sequelize.literal("now()"),
+        },
+      },
+      { sequelize, tableName: "salary_revisions", modelName: "SalaryRevision", updatedAt: false },
+    );
+  }
+}
+
+export type SalaryRevisionRow = InferAttributes<SalaryRevision>;

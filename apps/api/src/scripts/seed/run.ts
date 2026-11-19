@@ -1,5 +1,4 @@
-import { createPgDb } from "../../config/db";
-import { requireEnv } from "../../config/env";
+import { createDb, dbConfigFromEnv } from "../../config/db";
 import { generateEmployees } from "./generate";
 import { seedDatabase } from "./seed";
 
@@ -12,7 +11,7 @@ const started = performance.now();
 const people = generateEmployees({ count, seed: SEED, today: REFERENCE_DATE });
 const generated = performance.now();
 
-const { db, close } = createPgDb(requireEnv("DATABASE_URL"));
+const { db, close } = createDb(dbConfigFromEnv());
 await seedDatabase(db, people);
 await close();
 

@@ -10,7 +10,7 @@ import {
   type RaiseApplyRequest,
   type RaiseApplyResult,
 } from "@paywise/shared";
-import type { Db } from "../../config/db";
+import { inTransaction, type Db } from "../../config/db";
 import type { Clock } from "../../utils/helpers/clock";
 import { conflict, invalid, mapDbError, notFound } from "../../utils/helpers/errors";
 import * as repo from "./employees-repository";
@@ -95,41 +95,37 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
 
     async create(input: EmployeeCreateInput): Promise<EmployeeDetail> {
       assertNotFuture("hireDate", input.hireDate, "Hire date");
-      return db
-        .transaction(async (tx) => {
-          await assertUniqueIdentity(tx, input);
-          const row = await insertEmployeeWithHireRevision(tx, input);
-          return loadDetail(tx, row.id);
-        })
-        .catch(mapDbError);
+      return inTransaction(db, async (tx) => {
+        await assertUniqueIdentity(tx, input);
+        const row = await insertEmployeeWithHireRevision(tx, input);
+        return loadDetail(tx, row.id);
+      }).catch(mapDbError);
     },
 
     async update(id: string, patch: EmployeeUpdateInput): Promise<EmployeeDetail> {
-      return db
-        .transaction(async (tx) => {
-          const current = await lockEmployee(tx, id);
-          if (patch.email) await assertUniqueIdentity(tx, { email: patch.email }, id);
+      return inTransaction(db, async (tx) => {
+        const current = await lockEmployee(tx, id);
+        if (patch.email) await assertUniqueIdentity(tx, { email: patch.email }, id);
 
-          if (patch.hireDate && patch.hireDate !== current.hireDate) {
-            assertNotFuture("hireDate", patch.hireDate, "Hire date");
-            const { earliestChange } = await repo.revisionDateBounds(tx, id);
-            if (earliestChange && patch.hireDate > earliestChange) {
-              throw invalid(
-                "hireDate",
-                `Hire date cannot be after the first salary change (${earliestChange})`,
-              );
-            }
-            await repo.moveHireRevision(tx, id, patch.hireDate);
+        if (patch.hireDate && patch.hireDate !== current.hireDate) {
+          assertNotFuture("hireDate", patch.hireDate, "Hire date");
+          const { earliestChange } = await repo.revisionDateBounds(tx, id);
+          if (earliestChange && patch.hireDate > earliestChange) {
+            throw invalid(
+              "hireDate",
+              `Hire date cannot be after the first salary change (${earliestChange})`,
+            );
           }
+          await repo.moveHireRevision(tx, id, patch.hireDate);
+        }
 
-          await repo.updateEmployee(tx, id, patch);
-          return loadDetail(tx, id);
-        })
-        .catch(mapDbError);
+        await repo.updateEmployee(tx, id, patch);
+        return loadDetail(tx, id);
+      }).catch(mapDbError);
     },
 
     async deactivate(id: string, { reason }: { reason: string }): Promise<EmployeeDetail> {
-      return db.transaction(async (tx) => {
+      return inTransaction(db, async (tx) => {
         const current = await lockEmployee(tx, id);
         if (current.status === "inactive") {
           throw conflict("employee_inactive", "Employee is already inactive");
@@ -145,7 +141,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
 
     /** The only way a salary changes: append a revision and update the current amount together. */
     async changeSalary(id: string, input: SalaryRevisionCreateInput): Promise<EmployeeDetail> {
-      return db.transaction(async (tx) => {
+      return inTransaction(db, async (tx) => {
         const current = await lockEmployee(tx, id);
         if (current.status === "inactive") {
           throw conflict("employee_inactive", "Cannot change the salary of an inactive employee");
@@ -194,7 +190,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
         percent: request.percent ?? 0,
         overrides: request.overrides ?? [],
       };
-      return db.transaction(async (tx) => {
+      return inTransaction(db, async (tx) => {
         await repo.lockRaisePlan(tx, plan);
         const problems = await repo.raisePlanProblems(tx, plan, request.effectiveOn);
         if (problems.notActive > 0) {

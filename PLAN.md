@@ -5,7 +5,7 @@
 > **Deliverables:** requirements doc, a working backend and UI, a seed script for 10k employees, unit tests, a deployed app, a demo video, incremental commits, and AI/design artifacts.
 > **Research:** [`docs/RESEARCH.md`](docs/RESEARCH.md) covers competitor analysis, real HR problems (numbered #1–#12) and CSV import research. Features below cite those problem numbers.
 
-**Revision 2.1 (data layer).** Drizzle and Neon are replaced by **PostgreSQL through `pg` + Sequelize**, the same data layer as the Outbox backends: Sequelize models for CRUD, `sequelize.query` with named replacements for analytical SQL, schema from the models via a `db:sync` script, and any Postgres host configured by `DB_*` environment variables. See §3.11; it adds a Day 0 to §5.
+**Revision 2.1 (data layer).** Drizzle and Neon are replaced by **PostgreSQL through `pg` + Sequelize**, the same data layer as the Outbox backends: Sequelize models for CRUD, `sequelize.query` with named replacements for analytical SQL, schema from the models via a `db:sync` script, and any Postgres host configured by `DB_*` environment variables. See §3.11. **Done (Day 0, 19 Nov 2026):** the API runs on Sequelize; all tests pass; Drizzle, `drizzle-kit`, the migrations folder and `DATABASE_URL` are gone.
 
 **Revision 2 (plan review).** The baseline, import/export, history, fairness and the raise planner are built (see §11 for status). This revision answers a staff-level review: effective-dated salaries, country/currency separation, import idempotency, audit logs, security hardening, careful fairness wording, and a controlled "Ask Paywise" query feature, reprioritised as P0 / P1 / P2. Nothing in the stack or architecture changes.
 
@@ -347,9 +347,9 @@ New feature folders: `services/audit/`, `services/ask/`, `controllers/ask/`, `ro
 
 Commits 1–36 of revision 1 are done (see `git log`). Revision 2 continues with small Conventional Commits; `test:` before `feat:` for shared logic and services; `npm run check` before every commit; a migration per schema step.
 
-### Day 0: Data layer on Sequelize (revision 2.1, P0 enabler)
+### Day 0: Data layer on Sequelize (revision 2.1, P0 enabler): done
 
-Behaviour doesn't change, so the existing 187 tests are the safety net: they must pass after every commit.
+Behaviour doesn't change, so the existing tests were the safety net. Shipped as two commits (the plan, then the switch) rather than six, because the intermediate states don't build: every repository and the test harness depend on the database handle. Verified: 188 tests; `db:sync` on the existing local database (data and defaults intact, no duplicate constraints); the Vercel bundle answering an authenticated query; read-only timings unchanged (PERFORMANCE.md).
 
 0. `docs: plan revision 2.1: PostgreSQL via pg + Sequelize, db:sync, any Postgres host` _(this commit)_
 1. `test(api): Sequelize test harness on PGlite via pglite-socket (sync + schema.sql per file, truncate between tests)`
@@ -484,7 +484,7 @@ About **5.5 working days** for revisions 2 and 2.1, on top of the built baseline
 - [x] Import: preview before save, row-level errors, one-transaction commit, history provenance
 - [x] Export: UTF-8 BOM + formula-injection safe + round trip tested
 - [x] Seed: 10,000 deterministic employees with documented planted patterns
-- [ ] Data layer on Sequelize + pg (no Drizzle, no Neon); `db:sync` with `schema.sql`; tests on PGlite-socket
+- [x] Data layer on Sequelize + pg (no Drizzle, no Neon); `db:sync` with `schema.sql`; tests on PGlite-socket
 - [ ] Scheduled revisions, corrections and the current-salary invariant
 - [ ] Currency override, per-currency aggregates, three-decimal tests
 - [ ] Import idempotency and rollback tests

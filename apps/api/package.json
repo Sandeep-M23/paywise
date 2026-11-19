@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/dev.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx --env-file-if-exists=.env src/scripts/migrate.ts",
+    "db:sync": "tsx --env-file-if-exists=.env src/scripts/sync-db.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/scripts/seed/run.ts",
     "hash-password": "tsx src/scripts/hash-password.ts",
     "measure": "tsx --env-file-if-exists=.env src/scripts/measure.ts",
@@ -15,10 +14,10 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
+    "@electric-sql/pglite-socket": "^0.2.19",
     "@faker-js/faker": "^10.6.0",
     "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.23.1",
-    "drizzle-kit": "^0.31.11",
     "esbuild": "^0.25.12",
     "papaparse": "^5.7.1",
     "tsx": "^4.23.15"
@@ -26,9 +25,10 @@
   "dependencies": {
     "@hono/node-server": "^2.1.9",
     "@paywise/shared": "*",
-    "drizzle-orm": "^0.45.4",
     "hono": "^4.13.19",
     "pg": "^8.23.1",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.8",
     "zod": "^4.6.7"
   }
 }

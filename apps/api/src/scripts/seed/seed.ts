@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { sql } from "drizzle-orm";
 import { currencyForCountry } from "@paywise/shared";
-import type { Db } from "../../config/db";
-import { employees, salaryRevisions } from "../../models";
+import { execute, inTransaction, type Db } from "../../config/db";
+import { Employee, SalaryRevision } from "../../models";
 import type { SeedEmployee } from "./generate";
 
 const BATCH_SIZE = 1_000;
@@ -12,8 +11,8 @@ const BATCH_SIZE = 1_000;
  * batches (one round trip per 1,000 rows instead of one per row).
  */
 export async function seedDatabase(db: Db, people: SeedEmployee[]) {
-  await db.transaction(async (tx) => {
-    await tx.execute(sql`TRUNCATE salary_revisions, employees, imports CASCADE`);
+  await inTransaction(db, async (tx) => {
+    await execute(tx, "TRUNCATE salary_revisions, employees, imports CASCADE");
 
     for (let start = 0; start < people.length; start += BATCH_SIZE) {
       const batch = people.slice(start, start + BATCH_SIZE).map((person) => ({
@@ -22,17 +21,18 @@ export async function seedDatabase(db: Db, people: SeedEmployee[]) {
         currency: currencyForCountry(person.employee.countryCode),
       }));
 
-      await tx.insert(employees).values(
+      await Employee.bulkCreate(
         batch.map(({ id, currency, employee, deactivationReason }) => ({
           id,
           ...employee,
           salaryCurrency: currency,
-          ...(deactivationReason
-            ? { status: "inactive", deactivatedAt: new Date(), deactivationReason }
-            : {}),
+          deactivatedAt: deactivationReason ? new Date() : null,
+          deactivationReason: deactivationReason ?? null,
+          ...(deactivationReason ? { status: "inactive" } : {}),
         })),
+        { transaction: tx.transaction },
       );
-      await tx.insert(salaryRevisions).values(
+      await SalaryRevision.bulkCreate(
         batch.flatMap(({ id, currency, history }) =>
           history.map((revision, i) => ({
             employeeId: id,
@@ -43,6 +43,7 @@ export async function seedDatabase(db: Db, people: SeedEmployee[]) {
             reason: revision.reason,
           })),
         ),
+        { transaction: tx.transaction },
       );
     }
   });

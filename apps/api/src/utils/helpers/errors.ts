@@ -37,7 +37,9 @@ export function mapDbError(error: unknown): never {
     if (code === UNIQUE_VIOLATION && constraint && CONSTRAINT_ERRORS[constraint]) {
       throw CONSTRAINT_ERRORS[constraint]();
     }
-    current = (current as { cause?: unknown }).cause;
+    // Drivers nest the Postgres error: `cause` (pg), `parent`/`original` (Sequelize).
+    const nested = current as { cause?: unknown; parent?: unknown; original?: unknown };
+    current = nested.parent ?? nested.original ?? nested.cause;
   }
   throw error;
 }

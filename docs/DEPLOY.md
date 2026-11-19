@@ -1,17 +1,18 @@
-# Deploying to Vercel + Neon
+# Deploying to Vercel + PostgreSQL
 
-Two Vercel projects from this one repository, plus one Postgres database.
+Two Vercel projects from this one repository, plus one PostgreSQL database on any host. The API talks to Postgres through `pg` + Sequelize (as in the Outbox services); there is no vendor-specific driver.
 
-> **Planned change (PLAN.md revision 2.1):** the API moves to `pg` + Sequelize and any Postgres host (Supabase, Railway, Render or AWS RDS), configured by `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` and `DB_SSL`, with `npm run db:sync` instead of `db:migrate`. Neon is no longer required. This guide describes the code as it is today and will be rewritten in the Day 0 commit that makes the switch.
+## 1. Database (any Postgres 15+)
 
-## 1. Database (Neon)
-
-1. In Vercel: **Storage → Marketplace → Neon → Create**. Copy the **pooled** connection string (`postgres://…-pooler…/neondb?sslmode=require`).
-2. From your machine, create the schema and load the 10,000 employees:
+1. Create a database on a host reachable from Vercel, e.g. **Supabase**, **Railway**, **Render** or **AWS RDS**. Use the host's **connection pooler** if it has one (Supabase's pooled port, RDS Proxy): each Vercel Function instance opens its own small pool (5 connections).
+2. Note the host, port, database name, user and password. Hosted databases usually need TLS (`DB_SSL=true`).
+3. From your machine, create the schema and load the 10,000 employees:
    ```bash
-   DATABASE_URL='<neon url>' npm run db:migrate -w @paywise/api
-   DATABASE_URL='<neon url>' npm run db:seed -w @paywise/api
+   cd apps/api
+   DB_HOST=… DB_PORT=5432 DB_DATABASE=… DB_USERNAME=… DB_PASSWORD=… DB_SSL=true npm run db:sync
+   DB_HOST=… DB_PORT=5432 DB_DATABASE=… DB_USERNAME=… DB_PASSWORD=… DB_SSL=true npm run db:seed
    ```
+   `db:sync` creates the tables from the Sequelize models (`sync({ alter: true })`), then applies `src/config/schema.sql` (the `pg_trgm` extension, checks, foreign keys and indexes). It is safe to re-run. In production run it deliberately, after a backup, whenever the models change; the API never syncs on boot outside `NODE_ENV=local`.
 
 ## 2. API project
 
@@ -25,12 +26,13 @@ New Vercel project → import this repo:
 
 Environment variables:
 
-| Name               | Value                                                             |
-| ------------------ | ----------------------------------------------------------------- |
-| `DATABASE_URL`     | Neon pooled URL                                                   |
-| `HR_EMAIL`         | the HR sign-in email                                              |
-| `HR_PASSWORD_HASH` | output of `npm run hash-password -w @paywise/api -- '<password>'` |
-| `SESSION_SECRET`   | `openssl rand -base64 48`                                         |
+| Name                                                              | Value                                                             |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | the database from step 1 (pooled host/port if available)          |
+| `DB_SSL`                                                          | `true` for hosted Postgres                                        |
+| `HR_EMAIL`                                                        | the HR sign-in email                                              |
+| `HR_PASSWORD_HASH`                                                | output of `npm run hash-password -w @paywise/api -- '<password>'` |
+| `SESSION_SECRET`                                                  | `openssl rand -base64 48`                                         |
 
 Check: `https://<api-project>.vercel.app/api/health` → `{"ok":true}`.
 
@@ -54,4 +56,4 @@ Open the web URL → you're redirected to `/login` → sign in → the employees
 
 - The API is bundled with esbuild into `apps/api/api/index.js` at build time (`scripts/bundle.mjs`), so the deploy doesn't depend on how Vercel compiles TypeScript inside workspace packages.
 - Imports are capped at 10,000 rows and 4.4 MB per request (Vercel Functions accept at most 4.5 MB).
-- The bundle was smoke-tested locally by calling its handlers with `Request` objects. The Vercel deployment itself has not been exercised from this repo yet.
+- The bundle was smoke-tested locally on Sequelize by calling its handlers with `Request` objects (health, and an authenticated insights query against Postgres). The Vercel deployment itself has not been exercised from this repo yet.

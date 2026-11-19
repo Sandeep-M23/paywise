@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { select } from "../src/config/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { CountryCode, EmployeeCreateInput, EmploymentType, Gender } from "@paywise/shared";
 import { createEmployeeService } from "../src/services/employees/employees-service";
@@ -43,8 +43,9 @@ async function hire(
 
 /** Fixture salaries are distinct, so salary identifies the person. */
 async function idsBySalary() {
-  const { rows } = await testDb.db.execute<{ id: string; salary_amount: string }>(
-    sql`SELECT id, salary_amount FROM employees`,
+  const rows = await select<{ id: string; salary_amount: number }>(
+    testDb.db,
+    "SELECT id, salary_amount FROM employees",
   );
   return new Map(rows.map((r) => [Number(r.salary_amount), r.id]));
 }

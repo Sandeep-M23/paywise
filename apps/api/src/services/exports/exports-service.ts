@@ -1,13 +1,12 @@
-import { asc } from "drizzle-orm";
 import {
   EXPORT_HEADERS,
   employeeToCsvRecord,
   toCsv,
   type EmployeeListQuery,
 } from "@paywise/shared";
-import type { Db } from "../../config/db";
-import { employees } from "../../models";
-import { employeeFilters } from "../employees/employees-repository";
+import { select, type Db } from "../../config/db";
+import type { EmployeeRow } from "../../models";
+import { EMPLOYEE_COLUMNS, employeeFilters } from "../employees/employees-repository";
 import { toEmployeeSummary } from "../../utils/helpers/dto";
 
 type ExportFilters = Pick<
@@ -34,11 +33,12 @@ export function createExportService({ db }: { db: Db }) {
   return {
     /** Same filters as the directory, all matching rows, Excel-safe CSV. */
     async employeesCsv(filters: ExportFilters): Promise<string> {
-      const rows = await db
-        .select()
-        .from(employees)
-        .where(employeeFilters(filters))
-        .orderBy(asc(employees.employeeCode));
+      const where = employeeFilters(filters);
+      const rows = await select<EmployeeRow>(
+        db,
+        `SELECT ${EMPLOYEE_COLUMNS} FROM employees WHERE ${where.sql} ORDER BY employee_code`,
+        where.replacements,
+      );
       return toCsv(
         EXPORT_HEADERS,
         rows.map((row) => employeeToCsvRecord(toEmployeeSummary(row))),

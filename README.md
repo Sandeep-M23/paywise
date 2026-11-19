@@ -30,13 +30,13 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 ## Stack
 
-|        |                                                                                                                                                   |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API    | Node 24, TypeScript, **Hono**, **PostgreSQL** (Drizzle today; moving to `pg` + **Sequelize**, as in our other backends: [PLAN.md](PLAN.md) §3.11) |
-| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** (server state), **Jotai** (UI state), **Recharts**                      |
-| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                                                  |
-| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker)                                                                    |
-| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                                              |
+|        |                                                                                                                              |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| API    | Node 24, TypeScript, **Hono**, **PostgreSQL** via `pg` + **Sequelize** (as in our other backends)                            |
+| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** (server state), **Jotai** (UI state), **Recharts** |
+| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                             |
+| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker), reached by Sequelize over `pglite-socket`    |
+| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                         |
 
 ```
 apps/api         Hono API: routes -> controllers -> services -> repositories, seed, migrations
@@ -53,11 +53,11 @@ Prerequisites: Node 24 (`nvm use`), Docker.
 npm install
 docker compose up -d db                     # Postgres on localhost:5433
 
-cp apps/api/.env.example apps/api/.env
+cp apps/api/.env.example apps/api/.env       # DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 npm run hash-password -w @paywise/api -- 'choose-a-password'   # paste into HR_PASSWORD_HASH
 # also set SESSION_SECRET (e.g. `openssl rand -base64 48`)
 
-npm run db:migrate -w @paywise/api
+npm run db:sync -w @paywise/api              # tables from the models + config/schema.sql
 npm run db:seed -w @paywise/api             # 10,000 employees in ~1 s
 
 npm run dev -w @paywise/api                 # http://localhost:4000/api/health
@@ -69,7 +69,7 @@ Sign in with `HR_EMAIL` from `.env` and the password you hashed.
 ## Tests and checks
 
 ```bash
-npm test          # 187 tests, ~6 s: shared logic, API on PGlite, web helpers
+npm test          # 188 tests, ~5 s: shared logic, API on PGlite, web helpers
 npm run check     # format + typecheck + lint + tests (the pre-commit gate; CI runs the same)
 npm run measure -w @paywise/api   # time the main endpoints against a running API (needs HR_EMAIL/HR_PASSWORD)
 ```
