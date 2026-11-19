@@ -31,10 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { humanize } from "@/utils/helpers/format";
-import { applyApiErrors } from "@/utils/forms/form-errors";
-import { useCreateEmployee, useUpdateEmployee } from "@/utils/apis/employees";
-import { Field } from "@/components/Shared/FormField/FormField";
+import { humanize } from "@/lib/format";
+import { applyApiErrors } from "@/lib/form-errors";
+import { useCreateEmployee, useUpdateEmployee } from "@/hooks/useEmployees";
+import { Field } from "@/components/FormField";
 
 // The shared API schema, except salary is typed as text in major units
 // (e.g. "18,00,000") and converted to minor units on submit. When editing,

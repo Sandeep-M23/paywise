@@ -1,6 +1,6 @@
-import { LoginForm } from "@/components/Block/Auth/LoginForm";
-import { Logo } from "@/components/Shared/Logo/Logo";
-import { POINTS } from "@/utils/constants/login";
+import { LoginForm } from "@/components/auth/LoginForm";
+import { Logo } from "@/components/Logo";
+import { POINTS } from "@/lib/constants/login";
 import { Suspense } from "react";
 
 const Page = () => {

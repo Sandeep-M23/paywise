@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { EmployeesView } from "@/components/Block/Employees/EmployeesView";
+import { EmployeesView } from "@/components/employees/EmployeesView";
 
 export const metadata: Metadata = { title: "Employees" };
 

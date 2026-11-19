@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OverviewView } from "@/components/Block/Overview/OverviewView";
+import { OverviewView } from "@/components/overview/OverviewView";
 
 export const metadata: Metadata = { title: "Overview" };
 

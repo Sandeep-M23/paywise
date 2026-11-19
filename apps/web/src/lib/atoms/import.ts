@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 import type { ImportField, ImportPreview, ImportResult } from "@paywise/shared";
-import type { ParsedFile } from "@/utils/helpers/import/import-file";
+import type { ParsedFile } from "@/lib/import-file";
 
 export type ImportStep = "upload" | "map" | "preview" | "done";
 

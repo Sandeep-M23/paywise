@@ -10,8 +10,8 @@ import type {
   Page,
   SalaryRevisionCreateRequest,
 } from "@paywise/shared";
-import { api, toQueryString } from "@/utils/services";
-import { keys, useInvalidateEmployeeData } from "@/utils/apis/keys";
+import { apiRequest, toQueryString } from "@/lib/api-client";
+import { keys, useInvalidateEmployeeData } from "@/lib/query-keys";
 
 export const DIRECTORY_BATCH = 50;
 
@@ -25,7 +25,7 @@ export function useEmployeeDirectory(filters: DirectoryFilters) {
   return useInfiniteQuery({
     queryKey: ["employees", "directory", filters],
     queryFn: ({ pageParam }) =>
-      api<Page<EmployeeSummary>>(
+      apiRequest<Page<EmployeeSummary>>(
         `/employees${toQueryString({ ...filters, page: pageParam, pageSize: DIRECTORY_BATCH })}`,
       ),
     initialPageParam: 1,
@@ -38,7 +38,7 @@ export function useEmployeeDirectory(filters: DirectoryFilters) {
 export function useEmployee(id: string | null) {
   return useQuery({
     queryKey: keys.employee(id ?? ""),
-    queryFn: () => api<EmployeeDetail>(`/employees/${id}`),
+    queryFn: () => apiRequest<EmployeeDetail>(`/employees/${id}`),
     enabled: id !== null,
   });
 }
@@ -47,7 +47,7 @@ export function useCreateEmployee() {
   const invalidate = useInvalidateEmployeeData();
   return useMutation({
     mutationFn: (input: EmployeeCreateInput) =>
-      api<EmployeeDetail>("/employees", { method: "POST", json: input }),
+      apiRequest<EmployeeDetail>("/employees", { method: "POST", json: input }),
     onSuccess: invalidate,
   });
 }
@@ -56,7 +56,7 @@ export function useUpdateEmployee(id: string) {
   const invalidate = useInvalidateEmployeeData();
   return useMutation({
     mutationFn: (patch: EmployeeUpdateInput) =>
-      api<EmployeeDetail>(`/employees/${id}`, { method: "PATCH", json: patch }),
+      apiRequest<EmployeeDetail>(`/employees/${id}`, { method: "PATCH", json: patch }),
     onSuccess: invalidate,
   });
 }
@@ -65,7 +65,10 @@ export function useChangeSalary(id: string) {
   const invalidate = useInvalidateEmployeeData();
   return useMutation({
     mutationFn: (input: SalaryRevisionCreateRequest) =>
-      api<EmployeeDetail>(`/employees/${id}/salary-revisions`, { method: "POST", json: input }),
+      apiRequest<EmployeeDetail>(`/employees/${id}/salary-revisions`, {
+        method: "POST",
+        json: input,
+      }),
     onSuccess: invalidate,
   });
 }
@@ -74,7 +77,21 @@ export function useDeactivateEmployee(id: string) {
   const invalidate = useInvalidateEmployeeData();
   return useMutation({
     mutationFn: (reason: string) =>
-      api<EmployeeDetail>(`/employees/${id}/deactivate`, { method: "POST", json: { reason } }),
+      apiRequest<EmployeeDetail>(`/employees/${id}/deactivate`, {
+        method: "POST",
+        json: { reason },
+      }),
     onSuccess: invalidate,
+  });
+}
+
+/** Quick name/code search (⌘K palette, raise planner); starts at two characters. */
+export function useEmployeeSearch(q: string, status: "all" | "active", enabled = true) {
+  return useQuery({
+    queryKey: ["employees", "search", status, q],
+    queryFn: () =>
+      apiRequest<Page<EmployeeSummary>>(`/employees${toQueryString({ q, pageSize: 6, status })}`),
+    enabled: enabled && q.length >= 2,
+    staleTime: 30_000,
   });
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { AppIcon } from "@/components/Icons";
-import { StatTile } from "@/components/Shared/StatCard/StatCard";
+import type { AppIcon } from "@/components/icons";
+import { StatTile } from "@/components/StatCard";
 
 export function Stat({
   label,

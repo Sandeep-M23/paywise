@@ -2,7 +2,7 @@
 
 import { useAtom } from "jotai";
 import { useState } from "react";
-import { Pencil, TrendingUp, UserX } from "@/components/Icons";
+import { Pencil, TrendingUp, UserX } from "@/components/icons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,18 +15,18 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import { HeroMoney } from "@/components/Shared/HeroMoney/HeroMoney";
-import { CountryLabel } from "@/components/Shared/CountryLabel/CountryLabel";
-import { DepartmentLabel } from "@/components/Shared/DepartmentLabel/DepartmentLabel";
-import { EmployeeAvatar } from "@/components/Shared/EmployeeAvatar/EmployeeAvatar";
-import { selectedEmployeeIdAtom } from "@/utils/atoms/employees";
-import { date, humanize } from "@/utils/helpers/format";
-import { useEmployee } from "@/utils/apis/employees";
-import { ChangeSalaryDialog } from "@/components/Block/Employees/ChangeSalaryDialog";
-import { DeactivateDialog } from "@/components/Block/Employees/DeactivateDialog";
-import { EmployeeFormDialog } from "@/components/Block/Employees/EmployeeFormDialog";
-import { PeerPosition } from "@/components/Block/Employees/PeerPosition";
-import { SalaryHistory } from "@/components/Block/Employees/SalaryHistory";
+import { HeroMoney } from "@/components/HeroMoney";
+import { CountryLabel } from "@/components/CountryLabel";
+import { DepartmentLabel } from "@/components/DepartmentLabel";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
+import { selectedEmployeeIdAtom } from "@/lib/atoms/employees";
+import { date, humanize } from "@/lib/format";
+import { useEmployee } from "@/hooks/useEmployees";
+import { ChangeSalaryDialog } from "@/components/employees/ChangeSalaryDialog";
+import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
+import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
+import { PeerPosition } from "@/components/employees/PeerPosition";
+import { SalaryHistory } from "@/components/employees/SalaryHistory";
 
 type Dialog = "edit" | "salary" | "deactivate" | null;
 

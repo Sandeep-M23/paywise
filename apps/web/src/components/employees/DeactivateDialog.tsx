@@ -13,9 +13,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@/utils/services";
-import { useDeactivateEmployee } from "@/utils/apis/employees";
-import { Field } from "@/components/Shared/FormField/FormField";
+import { ApiError } from "@/lib/api-client";
+import { useDeactivateEmployee } from "@/hooks/useEmployees";
+import { Field } from "@/components/FormField";
 
 export function DeactivateDialog({
   employee,

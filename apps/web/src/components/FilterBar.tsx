@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
-import { Filter, type AppIcon } from "@/components/Icons";
+import { Filter, type AppIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
   Command,

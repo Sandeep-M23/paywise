@@ -12,7 +12,7 @@ export default tseslint.config(
       "**/drizzle/**",
       "**/next-env.d.ts",
       "apps/api/api/**",
-      "apps/web/components/ui/**",
+      "apps/web/src/components/ui/**",
     ],
   },
   js.configs.recommended,

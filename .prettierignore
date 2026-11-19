@@ -4,6 +4,6 @@ dist
 coverage
 package-lock.json
 **/drizzle/meta
-apps/web/components/ui
+apps/web/src/components/ui
 apps/web/.next
 apps/api/api

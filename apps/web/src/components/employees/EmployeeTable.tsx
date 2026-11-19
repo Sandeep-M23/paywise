@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronsUp, Loader2 } from "lucide-react";
-import { SearchX } from "@/components/Icons";
+import { SearchX } from "@/components/icons";
 import type { EmployeeSummary } from "@paywise/shared";
-import { fill, fillScrollTable, stickyHeader } from "@/utils/constants/table";
-import { TableFooterBar } from "@/components/Shared/TableFrame/TableFrame";
+import { fill, fillScrollTable, stickyHeader } from "@/lib/constants/table";
+import { TableFooterBar } from "@/components/TableFrame";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,13 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { date, humanize, money } from "@/utils/helpers/format";
-import { CountryLabel } from "@/components/Shared/CountryLabel/CountryLabel";
-import { DepartmentLabel } from "@/components/Shared/DepartmentLabel/DepartmentLabel";
-import { EmployeeAvatar } from "@/components/Shared/EmployeeAvatar/EmployeeAvatar";
+import { date, humanize, money } from "@/lib/format";
+import { CountryLabel } from "@/components/CountryLabel";
+import { DepartmentLabel } from "@/components/DepartmentLabel";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Mail, CalendarDays, Hash } from "lucide-react";
-import type { DirectoryFilters } from "@/utils/apis/employees";
+import type { DirectoryFilters } from "@/hooks/useEmployees";
 import { cn } from "@/lib/utils";
 
 type SortField = DirectoryFilters["sort"];

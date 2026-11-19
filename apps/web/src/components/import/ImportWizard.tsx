@@ -3,7 +3,7 @@
 import { useAtom } from "jotai";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { ArrowLeft } from "lucide-react";
-import { CheckCircle2, Download, FileUp } from "@/components/Icons";
+import { CheckCircle2, Download, FileUp } from "@/components/icons";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -11,8 +11,6 @@ import {
   IMPORT_FIELD_LABELS,
   IMPORT_FIELDS,
   REQUIRED_IMPORT_FIELDS,
-  type ImportPreview,
-  type ImportResult,
 } from "@paywise/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -32,19 +30,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { api, ApiError } from "@/utils/services";
-import { emptyImportWizard, importWizardAtom } from "@/utils/atoms/import";
-import {
-  buildImportRequest,
-  downloadText,
-  errorReportCsv,
-  parseCsvText,
-} from "@/utils/helpers/import/import-file";
-import { useInvalidateEmployeeData } from "@/utils/apis/keys";
+import { ApiError } from "@/lib/api-client";
+import { commitImport, previewImport } from "@/hooks/useImports";
+import { useDownload } from "@/hooks/useDownload";
+import { emptyImportWizard, importWizardAtom } from "@/lib/atoms/import";
+import { buildImportRequest, downloadText, errorReportCsv, parseCsvText } from "@/lib/import-file";
+import { useInvalidateEmployeeData } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { ImportLog } from "@/components/Block/Import/ImportLog";
-import { PreviewTable } from "@/components/Block/Import/PreviewTable";
-import { TableFrame } from "@/components/Shared/TableFrame/TableFrame";
+import { ImportLog } from "@/components/import/ImportLog";
+import { PreviewTable } from "@/components/import/PreviewTable";
+import { TableFrame } from "@/components/TableFrame";
 
 const STEPS = ["Upload", "Match columns", "Review", "Done"] as const;
 const NOT_IN_FILE = "__none__";
@@ -53,6 +48,7 @@ export function ImportWizard() {
   const [wizard, setWizard] = useAtom(importWizardAtom);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const download = useDownload();
   const invalidate = useInvalidateEmployeeData();
   const stepIndex = ["upload", "map", "preview", "done"].indexOf(wizard.step);
 
@@ -101,10 +97,7 @@ export function ImportWizard() {
     setBusy(true);
     setError(null);
     try {
-      const preview = await api<ImportPreview>("/imports/preview", {
-        method: "POST",
-        json: request(),
-      });
+      const preview = await previewImport(request());
       setWizard({ ...wizard, step: "preview", preview });
       setEdited(0);
     } catch (e) {
@@ -118,7 +111,7 @@ export function ImportWizard() {
     setBusy(true);
     setError(null);
     try {
-      const result = await api<ImportResult>("/imports", { method: "POST", json: request() });
+      const result = await commitImport(request());
       await invalidate();
       setWizard({ ...wizard, step: "done", result, preview: null, records: [] });
       toast.success("Import complete");
@@ -232,10 +225,13 @@ export function ImportWizard() {
                 <p className="text-muted-foreground">
                   Names don’t have to match exactly: you’ll match columns in the next step.
                 </p>
-                <Button variant="outline" size="sm" className="w-fit" asChild>
-                  <a href="/api/imports/template.csv" download>
-                    <Download className="size-4" aria-hidden /> Download a sample file
-                  </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() => download("/imports/template.csv")}
+                >
+                  <Download className="size-4" aria-hidden /> Download a sample file
                 </Button>
               </div>
             </CardContent>

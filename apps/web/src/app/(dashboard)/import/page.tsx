@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ImportWizard } from "@/components/Block/Import/ImportWizard";
+import { ImportWizard } from "@/components/import/ImportWizard";
 
 export const metadata: Metadata = { title: "Import" };
 

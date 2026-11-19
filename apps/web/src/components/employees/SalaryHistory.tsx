@@ -1,6 +1,6 @@
 import type { SalaryRevision } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
-import { date, humanize, money, percent } from "@/utils/helpers/format";
+import { date, humanize, money, percent } from "@/lib/format";
 
 /** Newest first: what changed, when, why, and where the change came from. */
 export function SalaryHistory({

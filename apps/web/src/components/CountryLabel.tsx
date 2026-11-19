@@ -1,4 +1,4 @@
-import { countryName } from "@/utils/helpers/format";
+import { countryName } from "@/lib/format";
 
 /*
  * Small visual vocabulary reused across tables and cards: country flags,

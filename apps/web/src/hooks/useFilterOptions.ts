@@ -2,13 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { FilterOptions } from "@paywise/shared";
-import { api } from "@/utils/services";
-import { keys, STABLE } from "@/utils/apis/keys";
+import { apiRequest } from "@/lib/api-client";
+import { keys, STABLE } from "@/lib/query-keys";
 
 export function useFilterOptions() {
   return useQuery({
     queryKey: keys.filters,
-    queryFn: () => api<FilterOptions>("/meta/filters"),
+    queryFn: () => apiRequest<FilterOptions>("/meta/filters"),
     staleTime: STABLE,
   });
 }

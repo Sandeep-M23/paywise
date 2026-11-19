@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useSetAtom } from "jotai";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import {
   BarChart3,
@@ -14,10 +13,9 @@ import {
   Scale,
   Search,
   Users,
-} from "@/components/Icons";
-import type { EmployeeSummary, Page } from "@paywise/shared";
-import { countryFlag } from "@/components/Shared/CountryLabel/CountryLabel";
-import { EmployeeAvatar } from "@/components/Shared/EmployeeAvatar/EmployeeAvatar";
+} from "@/components/icons";
+import { countryFlag } from "@/components/CountryLabel";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -30,8 +28,9 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { api, toQueryString } from "@/utils/services";
-import { selectedEmployeeIdAtom } from "@/utils/atoms/employees";
+import { useDownload } from "@/hooks/useDownload";
+import { useEmployeeSearch } from "@/hooks/useEmployees";
+import { selectedEmployeeIdAtom } from "@/lib/atoms/employees";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
@@ -63,15 +62,8 @@ export function CommandPalette({ className }: { className?: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const people = useQuery({
-    queryKey: ["employees", "palette", term],
-    queryFn: () =>
-      api<Page<EmployeeSummary>>(
-        `/employees${toQueryString({ q: term, pageSize: 6, status: "all" })}`,
-      ),
-    enabled: open && term.length >= 2,
-    staleTime: 30_000,
-  });
+  const people = useEmployeeSearch(term, "all", open);
+  const download = useDownload();
 
   function go(action: () => void) {
     setOpen(false);
@@ -158,14 +150,10 @@ export function CommandPalette({ className }: { className?: string }) {
               ))}
             </CommandGroup>
             <CommandGroup heading="Actions">
-              <CommandItem
-                onSelect={() => go(() => window.location.assign("/api/export/employees.csv"))}
-              >
+              <CommandItem onSelect={() => go(() => download("/export/employees.csv"))}>
                 <Download className="size-4" aria-hidden /> Export all active employees (CSV)
               </CommandItem>
-              <CommandItem
-                onSelect={() => go(() => window.location.assign("/api/imports/template.csv"))}
-              >
+              <CommandItem onSelect={() => go(() => download("/imports/template.csv"))}>
                 <FileUp className="size-4" aria-hidden /> Download import template
               </CommandItem>
             </CommandGroup>

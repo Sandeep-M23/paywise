@@ -13,13 +13,13 @@ import {
   TrendingUp,
   Users,
   type AppIcon,
-} from "@/components/Icons";
+} from "@/components/icons";
 import { COUNTRIES } from "@paywise/shared";
 import { useSetAtom } from "jotai";
 import { useState, type ReactNode } from "react";
 import type { GenderGapGroup, PayOutlier } from "@paywise/shared";
-import { EmployeeSheet } from "@/components/Block/Employees/EmployeeSheet";
-import { FilterBar, type Facet } from "@/components/Shared/FilterBar/FilterBar";
+import { EmployeeSheet } from "@/components/employees/EmployeeSheet";
+import { FilterBar, type Facet } from "@/components/FilterBar";
 import {
   Sheet,
   SheetContent,
@@ -27,11 +27,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Stat } from "@/components/Shared/StatCard/Stat";
+import { Stat } from "@/components/Stat";
 import { Button } from "@/components/ui/button";
-import { TableFrame } from "@/components/Shared/TableFrame/TableFrame";
+import { TableFrame } from "@/components/TableFrame";
 import { cn } from "@/lib/utils";
-import { fill, fillScrollTable, stickyHeader } from "@/utils/constants/table";
+import { fill, fillScrollTable, stickyHeader } from "@/lib/constants/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -42,14 +42,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CountryLabel, countryFlag } from "@/components/Shared/CountryLabel/CountryLabel";
-import { EmployeeAvatar } from "@/components/Shared/EmployeeAvatar/EmployeeAvatar";
-import { selectedEmployeeIdAtom } from "@/utils/atoms/employees";
-import { compactMoney, money, percent } from "@/utils/helpers/format";
-import { useCountrySummaries } from "@/utils/apis/insights";
-import { useFilterOptions } from "@/utils/apis/meta";
-import { useGenderGaps, useOutliers } from "@/utils/apis/fairness";
-import { GapStatus } from "@/components/Block/Fairness/GapStatus";
+import { CountryLabel, countryFlag } from "@/components/CountryLabel";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
+import { selectedEmployeeIdAtom } from "@/lib/atoms/employees";
+import { compactMoney, money, percent } from "@/lib/format";
+import { useCountrySummaries } from "@/hooks/useInsights";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { useGenderGaps, useOutliers } from "@/hooks/useFairness";
+import { GapStatus } from "@/components/fairness/GapStatus";
 
 type View = "gender" | "outliers";
 type GapFilter = "all" | "review" | "chance" | "within" | "hidden";

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { Monitor, Moon, Sun } from "@/components/Icons";
+import { Monitor, Moon, Sun } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const THEMES = [

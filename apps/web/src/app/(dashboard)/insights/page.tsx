@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { InsightsView } from "@/components/Block/Insights/InsightsView";
+import { InsightsView } from "@/components/insights/InsightsView";
 
 export const metadata: Metadata = { title: "Pay insights" };
 

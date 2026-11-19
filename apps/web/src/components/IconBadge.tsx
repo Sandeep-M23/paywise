@@ -1,4 +1,4 @@
-import { type AppIcon } from "@/components/Icons";
+import { type AppIcon } from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 /** A tinted circle holding an icon, for stat tiles and section headers. */

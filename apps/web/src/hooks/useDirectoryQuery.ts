@@ -3,7 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { employeeListQuerySchema } from "@paywise/shared";
-import type { DirectoryFilters } from "@/utils/apis/employees";
+import type { DirectoryFilters } from "@/hooks/useEmployees";
 
 const { page: _page, pageSize: _pageSize, ...DEFAULTS } = employeeListQuerySchema.parse({});
 

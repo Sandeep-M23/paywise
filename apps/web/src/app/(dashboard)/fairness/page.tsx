@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FairnessView } from "@/components/Block/Fairness/FairnessView";
+import { FairnessView } from "@/components/fairness/FairnessView";
 
 export const metadata: Metadata = { title: "Pay fairness" };
 

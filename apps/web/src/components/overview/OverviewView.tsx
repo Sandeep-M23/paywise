@@ -4,23 +4,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSetAtom } from "jotai";
 import { ArrowRight, ChevronRight } from "lucide-react";
-import { AlertTriangle, Download, FileUp, Scale, TrendingUp, Users } from "@/components/Icons";
-import { EmployeeSheet } from "@/components/Block/Employees/EmployeeSheet";
+import { AlertTriangle, Download, FileUp, Scale, TrendingUp, Users } from "@/components/icons";
+import { EmployeeSheet } from "@/components/employees/EmployeeSheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { CountryLabel } from "@/components/Shared/CountryLabel/CountryLabel";
-import { EmployeeAvatar } from "@/components/Shared/EmployeeAvatar/EmployeeAvatar";
-import { StatTile } from "@/components/Shared/StatCard/StatCard";
-import { insightsCountryAtom } from "@/utils/atoms/insights";
-import { selectedEmployeeIdAtom } from "@/utils/atoms/employees";
+import { CountryLabel } from "@/components/CountryLabel";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
+import { StatTile } from "@/components/StatCard";
+import { insightsCountryAtom } from "@/lib/atoms/insights";
+import { selectedEmployeeIdAtom } from "@/lib/atoms/employees";
 import { useClientNow } from "@/hooks/useClientNow";
-import { countryName, money, percent } from "@/utils/helpers/format";
-import { useCountrySummaries } from "@/utils/apis/insights";
-import { useGenderGaps, useOutliers } from "@/utils/apis/fairness";
-import { useImportLog } from "@/utils/apis/imports";
+import { countryName, money, percent } from "@/lib/format";
+import { useCountrySummaries } from "@/hooks/useInsights";
+import { useGenderGaps, useOutliers } from "@/hooks/useFairness";
+import { useImportLog } from "@/hooks/useImports";
+import { useDownload } from "@/hooks/useDownload";
 
 function greeting(now: Date | null) {
   if (!now) return "Welcome";
@@ -33,6 +34,7 @@ export function OverviewView() {
   const router = useRouter();
   const selectEmployee = useSetAtom(selectedEmployeeIdAtom);
   const setInsightsCountry = useSetAtom(insightsCountryAtom);
+  const download = useDownload();
   const now = useClientNow();
   const countries = useCountrySummaries();
   const gaps = useGenderGaps({});
@@ -243,10 +245,12 @@ export function OverviewView() {
 
       <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
         Need the data in Excel?
-        <Button variant="link" className="h-auto p-0" asChild>
-          <a href="/api/export/employees.csv" download>
-            <Download className="size-3.5" aria-hidden /> Export all active employees
-          </a>
+        <Button
+          variant="link"
+          className="h-auto p-0"
+          onClick={() => download("/export/employees.csv")}
+        >
+          <Download className="size-3.5" aria-hidden /> Export all active employees
         </Button>
       </div>
 

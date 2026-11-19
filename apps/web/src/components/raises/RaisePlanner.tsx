@@ -1,6 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { X } from "lucide-react";
@@ -12,15 +11,14 @@ import {
   toMajorString,
   type CountryCode,
   type EmployeeSummary,
-  type Page,
   type RaiseOverride,
 } from "@paywise/shared";
-import { countryFlag } from "@/components/Shared/CountryLabel/CountryLabel";
-import { departmentIcon } from "@/components/Shared/DepartmentLabel/DepartmentLabel";
-import { EmployeeAvatar } from "@/components/Shared/EmployeeAvatar/EmployeeAvatar";
-import { Field } from "@/components/Shared/FormField/FormField";
-import { Briefcase, Building2, Globe, Plus, Search, Users } from "@/components/Icons";
-import { FilterBar, type Facet } from "@/components/Shared/FilterBar/FilterBar";
+import { countryFlag } from "@/components/CountryLabel";
+import { departmentIcon } from "@/components/DepartmentLabel";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
+import { Field } from "@/components/FormField";
+import { Briefcase, Building2, Globe, Plus, Search, Users } from "@/components/icons";
+import { FilterBar, type Facet } from "@/components/FilterBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -42,13 +40,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { api, ApiError, toQueryString } from "@/utils/services";
-import { humanize, money } from "@/utils/helpers/format";
+import { ApiError } from "@/lib/api-client";
+import { useEmployeeSearch } from "@/hooks/useEmployees";
+import { humanize, money } from "@/lib/format";
 import { useClientNow } from "@/hooks/useClientNow";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useApplyRaises, useRaiseCost } from "@/utils/apis/raises";
-import { useCountrySummaries } from "@/utils/apis/insights";
-import { useFilterOptions } from "@/utils/apis/meta";
+import { useApplyRaises, useRaiseCost } from "@/hooks/useRaises";
+import { useCountrySummaries } from "@/hooks/useInsights";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { cn } from "@/lib/utils";
 
 const PRESETS = [0, 2, 3, 5, 8, 10];
@@ -576,15 +575,7 @@ function EmployeeSearch({
 }) {
   const [term, setTerm] = useState("");
   const q = useDebouncedValue(term.trim(), 200);
-  const { data, isFetching } = useQuery({
-    queryKey: ["employees", "raise-search", q],
-    queryFn: () =>
-      api<Page<EmployeeSummary>>(
-        `/employees${toQueryString({ q, pageSize: 6, status: "active" })}`,
-      ),
-    enabled: q.length >= 2,
-    staleTime: 30_000,
-  });
+  const { data, isFetching } = useEmployeeSearch(q, "active");
   const results = (data?.data ?? []).filter((e) => !exclude.includes(e.id));
 
   return (

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { IMPORT_FIELD_LABELS, type ImportPreviewRow, type ImportRowStatus } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
-import { scrollTable, stickyHeader } from "@/utils/constants/table";
-import { TableFrame } from "@/components/Shared/TableFrame/TableFrame";
+import { scrollTable, stickyHeader } from "@/lib/constants/table";
+import { TableFrame } from "@/components/TableFrame";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { humanize, money } from "@/utils/helpers/format";
+import { humanize, money } from "@/lib/format";
 
 const PAGE = 100;
 

@@ -4,16 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
-import { LogOut, Menu } from "@/components/Icons";
+import { LogOut, Menu } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/Shared/Logo/Logo";
-import { ThemeToggle } from "@/components/Shared/ThemeToggle/ThemeToggle";
-import { EmployeeAvatar } from "@/components/Shared/EmployeeAvatar/EmployeeAvatar";
-import { isActive, LINKS } from "@/utils/constants/navigation";
-import { signOut, useAccount } from "@/utils/apis/auth";
+import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { EmployeeAvatar } from "@/components/EmployeeAvatar";
+import { isActive, LINKS } from "@/lib/constants/navigation";
+import { useAccount, useAuth } from "@/context/AuthContext";
 
 // Sidebar item: 8px pill, grey label; the active page is a lime pill on black.
 // Sign out is the only red item, and the only place to sign out.
@@ -74,6 +74,7 @@ function AccountIdentity({ name, email }: { name: string; email: string }) {
  */
 function SidebarFooter() {
   const { name, email } = useAccount();
+  const { logout } = useAuth();
   return (
     <div className="border-sidebar-border border-t pt-3">
       <Popover>
@@ -98,7 +99,7 @@ function SidebarFooter() {
           <div className="border-t p-1.5">
             <button
               type="button"
-              onClick={signOut}
+              onClick={logout}
               className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium"
             >
               <LogOut className="size-4" aria-hidden />

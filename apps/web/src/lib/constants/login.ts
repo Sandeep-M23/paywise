@@ -1,4 +1,4 @@
-import { BarChart3, FileUp, History, Scale } from "@/components/Icons";
+import { BarChart3, FileUp, History, Scale } from "@/components/icons";
 
 export const POINTS = [
   {

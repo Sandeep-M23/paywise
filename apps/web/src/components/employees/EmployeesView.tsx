@@ -2,16 +2,17 @@
 
 import { useSetAtom } from "jotai";
 import { useState } from "react";
-import { Download, Plus } from "@/components/Icons";
+import { Download, Plus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { toQueryString } from "@/utils/services";
-import { selectedEmployeeIdAtom } from "@/utils/atoms/employees";
+import { toQueryString } from "@/lib/api-client";
+import { useDownload } from "@/hooks/useDownload";
+import { selectedEmployeeIdAtom } from "@/lib/atoms/employees";
 import { useDirectoryQuery } from "@/hooks/useDirectoryQuery";
-import { useEmployeeDirectory } from "@/utils/apis/employees";
-import { DirectoryFilters } from "@/components/Block/Employees/DirectoryFilters";
-import { EmployeeFormDialog } from "@/components/Block/Employees/EmployeeFormDialog";
-import { EmployeeSheet } from "@/components/Block/Employees/EmployeeSheet";
-import { EmployeeTable } from "@/components/Block/Employees/EmployeeTable";
+import { useEmployeeDirectory } from "@/hooks/useEmployees";
+import { DirectoryFilters } from "@/components/employees/DirectoryFilters";
+import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
+import { EmployeeSheet } from "@/components/employees/EmployeeSheet";
+import { EmployeeTable } from "@/components/employees/EmployeeTable";
 
 export function EmployeesView() {
   const [query, setQuery] = useDirectoryQuery();
@@ -22,7 +23,7 @@ export function EmployeesView() {
   const [adding, setAdding] = useState(false);
 
   const { sort: _sort, order: _order, ...filters } = query;
-  const exportHref = `/api/export/employees.csv${toQueryString(filters)}`;
+  const download = useDownload();
 
   return (
     <>
@@ -31,10 +32,13 @@ export function EmployeesView() {
         onChange={setQuery}
         actions={
           <>
-            <Button variant="outline" className="bg-card" asChild>
-              <a href={exportHref} download title="Export these rows to CSV">
-                <Download className="size-4" aria-hidden /> Export
-              </a>
+            <Button
+              variant="outline"
+              className="bg-card"
+              title="Export these rows to CSV"
+              onClick={() => download(`/export/employees.csv${toQueryString(filters)}`)}
+            >
+              <Download className="size-4" aria-hidden /> Export
             </Button>
             <Button onClick={() => setAdding(true)}>
               <Plus className="size-4" aria-hidden /> Add employee

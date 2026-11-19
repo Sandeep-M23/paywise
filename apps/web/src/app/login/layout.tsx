@@ -1,4 +1,4 @@
-import { HEADER_TITLE } from "@/utils/others/header";
+import { HEADER_TITLE } from "@/lib/constants/header";
 import type { ReactNode } from "react";
 
 export const metadata = {

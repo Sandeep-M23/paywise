@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { type AppIcon } from "@/components/Icons";
+import { type AppIcon } from "@/components/icons";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 

@@ -6,7 +6,8 @@ import { ThemeProvider } from "next-themes";
 import { useState, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ApiError } from "@/utils/services";
+import { AuthProvider } from "@/context/AuthContext";
+import { ApiError } from "@/lib/api-client";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -16,9 +17,11 @@ export function Providers({ children }: { children: ReactNode }) {
           queries: {
             staleTime: 30_000,
             refetchOnWindowFocus: false,
-            // Client errors (validation, not found, signed out) won't fix themselves.
+            // Client errors (validation, not found, signed out) won't fix themselves;
+            // network errors (status 0) and 5xx may.
             retry: (count, error) =>
-              !(error instanceof ApiError && error.status < 500) && count < 2,
+              !(error instanceof ApiError && error.status >= 400 && error.status < 500) &&
+              count < 2,
           },
         },
       }),
@@ -26,12 +29,14 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
-        <JotaiProvider>
-          <TooltipProvider>
-            {children}
-            <Toaster richColors position="top-right" />
-          </TooltipProvider>
-        </JotaiProvider>
+        <AuthProvider>
+          <JotaiProvider>
+            <TooltipProvider>
+              {children}
+              <Toaster richColors position="top-right" />
+            </TooltipProvider>
+          </JotaiProvider>
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );

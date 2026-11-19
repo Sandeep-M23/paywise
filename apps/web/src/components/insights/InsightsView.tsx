@@ -11,8 +11,8 @@ import {
   Users,
   Wallet,
   type AppIcon,
-} from "@/components/Icons";
-import { TableFrame } from "@/components/Shared/TableFrame/TableFrame";
+} from "@/components/icons";
+import { TableFrame } from "@/components/TableFrame";
 import { useAtom } from "jotai";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { currencyForCountry, type CountryCode, type JobTitleSummary } from "@paywise/shared";
@@ -32,21 +32,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { scrollTable, stickyHeader } from "@/utils/constants/table";
+import { scrollTable, stickyHeader } from "@/lib/constants/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { HeroMoney } from "@/components/Shared/HeroMoney/HeroMoney";
-import { CountryLabel, countryFlag } from "@/components/Shared/CountryLabel/CountryLabel";
-import { DepartmentLabel } from "@/components/Shared/DepartmentLabel/DepartmentLabel";
-import { insightsCountryAtom } from "@/utils/atoms/insights";
-import { compactMoney, countryName, money } from "@/utils/helpers/format";
+import { HeroMoney } from "@/components/HeroMoney";
+import { CountryLabel, countryFlag } from "@/components/CountryLabel";
+import { DepartmentLabel } from "@/components/DepartmentLabel";
+import { insightsCountryAtom } from "@/lib/atoms/insights";
+import { compactMoney, countryName, money } from "@/lib/format";
 import {
   useCountrySummaries,
   useDepartmentSummaries,
   useDistribution,
   useJobTitleSummaries,
-} from "@/utils/apis/insights";
+} from "@/hooks/useInsights";
 import { cn } from "@/lib/utils";
-import { Stat } from "@/components/Shared/StatCard/Stat";
+import { Stat } from "@/components/Stat";
 
 // Eight tiles share one row, so the two long names get their everyday short form.
 const SHORT_NAMES: Record<string, string> = { US: "USA", GB: "UK" };

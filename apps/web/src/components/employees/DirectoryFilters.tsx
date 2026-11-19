@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Briefcase, Building2, Globe, Search, UserCheck, Users, UserX } from "@/components/Icons";
-import { FilterBar, type Facet } from "@/components/Shared/FilterBar/FilterBar";
-import { countryFlag } from "@/components/Shared/CountryLabel/CountryLabel";
-import { departmentIcon } from "@/components/Shared/DepartmentLabel/DepartmentLabel";
+import { Briefcase, Building2, Globe, Search, UserCheck, Users, UserX } from "@/components/icons";
+import { FilterBar, type Facet } from "@/components/FilterBar";
+import { countryFlag } from "@/components/CountryLabel";
+import { departmentIcon } from "@/components/DepartmentLabel";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import type { CountryCode } from "@paywise/shared";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-import { useCountrySummaries } from "@/utils/apis/insights";
-import { useFilterOptions } from "@/utils/apis/meta";
-import { type DirectoryFilters as Filters } from "@/utils/apis/employees";
+import { useCountrySummaries } from "@/hooks/useInsights";
+import { useFilterOptions } from "@/hooks/useFilterOptions";
+import { type DirectoryFilters as Filters } from "@/hooks/useEmployees";
 
 // Active is the default; clearing the filter goes back to it.
 const STATUS_OPTIONS = [

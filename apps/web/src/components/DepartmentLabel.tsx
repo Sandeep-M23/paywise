@@ -11,7 +11,7 @@ import {
   Settings2,
   UsersRound,
   type AppIcon,
-} from "@/components/Icons";
+} from "@/components/icons";
 import { cn } from "@/lib/utils";
 
 const DEPARTMENT_ICONS: Record<string, AppIcon> = {

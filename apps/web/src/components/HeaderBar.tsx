@@ -1,12 +1,12 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { BookOpen, Lightbulb } from "@/components/Icons";
+import { BookOpen, Lightbulb } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { CommandPalette } from "@/components/Shared/CommandPalette/CommandPalette";
-import { isActive, LINKS } from "@/utils/constants/navigation";
+import { CommandPalette } from "@/components/CommandPalette";
+import { isActive, LINKS } from "@/lib/constants/navigation";
 
 /** "How it works": what the page is for and how to use it, as numbered steps. */
 function PageGuide({ page }: { page: (typeof LINKS)[number] }) {

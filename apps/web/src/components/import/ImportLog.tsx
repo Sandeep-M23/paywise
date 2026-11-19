@@ -12,10 +12,10 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { FileText, History } from "@/components/Icons";
+import { FileText, History } from "@/components/icons";
 import { cn } from "@/lib/utils";
-import { useImportDetail, useImportLog } from "@/utils/apis/imports";
-import { PreviewTable } from "@/components/Block/Import/PreviewTable";
+import { useImportDetail, useImportLog } from "@/hooks/useImports";
+import { PreviewTable } from "@/components/import/PreviewTable";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });

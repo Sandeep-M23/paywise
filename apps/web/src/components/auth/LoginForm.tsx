@@ -4,12 +4,15 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { api, ApiError } from "@/utils/services";
-import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { loginRequest } from "@/lib/auth-client";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const { login } = useAuth();
 
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -19,18 +22,20 @@ export function LoginForm() {
     const form = new FormData(event.currentTarget);
     setPending(true);
     setError(null);
-    try {
-      await api("/auth/login", {
-        method: "POST",
-        json: { email: form.get("email"), password: form.get("password") },
-      });
-
-      const next = searchParams.get("next");
-      window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Could not sign in. Try again.");
+    const result = await loginRequest({
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? ""),
+    });
+    if (!result.ok) {
+      setError(result.message);
       setPending(false);
+      return;
     }
+
+    login(result.data.authToken);
+    // Only same-site paths: `next` comes from the URL, so it must not send anyone off-site.
+    const next = searchParams.get("next");
+    router.replace(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
   }
 
   // Maglo's sign-in: no card, a large greeting, tall inputs and a full-width lime button.

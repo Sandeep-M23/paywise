@@ -3,7 +3,7 @@
 import { useIsFetching } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Logo } from "@/components/Shared/Logo/Logo";
+import { Logo } from "@/components/Logo";
 
 /** The branded full-screen loader: logo on black with a sweeping lime bar. */
 export function LoadingScreen({ className }: { className?: string }) {

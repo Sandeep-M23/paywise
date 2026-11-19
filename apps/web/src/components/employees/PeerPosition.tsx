@@ -2,8 +2,8 @@
 
 import type { EmployeeDetail } from "@paywise/shared";
 import { Skeleton } from "@/components/ui/skeleton";
-import { countryName, money, percent } from "@/utils/helpers/format";
-import { useJobTitleSummaries } from "@/utils/apis/insights";
+import { countryName, money, percent } from "@/lib/format";
+import { useJobTitleSummaries } from "@/hooks/useInsights";
 
 /**
  * Where this salary sits among active peers (same job title and country):

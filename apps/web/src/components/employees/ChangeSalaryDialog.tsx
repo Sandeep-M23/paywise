@@ -1,6 +1,6 @@
 "use client";
 
-import { Field } from "@/components/Shared/FormField/FormField";
+import { Field } from "@/components/FormField";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,14 +19,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useChangeSalary } from "@/utils/apis/employees";
-import { applyApiErrors } from "@/utils/forms/form-errors";
-import { humanize, money, percent } from "@/utils/helpers/format";
+import { useChangeSalary } from "@/hooks/useEmployees";
+import { applyApiErrors } from "@/lib/form-errors";
+import { humanize, money, percent } from "@/lib/format";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   MANUAL_REVISION_REASONS,
   parseMoneyInput,
-  salaryRevisionCreateSchema,
+  salaryRevisionFieldsSchema,
+  withSalaryRevisionRules,
   toMajorString,
   type EmployeeDetail,
 } from "@paywise/shared";
@@ -35,7 +36,10 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-const formSchema = salaryRevisionCreateSchema.omit({ amount: true }).extend({ amount: z.string() });
+// Same fields and rules as the API, with the amount as typed text (converted on submit).
+const formSchema = withSalaryRevisionRules(
+  salaryRevisionFieldsSchema.omit({ amount: true }).extend({ amount: z.string() }),
+);
 type FormValues = z.input<typeof formSchema>;
 
 const today = () => new Date().toISOString().slice(0, 10);

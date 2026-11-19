@@ -6,7 +6,7 @@ import {
   Scale,
   Users,
   type AppIcon,
-} from "@/components/Icons";
+} from "@/components/icons";
 
 export type PageGuide = {
   /** One line under the page title. */
