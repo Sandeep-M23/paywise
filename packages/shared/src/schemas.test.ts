@@ -37,6 +37,15 @@ describe("countries", () => {
 });
 
 describe("employeeCreateSchema", () => {
+  it("accepts a currency override, lowercased, and rejects unsupported ones", () => {
+    expect(
+      employeeCreateSchema.parse({ ...validEmployee, salaryCurrency: "USD" }).salaryCurrency,
+    ).toBe("usd");
+    expect(
+      employeeCreateSchema.safeParse({ ...validEmployee, salaryCurrency: "xyz" }).success,
+    ).toBe(false);
+  });
+
   it("accepts a valid employee and defaults gender to undisclosed", () => {
     const result = employeeCreateSchema.parse(validEmployee);
     expect(result.gender).toBe("undisclosed");
@@ -72,11 +81,6 @@ describe("employeeCreateSchema", () => {
       false,
     );
   });
-
-  it("does not accept a currency from the client", () => {
-    const result = employeeCreateSchema.parse({ ...validEmployee, salaryCurrency: "usd" });
-    expect(result).not.toHaveProperty("salaryCurrency");
-  });
 });
 
 describe("employeeUpdateSchema", () => {
@@ -106,6 +110,37 @@ describe("salaryRevisionCreateSchema", () => {
 
   it("accepts a manual salary change", () => {
     expect(salaryRevisionCreateSchema.parse(valid)).toEqual(valid);
+  });
+
+  it("accepts future dates, a currency change and a correction with its target", () => {
+    const id = "4b0b8f0e-2f6d-4a39-9d5e-0c8f2f5f9a11";
+    expect(
+      salaryRevisionCreateSchema.safeParse({ ...valid, effectiveOn: "2030-01-01" }).success,
+    ).toBe(true);
+    expect(
+      salaryRevisionCreateSchema.parse({ ...valid, reason: "currency_change", currency: "USD" }),
+    ).toMatchObject({ currency: "usd" });
+    expect(
+      salaryRevisionCreateSchema.safeParse({
+        ...valid,
+        reason: "correction",
+        correctsRevisionId: id,
+      }).success,
+    ).toBe(true);
+  });
+
+  it("requires a target for a correction, and a currency for a currency change", () => {
+    const id = "4b0b8f0e-2f6d-4a39-9d5e-0c8f2f5f9a11";
+    expect(salaryRevisionCreateSchema.safeParse({ ...valid, reason: "correction" }).success).toBe(
+      false,
+    );
+    expect(salaryRevisionCreateSchema.safeParse({ ...valid, correctsRevisionId: id }).success).toBe(
+      false,
+    );
+    expect(
+      salaryRevisionCreateSchema.safeParse({ ...valid, reason: "currency_change" }).success,
+    ).toBe(false);
+    expect(salaryRevisionCreateSchema.safeParse({ ...valid, currency: "btc" }).success).toBe(false);
   });
 
   it("reserves system reasons (hire, import) for the system", () => {

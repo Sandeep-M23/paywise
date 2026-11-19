@@ -1,4 +1,5 @@
-// Supported countries. Currency is always derived from here, never entered by a user.
+// Supported countries (work locations). `currency` is the default pay currency;
+// HR may override it per employee (see currencies.ts).
 export const COUNTRIES = [
   { code: "US", name: "United States", currency: "usd", locale: "en-US" },
   { code: "IN", name: "India", currency: "inr", locale: "en-IN" },

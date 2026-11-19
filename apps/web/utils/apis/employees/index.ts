@@ -8,7 +8,7 @@ import type {
   EmployeeSummary,
   EmployeeUpdateInput,
   Page,
-  SalaryRevisionCreateInput,
+  SalaryRevisionCreateRequest,
 } from "@paywise/shared";
 import { api, toQueryString } from "@/utils/services";
 import { keys, useInvalidateEmployeeData } from "@/utils/apis/keys";
@@ -64,7 +64,7 @@ export function useUpdateEmployee(id: string) {
 export function useChangeSalary(id: string) {
   const invalidate = useInvalidateEmployeeData();
   return useMutation({
-    mutationFn: (input: SalaryRevisionCreateInput) =>
+    mutationFn: (input: SalaryRevisionCreateRequest) =>
       api<EmployeeDetail>(`/employees/${id}/salary-revisions`, { method: "POST", json: input }),
     onSuccess: invalidate,
   });

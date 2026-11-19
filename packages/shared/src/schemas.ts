@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { COUNTRY_CODES } from "./countries";
+import { CURRENCY_CODES } from "./currencies";
 
 export const GENDERS = ["female", "male", "non_binary", "undisclosed"] as const;
 export const EMPLOYMENT_TYPES = ["full_time", "part_time", "contract"] as const;
@@ -11,7 +12,12 @@ export const MANUAL_REVISION_REASONS = [
   "market_adjustment",
   "correction",
 ] as const;
-export const REVISION_REASONS = ["hire", "import", ...MANUAL_REVISION_REASONS] as const;
+// Changing the pay currency is its own reason: amount and currency move together.
+export const SALARY_CHANGE_REASONS = [...MANUAL_REVISION_REASONS, "currency_change"] as const;
+export const REVISION_REASONS = ["hire", "import", ...SALARY_CHANGE_REASONS] as const;
+
+/** A supported pay currency, accepted in any case and stored lowercase. */
+export const currencySchema = z.string().trim().toLowerCase().pipe(z.enum(CURRENCY_CODES));
 
 const text = (max: number) => z.string().trim().min(1, "Required").max(max);
 
@@ -59,6 +65,8 @@ const employeeFields = {
 export const employeeCreateSchema = z.object({
   ...employeeFields,
   gender: employeeFields.gender.default("undisclosed"),
+  // Defaults from the country when omitted; HR may choose another supported currency.
+  salaryCurrency: currencySchema.optional(),
 });
 
 // Country, code and salary are deliberately absent: country is immutable and
@@ -76,12 +84,30 @@ export const employeeUpdateSchema = z
   .partial()
   .refine((value) => Object.keys(value).length > 0, "Nothing to update");
 
-export const salaryRevisionCreateSchema = z.object({
-  amount: minorAmountSchema,
-  effectiveOn: isoDateSchema,
-  reason: z.enum(MANUAL_REVISION_REASONS),
-  note: z.string().trim().max(500).optional(),
-});
+/**
+ * A salary change, effective on a past, current or future date. A correction
+ * names the revision it corrects (same date); a currency change names the new
+ * currency. `basedOnRevisionId` is the latest revision the user was looking at:
+ * if someone else changed the salary since, the change is refused (409).
+ */
+export const salaryRevisionCreateSchema = z
+  .object({
+    amount: minorAmountSchema,
+    currency: currencySchema.optional(),
+    effectiveOn: isoDateSchema,
+    reason: z.enum(SALARY_CHANGE_REASONS),
+    note: z.string().trim().max(500).optional(),
+    correctsRevisionId: z.uuid().optional(),
+    basedOnRevisionId: z.uuid().optional(),
+  })
+  .refine((r) => (r.reason === "correction") === (r.correctsRevisionId !== undefined), {
+    message: "A correction must name the revision it corrects, and only a correction can",
+    path: ["correctsRevisionId"],
+  })
+  .refine((r) => r.reason !== "currency_change" || r.currency !== undefined, {
+    message: "Choose the new currency",
+    path: ["currency"],
+  });
 
 export const deactivateEmployeeSchema = z.object({
   reason: text(500),
@@ -117,6 +143,7 @@ export type RevisionReason = (typeof REVISION_REASONS)[number];
 export type EmployeeCreateInput = z.infer<typeof employeeCreateSchema>;
 export type EmployeeUpdateInput = z.infer<typeof employeeUpdateSchema>;
 export type SalaryRevisionCreateInput = z.infer<typeof salaryRevisionCreateSchema>;
+export type SalaryRevisionCreateRequest = z.input<typeof salaryRevisionCreateSchema>;
 export type EmployeeListQuery = z.infer<typeof employeeListQuerySchema>;
 
 export const fairnessQuerySchema = z.object({
