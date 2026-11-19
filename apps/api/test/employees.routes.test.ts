@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ApiErrorBody, EmployeeDetail, Page, EmployeeSummary } from "@paywise/shared";
 import { createApp } from "../src/app";
-import { fixedClock } from "../src/lib/clock";
+import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
 const body = {

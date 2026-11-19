@@ -13,8 +13,11 @@ Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a
 2. **Validation:** define it once as a Zod schema in `packages/shared`; the API and the web forms both import it.
 3. **Salary changes** go only through the salary-revision service (one transaction that inserts the revision and updates `employees.salary_amount`).
 4. **SQL:** aggregates in SQL, not in JS loops. Whitelist sort columns. No string-built SQL from user input.
-5. **Layering:** routes (HTTP only) → services (rules, transactions) → repositories (queries). Routes never touch Drizzle directly.
-6. **CSV export:** always UTF-8 BOM + formula-injection escaping.
+5. **Layering:** routes (paths) → controllers (HTTP only) → services (rules, transactions) → repositories (queries). Only repositories touch Drizzle.
+
+## Folder structure (API, after the Outbox backend starter)
+
+`apps/api/src/`: `routes/<feature>/<feature>.ts` (+ `routes/index.ts`), `controllers/<feature>/<feature>.ts`, `services/<feature>/<feature>-service.ts` and `<feature>-repository.ts`, `middlewares/`, `validators/`, `interfaces/`, `config/`, `models/` (one PascalCase file per table), `utils/helpers/`, `scripts/`. File and folder names are kebab-case; variables camelCase; components, classes and data models PascalCase. 6. **CSV export:** always UTF-8 BOM + formula-injection escaping.
 
 ## Workflow
 

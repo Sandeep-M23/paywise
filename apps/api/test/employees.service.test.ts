@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { EmployeeCreateInput } from "@paywise/shared";
-import { createEmployeeService } from "../src/services/employees";
-import { AppError } from "../src/lib/errors";
-import { fixedClock } from "../src/lib/clock";
+import { createEmployeeService } from "../src/services/employees/employees-service";
+import { AppError } from "../src/utils/helpers/errors";
+import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
 const TODAY = "2026-06-30";

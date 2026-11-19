@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ImportRequest, ImportRowValues } from "@paywise/shared";
-import { createEmployeeService } from "../src/services/employees";
-import { createImportService } from "../src/services/imports";
-import { fixedClock } from "../src/lib/clock";
+import { createEmployeeService } from "../src/services/employees/employees-service";
+import { createImportService } from "../src/services/imports/imports-service";
+import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
 const TODAY = "2026-06-30";

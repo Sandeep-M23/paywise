@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app";
-import { hashPassword, verifyPassword, type AuthConfig } from "../src/lib/auth";
-import { fixedClock } from "../src/lib/clock";
+import type { AuthConfig } from "../src/interfaces/middlewares/auth";
+import { hashPassword, verifyPassword } from "../src/middlewares/auth";
+import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
 let testDb: Awaited<ReturnType<typeof createTestDb>>;

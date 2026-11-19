@@ -8,8 +8,8 @@ import {
   type ImportRequest,
 } from "@paywise/shared";
 import { createApp } from "../src/app";
-import { fixedClock } from "../src/lib/clock";
-import { createEmployeeService } from "../src/services/employees";
+import { fixedClock } from "../src/utils/helpers/clock";
+import { createEmployeeService } from "../src/services/employees/employees-service";
 import { createTestDb } from "./db";
 
 const clock = fixedClock("2026-06-30");

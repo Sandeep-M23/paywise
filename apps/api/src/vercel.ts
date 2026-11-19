@@ -1,5 +1,5 @@
 import { handle } from "hono/vercel";
-import app from "./index";
+import app from ".";
 
 // Vercel Function entry (bundled to api/index.js by scripts/bundle.mjs).
 export const GET = handle(app);

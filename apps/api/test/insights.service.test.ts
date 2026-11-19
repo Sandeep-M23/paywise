@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { EmployeeCreateInput } from "@paywise/shared";
-import { createEmployeeService } from "../src/services/employees";
-import { createInsightsService } from "../src/services/insights";
-import { fixedClock } from "../src/lib/clock";
+import { createEmployeeService } from "../src/services/employees/employees-service";
+import { createInsightsService } from "../src/services/insights/insights-service";
+import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
 /*

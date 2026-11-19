@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { generateEmployees } from "../src/db/seed/generate";
-import { seedDatabase } from "../src/db/seed/seed";
+import { generateEmployees } from "../src/scripts/seed/generate";
+import { seedDatabase } from "../src/scripts/seed/seed";
 import { createTestDb } from "./db";
 
 let testDb: Awaited<ReturnType<typeof createTestDb>>;

@@ -34,7 +34,7 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 | Deploy | Vercel (web + API) and Neon Postgres                                                                                         |
 
 ```
-apps/api         Hono API: routes -> services -> repositories, seed, migrations
+apps/api         Hono API: routes -> controllers -> services -> repositories, seed, migrations
 apps/web         Next.js app; /api/* is proxied to the API (first-party session cookie)
 packages/shared  Code both sides must agree on
 docs/            Requirements, research, design, trade-offs, performance, AI log

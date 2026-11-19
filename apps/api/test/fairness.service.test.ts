@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { CountryCode, EmployeeCreateInput, EmploymentType, Gender } from "@paywise/shared";
-import { createEmployeeService } from "../src/services/employees";
-import { createFairnessService } from "../src/services/fairness";
-import { fixedClock } from "../src/lib/clock";
+import { createEmployeeService } from "../src/services/employees/employees-service";
+import { createFairnessService } from "../src/services/fairness/fairness-service";
+import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
 let testDb: Awaited<ReturnType<typeof createTestDb>>;

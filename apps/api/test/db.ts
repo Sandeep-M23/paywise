@@ -3,8 +3,8 @@ import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import * as schema from "../src/db/schema";
-import type { Db } from "../src/db/client";
+import * as schema from "../src/models";
+import type { Db } from "../src/config/db";
 
 /**
  * Real Postgres, in-process: same SQL semantics as production (percentile_cont,

@@ -4,7 +4,7 @@
 
 ## Reproducible
 
-Generation is a pure function, `generateEmployees({ count, seed, today })` in `apps/api/src/db/seed/generate.ts`. The runner fixes `seed = 42` and the reference date `2026-11-15`, so every run produces identical people, salaries and histories. Measured locally: generation ~60 ms, insert ~1 s (batches of 1,000 in one transaction).
+Generation is a pure function, `generateEmployees({ count, seed, today })` in `apps/api/src/scripts/seed/generate.ts`. The runner fixes `seed = 42` and the reference date `2026-11-15`, so every run produces identical people, salaries and histories. Measured locally: generation ~60 ms, insert ~1 s (batches of 1,000 in one transaction).
 
 ## Shape
 
