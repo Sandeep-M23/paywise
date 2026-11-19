@@ -40,7 +40,7 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 ```
 apps/api         Express API: routes -> controllers -> services -> repositories, seed, db:sync
-apps/web         Next.js app (src/): app, components/<feature>, hooks, context, lib; /api/* is proxied to the API
+apps/web         Next.js app (src/): app, components/Block/<Feature>, hooks, context, lib; /api/* is proxied to the API
 packages/shared  Code both sides must agree on
 docs/            Requirements, research, design, trade-offs, performance, AI log
 ```

@@ -18,7 +18,7 @@ import { COUNTRIES } from "@paywise/shared";
 import { useSetAtom } from "jotai";
 import { useState, type ReactNode } from "react";
 import type { GenderGapGroup, PayOutlier } from "@paywise/shared";
-import { EmployeeSheet } from "@/components/employees/EmployeeSheet";
+import { EmployeeSheet } from "@/components/Block/Employees/EmployeeSheet";
 import { FilterBar, type Facet } from "@/components/FilterBar";
 import {
   Sheet,
@@ -49,7 +49,7 @@ import { compactMoney, money, percent } from "@/lib/format";
 import { useCountrySummaries } from "@/hooks/useInsights";
 import { useFilterOptions } from "@/hooks/useFilterOptions";
 import { useGenderGaps, useOutliers } from "@/hooks/useFairness";
-import { GapStatus } from "@/components/fairness/GapStatus";
+import { GapStatus } from "@/components/Block/Fairness/GapStatus";
 
 type View = "gender" | "outliers";
 type GapFilter = "all" | "review" | "chance" | "within" | "hidden";

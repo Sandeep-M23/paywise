@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, History } from "@/components/icons";
 import { cn } from "@/lib/utils";
 import { useImportDetail, useImportLog } from "@/hooks/useImports";
-import { PreviewTable } from "@/components/import/PreviewTable";
+import { PreviewTable } from "@/components/Block/Import/PreviewTable";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });

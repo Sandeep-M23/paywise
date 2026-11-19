@@ -22,11 +22,11 @@ import { EmployeeAvatar } from "@/components/EmployeeAvatar";
 import { selectedEmployeeIdAtom } from "@/lib/atoms/employees";
 import { date, humanize } from "@/lib/format";
 import { useEmployee } from "@/hooks/useEmployees";
-import { ChangeSalaryDialog } from "@/components/employees/ChangeSalaryDialog";
-import { DeactivateDialog } from "@/components/employees/DeactivateDialog";
-import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
-import { PeerPosition } from "@/components/employees/PeerPosition";
-import { SalaryHistory } from "@/components/employees/SalaryHistory";
+import { ChangeSalaryDialog } from "@/components/Block/Employees/ChangeSalaryDialog";
+import { DeactivateDialog } from "@/components/Block/Employees/DeactivateDialog";
+import { EmployeeFormDialog } from "@/components/Block/Employees/EmployeeFormDialog";
+import { PeerPosition } from "@/components/Block/Employees/PeerPosition";
+import { SalaryHistory } from "@/components/Block/Employees/SalaryHistory";
 
 type Dialog = "edit" | "salary" | "deactivate" | null;
 

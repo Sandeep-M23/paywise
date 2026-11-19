@@ -1,10 +1,8 @@
-import { atom } from "jotai";
-import type { ImportField, ImportPreview, ImportResult } from "@paywise/shared";
 import type { ParsedFile } from "@/lib/import-file";
+import type { ImportField, ImportPreview, ImportResult } from "@paywise/shared";
+import { atom } from "jotai";
 
 export type ImportStep = "upload" | "map" | "preview" | "done";
-
-/** Survives navigating away and back, so a half-finished import isn't lost. */
 
 export type ImportWizard = {
   step: ImportStep;

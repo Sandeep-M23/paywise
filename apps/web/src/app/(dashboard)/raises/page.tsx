@@ -1,4 +1,4 @@
-import { RaisePlanner } from "@/components/raises/RaisePlanner";
+import { RaisePlanner } from "@/components/Block/Raises/RaisePlanner";
 
 export default function RaisesPage() {
   return <RaisePlanner />;

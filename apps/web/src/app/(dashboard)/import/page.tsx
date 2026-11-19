@@ -1,4 +1,4 @@
-import { ImportWizard } from "@/components/import/ImportWizard";
+import { ImportWizard } from "@/components/Block/Import/ImportWizard";
 
 export default function ImportPage() {
   return <ImportWizard />;

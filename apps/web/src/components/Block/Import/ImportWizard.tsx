@@ -37,8 +37,8 @@ import { emptyImportWizard, importWizardAtom } from "@/lib/atoms/import";
 import { buildImportRequest, downloadText, errorReportCsv, parseCsvText } from "@/lib/import-file";
 import { useInvalidateEmployeeData } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { ImportLog } from "@/components/import/ImportLog";
-import { PreviewTable } from "@/components/import/PreviewTable";
+import { ImportLog } from "@/components/Block/Import/ImportLog";
+import { PreviewTable } from "@/components/Block/Import/PreviewTable";
 import { TableFrame } from "@/components/TableFrame";
 
 const STEPS = ["Upload", "Match columns", "Review", "Done"] as const;

@@ -9,10 +9,10 @@ import { useDownload } from "@/hooks/useDownload";
 import { selectedEmployeeIdAtom } from "@/lib/atoms/employees";
 import { useDirectoryQuery } from "@/hooks/useDirectoryQuery";
 import { useEmployeeDirectory } from "@/hooks/useEmployees";
-import { DirectoryFilters } from "@/components/employees/DirectoryFilters";
-import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
-import { EmployeeSheet } from "@/components/employees/EmployeeSheet";
-import { EmployeeTable } from "@/components/employees/EmployeeTable";
+import { DirectoryFilters } from "@/components/Block/Employees/DirectoryFilters";
+import { EmployeeFormDialog } from "@/components/Block/Employees/EmployeeFormDialog";
+import { EmployeeSheet } from "@/components/Block/Employees/EmployeeSheet";
+import { EmployeeTable } from "@/components/Block/Employees/EmployeeTable";
 
 export function EmployeesView() {
   const [query, setQuery] = useDirectoryQuery();

@@ -1,13 +1,13 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Provider as JotaiProvider } from "jotai";
-import { ThemeProvider } from "next-themes";
-import { useState, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/context/AuthContext";
 import { ApiError } from "@/lib/api-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Provider as JotaiProvider } from "jotai";
+import { ThemeProvider } from "next-themes";
+import { useState, type ReactNode } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -17,8 +17,6 @@ export function Providers({ children }: { children: ReactNode }) {
           queries: {
             staleTime: 30_000,
             refetchOnWindowFocus: false,
-            // Client errors (validation, not found, signed out) won't fix themselves;
-            // network errors (status 0) and 5xx may.
             retry: (count, error) =>
               !(error instanceof ApiError && error.status >= 400 && error.status < 500) &&
               count < 2,

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSetAtom } from "jotai";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { AlertTriangle, Download, FileUp, Scale, TrendingUp, Users } from "@/components/icons";
-import { EmployeeSheet } from "@/components/employees/EmployeeSheet";
+import { EmployeeSheet } from "@/components/Block/Employees/EmployeeSheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
