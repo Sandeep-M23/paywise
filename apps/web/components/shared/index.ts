@@ -8,6 +8,7 @@ export { HeaderBar } from "./HeaderBar/HeaderBar";
 export { HeroMoney } from "./HeroMoney/HeroMoney";
 export { FetchingBar, LoadingScreen, StartupScreen } from "./LoadingScreen/LoadingScreen";
 export { Logo, LogoMark } from "./Logo/Logo";
+export { PasswordInput } from "./PasswordInput/PasswordInput";
 export { Sidebar } from "./Sidebar/Sidebar";
 export { Stat } from "./StatCard/Stat";
 export { StatTile } from "./StatCard/StatCard";

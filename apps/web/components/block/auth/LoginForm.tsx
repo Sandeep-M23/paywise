@@ -4,6 +4,7 @@ import { Field } from "@/components/shared/FormField/FormField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/shared/PasswordInput/PasswordInput";
 import { useAuth } from "@/context/auth";
 import { handleLogin } from "@/utils/apis/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -74,10 +75,9 @@ export function LoginForm() {
             />
           </Field>
           <Field id="password" label="Password" error={errors.password?.message}>
-            <Input
+            <PasswordInput
               className="h-12"
               id="password"
-              type="password"
               autoComplete="current-password"
               placeholder="Enter your password"
               {...register("password")}

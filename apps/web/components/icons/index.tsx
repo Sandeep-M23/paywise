@@ -16,6 +16,7 @@ import {
   ClockCounterClockwise as PhClockCounterClockwise,
   Code as PhCode,
   DownloadSimple as PhDownloadSimple,
+  Eye as PhEye,
   EyeSlash as PhEyeSlash,
   FileArrowUp as PhFileArrowUp,
   FileCsv as PhFileCsv,
@@ -76,6 +77,7 @@ export const CircleCheck = filled(PhCheckCircle, "CircleCheck");
 export const CircleHelp = filled(PhQuestion, "CircleHelp");
 export const Code2 = filled(PhCode, "Code2");
 export const Download = filled(PhDownloadSimple, "Download");
+export const Eye = filled(PhEye, "Eye");
 export const EyeOff = filled(PhEyeSlash, "EyeOff");
 export const FileText = filled(PhFileCsv, "FileText");
 export const FileUp = filled(PhFileArrowUp, "FileUp");
