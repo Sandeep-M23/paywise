@@ -1,7 +1,7 @@
 "use client";
 
-import { useAtom } from "jotai";
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useAtom, useSetAtom } from "jotai";
+import { useLayoutEffect, useRef, useState, type ChangeEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CheckCircle2, Download, FileUp } from "@/components/icons";
 import Link from "next/link";
@@ -49,7 +49,23 @@ import { TableFrame } from "@/components/shared/TableFrame/TableFrame";
 const STEPS = ["Upload", "Match columns", "Review", "Done"] as const;
 const NOT_IN_FILE = "__none__";
 
+/**
+ * Every visit starts at step 1: leaving the page abandons the import. Next.js keeps
+ * a visited page alive (hidden) and shows it again on return, with its old state,
+ * and a Jotai value changed while hidden isn't picked up. So on each arrival, reset
+ * the atom and remount the wizard (a new key), before paint, so nothing stale shows.
+ */
 export function ImportWizard() {
+  const setWizard = useSetAtom(importWizardAtom);
+  const [visit, setVisit] = useState(0);
+  useLayoutEffect(() => {
+    setWizard(emptyImportWizard);
+    setVisit((n) => n + 1);
+  }, [setWizard]);
+  return <Wizard key={visit} />;
+}
+
+function Wizard() {
   const [wizard, setWizard] = useAtom(importWizardAtom);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,11 +76,13 @@ export function ImportWizard() {
   const [dragging, setDragging] = useState(false);
   const [edited, setEdited] = useState(0);
 
-  // A finished import shouldn't greet you next time: coming back starts fresh.
-  // (An import in progress is kept, so you can check employees mid-way.)
-  useEffect(() => {
-    if (wizard.step === "done") setWizard(emptyImportWizard);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on arrival
+  // A request that finishes after this wizard is gone must not refill it.
+  const onPage = useRef(false);
+  useLayoutEffect(() => {
+    onPage.current = true;
+    return () => {
+      onPage.current = false;
+    };
   }, []);
 
   async function onFile(event: ChangeEvent<HTMLInputElement>) {
@@ -82,6 +100,7 @@ export function ImportWizard() {
     setEdited(0);
     try {
       const { headers, records } = parseCsvText(await file.text());
+      if (!onPage.current) return;
       setWizard({
         ...emptyImportWizard,
         step: "map",
@@ -103,6 +122,7 @@ export function ImportWizard() {
     setError(null);
     try {
       const preview = await previewImport(request());
+      if (!onPage.current) return;
       setWizard({ ...wizard, step: "preview", preview });
       setEdited(0);
     } catch (e) {
@@ -118,8 +138,11 @@ export function ImportWizard() {
     try {
       const result = await commitImport(request());
       await invalidate();
-      setWizard({ ...wizard, step: "done", result, preview: null, records: [] });
+      // Saved either way; only show the result if the user is still here.
       toast.success("Import complete");
+      if (onPage.current) {
+        setWizard({ ...wizard, step: "done", result, preview: null, records: [] });
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Import failed. Nothing was saved.");
     } finally {
