@@ -1,6 +1,8 @@
 # Deploying to Vercel + Neon
 
-Two Vercel projects from this one repository, plus one Neon Postgres database.
+Two Vercel projects from this one repository, plus one Postgres database.
+
+> **Planned change (PLAN.md revision 2.1):** the API moves to `pg` + Sequelize and any Postgres host (Supabase, Railway, Render or AWS RDS), configured by `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` and `DB_SSL`, with `npm run db:sync` instead of `db:migrate`. Neon is no longer required. This guide describes the code as it is today and will be rewritten in the Day 0 commit that makes the switch.
 
 ## 1. Database (Neon)
 

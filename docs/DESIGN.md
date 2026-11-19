@@ -17,10 +17,10 @@ flowchart LR
   subgraph Vercel Functions
     R[Hono routes + controllers<br/>Zod parse, auth, origin check]
     S[Services<br/>domain rules, transactions, audit]
-    D[Repositories<br/>Drizzle + SQL aggregates]
+    D[Repositories<br/>SQL aggregates; Drizzle today,<br/>Sequelize + pg planned]
   end
   CRON[Vercel Cron<br/>promote due revisions, planned]
-  DB[(PostgreSQL<br/>Neon)]
+  DB[(PostgreSQL<br/>any host)]
   SH[[packages/shared<br/>schemas, money, currencies, CSV helpers, Ask parser]]
 
   UI --> J
@@ -33,7 +33,8 @@ flowchart LR
 
 - **Monorepo** (npm workspaces): `apps/api`, `apps/web`, `packages/shared`.
 - **One source of truth for validation:** Zod schemas in `shared` are used by both the web forms and the API.
-- **Layering:** routes declare paths; controllers handle only HTTP concerns (validate, call a service, shape the response); services own the business rules, transactions and audit entries; repositories own SQL. Folders follow the Outbox backend starter: `routes/<feature>/`, `controllers/<feature>/`, `services/<feature>/` (`-service.ts` and `-repository.ts`), plus `middlewares/`, `validators/`, `interfaces/`, `config/` and `models/`. Repositories receive a `db` handle, so tests inject an in-process Postgres (PGlite).
+- **Layering:** routes declare paths; controllers handle only HTTP concerns (validate, call a service, shape the response); services own the business rules, transactions and audit entries; repositories own SQL. Folders follow the Outbox backend starter: `routes/<feature>/`, `controllers/<feature>/`, `services/<feature>/` (`-service.ts` and `-repository.ts`), plus `middlewares/`, `validators/`, `interfaces/`, `config/` and `models/`. Repositories receive the database handle, so tests inject an in-process Postgres (PGlite).
+- **Data layer (revision 2.1, planned):** Drizzle is being replaced by `pg` + **Sequelize**, as in the Outbox backends: PascalCase models for CRUD and row locks, and `sequelize.query` with named replacements for every statistic and bulk write. The schema comes from the models via `npm run db:sync` (`sync({ alter: true })`) plus an idempotent `schema.sql` for what `sync()` can't express (`CHECK`s, partial and covering indexes, deferred composite FKs, the audit trigger). Any Postgres host works, configured by `DB_*` variables. Details: `PLAN.md` §3.11.
 - **Aggregates run in SQL** (`GROUP BY`, `percentile_cont`, `width_bucket`). The API never loads 10k rows into memory to compute statistics.
 - **One origin for the browser:** the web app rewrites `/api/*` to the API deployment, so the signed session cookie is first-party: no CORS, and no third-party cookie blocking. `proxy.ts` (Next 16's middleware) only redirects visitors without a cookie to `/login`; the API verifies the session on every request.
 - **State on the client:** TanStack Query owns everything fetched (keys per resource; every write invalidates employees, insights, fairness and filter options). Directory filters, sort and page live in the **URL**, so views can be shared and reloaded; a filter with several values repeats its key (`?country=IN&country=DE`), which the API reads as "any of", so commas inside values such as "VP, Sales" are safe. Jotai holds only transient UI state.
@@ -255,7 +256,7 @@ Reads (lists, analytics, Ask) run without explicit transactions. PGlite tests co
 ## 9. Testing Approach
 
 - **Pure logic** (money, currencies, CSV helpers, schemas, seed generator, Ask parser): plain Vitest, written test-first.
-- **Services and SQL**: Vitest against **PGlite** (real Postgres in-process). Each file gets a freshly migrated DB; tables are truncated between tests. Fixtures are a handful of hand-computed employees, never the 10k seed.
+- **Services and SQL**: Vitest against **PGlite** (real Postgres in-process; with Sequelize it is reached over `@electric-sql/pglite-socket`). Each file gets a freshly created DB; tables are truncated between tests. Fixtures are a handful of hand-computed employees, never the 10k seed.
 - **Routes**: Hono's `app.request()`, with no network.
 - **UI**: React Testing Library + MSW (planned beyond today's helper tests); a local Playwright walkthrough checks every page.
 - No clock or randomness leaks: fixed seed, injected "today".

@@ -5,27 +5,30 @@
 > **Deliverables:** requirements doc, a working backend and UI, a seed script for 10k employees, unit tests, a deployed app, a demo video, incremental commits, and AI/design artifacts.
 > **Research:** [`docs/RESEARCH.md`](docs/RESEARCH.md) covers competitor analysis, real HR problems (numbered #1–#12) and CSV import research. Features below cite those problem numbers.
 
+**Revision 2.1 (data layer).** Drizzle and Neon are replaced by **PostgreSQL through `pg` + Sequelize**, the same data layer as the Outbox backends: Sequelize models for CRUD, `sequelize.query` with named replacements for analytical SQL, schema from the models via a `db:sync` script, and any Postgres host configured by `DB_*` environment variables. See §3.11; it adds a Day 0 to §5.
+
 **Revision 2 (plan review).** The baseline, import/export, history, fairness and the raise planner are built (see §11 for status). This revision answers a staff-level review: effective-dated salaries, country/currency separation, import idempotency, audit logs, security hardening, careful fairness wording, and a controlled "Ask Paywise" query feature, reprioritised as P0 / P1 / P2. Nothing in the stack or architecture changes.
 
 ---
 
 ## 0. Revision 2: change summary
 
-**Kept (sound decisions, now with evidence from the build):** Hono + Drizzle + Postgres, Next.js + shadcn + TanStack Query + Jotai, Vitest + PGlite; routes → controllers → services → repositories; Stripe-style integer money; append-only revisions under a row lock; import matched by `employee_code`, stateless preview, all-or-nothing commit of valid rows; statistics in SQL (`percentile_cont` = Excel `PERCENTILE.INC`); small-group suppression; the web app proxying `/api/*` so the session cookie is first-party; deterministic seed with planted patterns.
+**Kept (sound decisions, now with evidence from the build):** Hono + PostgreSQL, Next.js + shadcn + TanStack Query + Jotai, Vitest + PGlite; routes → controllers → services → repositories; Stripe-style integer money; append-only revisions under a row lock; import matched by `employee_code`, stateless preview, all-or-nothing commit of valid rows; statistics in SQL (`percentile_cont` = Excel `PERCENTILE.INC`); small-group suppression; the web app proxying `/api/*` so the session cookie is first-party; deterministic seed with planted patterns.
 
 **Contradictions resolved:**
 
-| Was                                                                            | Problem                                                   | Now                                                                              |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Rule 5: `effective_on` ≤ today                                                 | Blocks scheduling next quarter's raise                    | Past, current and **scheduled** revisions (§3.3)                                 |
-| Rules 1 and 6: currency derived from country, never typed                      | Expat and USD-contract employees can't be represented     | Currency **defaults** from country; HR may override (§3.4)                       |
-| Gender gap "≥ 5% = EU Directive trigger", UI label "Review: gap ≥ 5%"          | Reads as a legal finding                                  | "Potential pay disparity", configurable analytical threshold, disclaimers (§3.6) |
-| Raise cost "read-only"                                                         | The built planner applies plans                           | Documented as built: plan → confirm → one transaction of revisions               |
-| "No per-user audit" (TRADEOFFS)                                                | No answer to "who changed this?"                          | `audit_logs` table written in the same transaction as each change (§3.7)         |
-| "Two Vercel projects plus CORS"; "Jotai holds filters"; old repo layout        | Out of date                                               | Same-origin proxy, URL-held filters, Outbox-style folders (§4)                   |
-| Import commit has no protection against a double click or a network retry      | A retried request imports twice (new revisions each time) | `Idempotency-Key` + request hash (§3.5)                                          |
-| No login throttling; CSRF relies on `SameSite=Lax` alone; threshold hard-coded | Review findings                                           | Rate limit, Origin check, configurable thresholds (§3.8)                         |
-| Frontend tests promised (RTL + MSW), one helper test exists                    | Gap against P0                                            | Core UI tests are P0 work (§7)                                                   |
+| Was                                                                            | Problem                                                                          | Now                                                                                       |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Rule 5: `effective_on` ≤ today                                                 | Blocks scheduling next quarter's raise                                           | Past, current and **scheduled** revisions (§3.3)                                          |
+| Rules 1 and 6: currency derived from country, never typed                      | Expat and USD-contract employees can't be represented                            | Currency **defaults** from country; HR may override (§3.4)                                |
+| Gender gap "≥ 5% = EU Directive trigger", UI label "Review: gap ≥ 5%"          | Reads as a legal finding                                                         | "Potential pay disparity", configurable analytical threshold, disclaimers (§3.6)          |
+| Raise cost "read-only"                                                         | The built planner applies plans                                                  | Documented as built: plan → confirm → one transaction of revisions                        |
+| "No per-user audit" (TRADEOFFS)                                                | No answer to "who changed this?"                                                 | `audit_logs` table written in the same transaction as each change (§3.7)                  |
+| "Two Vercel projects plus CORS"; "Jotai holds filters"; old repo layout        | Out of date                                                                      | Same-origin proxy, URL-held filters, Outbox-style folders (§4)                            |
+| Import commit has no protection against a double click or a network retry      | A retried request imports twice (new revisions each time)                        | `Idempotency-Key` + request hash (§3.5)                                                   |
+| No login throttling; CSRF relies on `SameSite=Lax` alone; threshold hard-coded | Review findings                                                                  | Rate limit, Origin check, configurable thresholds (§3.8)                                  |
+| Frontend tests promised (RTL + MSW), one helper test exists                    | Gap against P0                                                                   | Core UI tests are P0 work (§7)                                                            |
+| Drizzle ORM + `drizzle-kit` migrations; Neon (rev 1)                           | Unlike every other backend the team maintains (`pg` + Sequelize, plain Postgres) | Sequelize + `pg`, `db:sync` + `schema.sql`, any Postgres host via `DB_*` (rev 2.1, §3.11) |
 
 **Added:** scheduled revisions and their promotion, same-date corrections, currency override and three-decimal support, import idempotency and provenance, audit logs, login rate limiting, an authorization seam, Ask Paywise (P1), `docs/API.md`, `docs/SECURITY.md`.
 
@@ -39,19 +42,19 @@ More than 150 candidates build the same baseline (list, CRUD, averages, seed). W
 
 ## 2. Locked Decisions
 
-| Area         | Choice                                                                                                                          | Notes                                                                                    |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Backend      | **Node.js + TypeScript**, **Hono**                                                                                              | Small, typed, runs natively as a Vercel Function. Validates requests with Zod.           |
-| ORM / SQL    | **Drizzle ORM** + `drizzle-kit` migrations                                                                                      | Type-safe schema, close to SQL for `GROUP BY` and `percentile_cont`.                     |
-| Database     | **PostgreSQL** (Neon via the Vercel Marketplace; Docker locally)                                                                | `percentile_cont` = Excel `PERCENTILE.INC`, so medians reconcile with HR's spreadsheets. |
-| Frontend     | **Next.js (App Router) + shadcn/ui + TailwindCSS + Recharts**                                                                   | Virtualised, infinite directory over server pagination.                                  |
-| Client state | **TanStack Query** (server state), **URL** (directory filters), **Jotai** (transient UI state)                                  | Filters in the URL are shareable and reloadable.                                         |
-| CSV          | **Papa Parse** in the browser for an instant preview + a small serializer for export                                            | The server re-validates everything; it never trusts the client.                          |
-| Deploy       | **Vercel**: two projects (web, API) from one monorepo, + Neon. The web app proxies `/api/*`                                     | First-party cookie, no CORS. Trade-off vs one project in §3.10.                          |
-| Money        | **Stripe-style:** integer amount in the **smallest currency unit** + lowercase ISO 4217 code                                    | Exponent table: 0 (JPY), 2 (default), 3 (BHD, KWD, OMR).                                 |
-| Tests        | **Vitest**, **PGlite** (in-process Postgres), React Testing Library + MSW                                                       | Fast and deterministic; no Docker to run tests.                                          |
-| Tooling      | npm workspaces (`@paywise/api`, `@paywise/web`, `@paywise/shared`), ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI         | One gate (`npm run check`) locally and in CI.                                            |
-| Infra        | **No Redis, queues or extra services.** Postgres holds rate-limit counters and idempotency keys; Vercel Cron runs one daily job | Every moving part has to earn its place at 10k employees and one HR user.                |
+| Area         | Choice                                                                                                                                                       | Notes                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Backend      | **Node.js + TypeScript**, **Hono**                                                                                                                           | Small, typed, runs natively as a Vercel Function. Validates requests with Zod.                                      |
+| Data access  | **Sequelize** (`pg` driver), as in the Outbox backends: PascalCase models for CRUD; `sequelize.query` with **named replacements** for analytics and bulk SQL | Rev 2.1 replaces Drizzle. Statistics stay hand-written SQL (`percentile_cont`, `UPDATE … FROM (VALUES …)`).         |
+| Database     | **PostgreSQL**, any host reachable from Vercel, configured by `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSL`; Docker locally    | Rev 2.1 drops Neon. Options: Supabase, Railway, Render, AWS RDS (§3.11).                                            |
+| Frontend     | **Next.js (App Router) + shadcn/ui + TailwindCSS + Recharts**                                                                                                | Virtualised, infinite directory over server pagination.                                                             |
+| Client state | **TanStack Query** (server state), **URL** (directory filters), **Jotai** (transient UI state)                                                               | Filters in the URL are shareable and reloadable.                                                                    |
+| CSV          | **Papa Parse** in the browser for an instant preview + a small serializer for export                                                                         | The server re-validates everything; it never trusts the client.                                                     |
+| Deploy       | **Vercel**: two projects (web, API) from one monorepo + a managed Postgres. The web app proxies `/api/*`                                                     | First-party cookie, no CORS. Trade-off vs one project in §3.10.                                                     |
+| Money        | **Stripe-style:** integer amount in the **smallest currency unit** + lowercase ISO 4217 code                                                                 | Exponent table: 0 (JPY), 2 (default), 3 (BHD, KWD, OMR).                                                            |
+| Tests        | **Vitest**, **PGlite** served over `@electric-sql/pglite-socket` so Sequelize connects to it like a server; React Testing Library + MSW                      | Fast and deterministic; no Docker for unit and service tests. Concurrency tests need real Postgres (`TEST_PG_URL`). |
+| Tooling      | npm workspaces (`@paywise/api`, `@paywise/web`, `@paywise/shared`), ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI                                      | One gate (`npm run check`) locally and in CI.                                                                       |
+| Infra        | **No Redis, queues or extra services.** Postgres holds rate-limit counters and idempotency keys; Vercel Cron runs one daily job                              | Every moving part has to earn its place at 10k employees and one HR user.                                           |
 
 ---
 
@@ -88,7 +91,7 @@ More than 150 candidates build the same baseline (list, CRUD, averages, seed). W
 
 **Deliberately out of scope** (reasons in REQUIREMENTS): payroll and tax; currency conversion and org-wide totals in one currency; pay ranges and compa-ratio (first v2 item); multiple users, roles, approvals and SSO; bonus and equity; `.xlsx`; **relocation** (a v2 workflow, §3.4); unrestricted natural-language SQL.
 
-### 3.2 Data model (Drizzle / Postgres)
+### 3.2 Data model (PostgreSQL; Sequelize models + `schema.sql`)
 
 ```
 employees
@@ -284,7 +287,7 @@ question ──► parser (pure, shared) ──► QueryPlan (Zod-validated) ─
 Next.js (Vercel project 1) ── same-origin /api/* rewrite ──► Hono API (Vercel project 2, one Function)
   shadcn + Tailwind + Recharts                                routes → controllers → services → repositories
   TanStack Query (server state) · URL (filters) · Jotai (UI)    │ middlewares: auth, origin check, body limit, errors
-  Papa Parse (import preview)                                   └► Postgres (Neon, pooled)  ◄── Vercel Cron: promote-due
+  Papa Parse (import preview)                                   └► PostgreSQL (any host, pooled) ◄── Vercel Cron: promote-due
 packages/shared: Zod schemas, DTO types, money, CSV helpers, countries/currencies, Ask Paywise parser
 ```
 
@@ -299,6 +302,24 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, countries/currencie
 
 Both keep one browser origin. We keep two projects; the rewrite makes switching later a configuration change.
 
+### 3.11 Data access and schema management (revision 2.1)
+
+Follows the Outbox backends (`outbox-backend-starter`, domainstack, clavis, saasmetrics): `pg` + Sequelize, no other ORM, no Neon-specific driver.
+
+| Concern             | Decision                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connection          | `config/db.ts` creates one `new Sequelize(DB_DATABASE, DB_USERNAME, DB_PASSWORD, { host, port, dialect: "postgres", logging: false, pool: { max: 5 }, define: { freezeTableName: true, underscored: true }, dialectOptions: DB_SSL ? { ssl: … } : {} })`, as in the starter's `shared/config/db.ts`.                                                                                              |
+| Models              | `models/Employee.ts`, `SalaryRevision.ts`, `Import.ts`, `AuditLog.ts`, `LoginAttempt.ts`: `Model<InferAttributes, InferCreationAttributes>` classes with `declare`d fields and `init`, associations in `models/index.ts`. Table and column names are unchanged (snake_case), so existing data carries over.                                                                                       |
+| Simple reads/writes | Model methods inside managed transactions: `sequelize.transaction(async (t) => …)`; row locks with `lock: t.LOCK.NO_KEY_UPDATE` and `order: [["id", "ASC"]]` (SCHEMA_REVIEW §5).                                                                                                                                                                                                                  |
+| Analytics and bulk  | `sequelize.query(sql, { replacements: { … }, type: QueryTypes.SELECT, transaction })` with **named replacements only**: medians, IQR fences, gender differences, raise plans, `UPDATE … FROM (VALUES …)` batches, promotion. User input never reaches SQL text; sort columns stay whitelisted.                                                                                                    |
+| Typing              | Raw-query results get explicit row types and one mapping function each (`toEmployeeSummary`, …); `bigint` columns come back as strings from `pg` and are converted in that mapper, never with floats.                                                                                                                                                                                             |
+| Schema              | `npm run db:sync` (`scripts/sync-db.ts`, as in clavis): `authenticate()`, `sync({ alter: true })` from the models, then an idempotent `config/schema.sql` for what `sync()` can't express: `pg_trgm`, `CHECK`s, partial and covering indexes, the deferred composite FKs and the `audit_logs` trigger from SCHEMA_REVIEW §4. As in domainstack, the API syncs on boot only when `NODE_ENV=local`. |
+| Production schema   | Never synced on boot. `db:sync` is run deliberately before a deploy that changes models, after a backup; never `force`. One-off data changes are separate scripts (`scripts/<name>.ts`), as in referral-stack.                                                                                                                                                                                    |
+| Hosting             | Any Postgres 15+ reachable from Vercel: Supabase, Railway, Render or AWS RDS. Use the host's connection pooler (e.g. Supabase's pooled port, RDS Proxy) because each Function instance opens its own small pool.                                                                                                                                                                                  |
+| Removed             | `drizzle-orm`, `drizzle-kit`, `drizzle.config.ts`, `apps/api/drizzle/` (migrations 0000–0002; the tables they created are what the models describe). Added: `sequelize`, `pg` (already present), `@electric-sql/pglite-socket` (dev).                                                                                                                                                             |
+
+**Relation to `docs/SCHEMA_REVIEW.md`** (a proposal written alongside this plan): its DDL maps onto models (tables, columns, plain FKs, unique and functional indexes) plus `schema.sql` (everything else). Its "one migration per step" path becomes one `db:sync` change per step, with the same tests written first.
+
 ---
 
 ## 4. Repo Layout (after the Outbox restructure)
@@ -310,8 +331,8 @@ Both keep one browser origin. We keep two projects; the rewrite makes switching 
 ├── apps/api/src/
 │   ├── routes/<feature>/<feature>.ts (+ index.ts)   controllers/<feature>/<feature>.ts
 │   ├── services/<feature>/<feature>-service.ts, <feature>-repository.ts
-│   ├── middlewares/  validators/  interfaces/  config/  models/ (Employee, SalaryRevision, Import, AuditLog)
-│   └── utils/helpers/  scripts/ (migrate, seed, measure)          test/ (PGlite)
+│   ├── middlewares/  validators/  interfaces/  config/  models/ (Sequelize: Employee, SalaryRevision, Import, AuditLog, LoginAttempt)
+│   └── utils/helpers/  scripts/ (sync-db, seed, measure)   config/schema.sql          test/ (PGlite)
 ├── apps/web/  app/(Main) app/(Auth)  components/{ui,Block,Shared,Icons}  hooks/  context/
 │              utils/{apis,atoms,constants,helpers,forms,services}
 ├── packages/shared/src/  schemas  money  csv  countries  currencies  ask/ (parser, plan schema)
@@ -326,11 +347,23 @@ New feature folders: `services/audit/`, `services/ask/`, `controllers/ask/`, `ro
 
 Commits 1–36 of revision 1 are done (see `git log`). Revision 2 continues with small Conventional Commits; `test:` before `feat:` for shared logic and services; `npm run check` before every commit; a migration per schema step.
 
+### Day 0: Data layer on Sequelize (revision 2.1, P0 enabler)
+
+Behaviour doesn't change, so the existing 187 tests are the safety net: they must pass after every commit.
+
+0. `docs: plan revision 2.1: PostgreSQL via pg + Sequelize, db:sync, any Postgres host` _(this commit)_
+1. `test(api): Sequelize test harness on PGlite via pglite-socket (sync + schema.sql per file, truncate between tests)`
+2. `refactor(api): Sequelize connection from DB_* env and models (Employee, SalaryRevision, Import)`
+3. `refactor(api): employees repository and service on Sequelize (models, locks, sequelize.query for raise plans)`
+4. `refactor(api): insights, fairness, imports and exports on sequelize.query with named replacements`
+5. `chore(api): db:sync script (sync + schema.sql), seed on Sequelize; remove drizzle-orm, drizzle-kit and migrations`
+6. `docs: DEPLOY and README for any Postgres host`
+
 ### Day 1: Effective dating and currency (P0)
 
 1. `docs: revision 2 plan, API contract, security notes` _(this commit)_
 2. `test(shared)` → `feat(shared): supported currencies with exponents (jpy 0, bhd/kwd 3), currency on employee schemas`
-3. `feat(api): migration 0003: revision corrections/cancellation, salary_effective_on, created_by; drop stored previous_amount from reads`
+3. `feat(api): models and schema.sql: revision corrections/cancellation, salary_effective_on, current_revision_id, created_by; CHECKs and RESTRICT (SCHEMA_REVIEW steps 1 and 3)`
 4. `test(api)` → `feat(api): scheduled revisions, date conflicts (409), backdating rule, corrections`
 5. `test(api)` → `feat(api): promoteDueRevisions + cron route + cold-start run; cache == derived invariant`
 6. `test(api)` → `feat(api): cancel scheduled revisions; deactivation cancels them`
@@ -365,7 +398,7 @@ Commits 1–36 of revision 1 are done (see `git log`). Revision 2 continues with
 
 ### Day 5 (half): Ship
 
-26. `chore: Neon migrate + seed, two Vercel projects, CRON_SECRET, Vercel Cron`; smoke test
+26. `chore: managed Postgres (DB_* vars), db:sync + seed, two Vercel projects, CRON_SECRET, Vercel Cron`; smoke test
 27. `docs: README (live URL, credentials out of band, video), final AI log`
 28. Demo video; review commit history
 
@@ -389,7 +422,7 @@ Commits 1–36 of revision 1 are done (see `git log`). Revision 2 continues with
 | UI                  | **Change-salary form (future date copy, currency), filter bar multi-select, import summary, Ask results and unsupported state**                                                                                                                                                                                                   | RTL + MSW                         |
 | End to end (manual) | Scripted Playwright walkthrough of every page (53 checks at revision 2)                                                                                                                                                                                                                                                           | Playwright (local)                |
 
-Rules: no network; fixed seed; injected clock; an isolated PGlite database per file; fixtures of a handful of hand-computed employees; **never 10,000 rows in a unit test** (the seed generator is tested as a pure function). Target: the whole suite under 15 s.
+Rules: no network; fixed seed; injected clock; an isolated PGlite database per file, reached by Sequelize over `pglite-socket` (one connection, so the pool is 1 in tests); concurrency tests from SCHEMA_REVIEW §8 run against real Postgres when `TEST_PG_URL` is set (a CI service container); fixtures of a handful of hand-computed employees; **never 10,000 rows in a unit test** (the seed generator is tested as a pure function). Target: the whole suite under 15 s.
 
 ---
 
@@ -430,15 +463,16 @@ Unchanged principles: server-side pagination and filtering; aggregates in SQL; i
 
 ## 10. Timeline
 
-| Day   | Work                                                                                              | Risk and mitigation                                                             |
-| ----- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| 1     | Effective dating (migration, rules, promotion, cancel), currency override, seed updates           | Highest-risk change (touches salary writes). Test-first; cache invariant test.  |
-| 2     | Import idempotency and provenance, audit logs, rate limit, Origin check, authorization seam, logs | Audit touches every write: one `AuditService`, added service by service.        |
-| 3     | Fairness wording and thresholds; Ask Paywise parser and executor                                  | Ask scope creep: five intents only; unsupported is a valid answer.              |
-| 4     | UI for scheduled revisions, currency, import summary, activity, Ask; frontend tests; re-measure   | Cut Ask charts first if late (KPI and tables stay).                             |
-| 5 (½) | Deploy (Neon, two projects, Cron), smoke test, README, video                                      | Deployment never exercised: do a preview deploy at the end of day 2 to de-risk. |
+| Day   | Work                                                                                                              | Risk and mitigation                                                                                              |
+| ----- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 0     | Data layer: Sequelize models, repositories on `sequelize.query`, `db:sync`, PGlite-socket harness; remove Drizzle | Wide but mechanical; behaviour unchanged, 187 tests as the net. Riskiest: raw-query typing and `bigint` mapping. |
+| 1     | Effective dating (models/schema.sql, rules, promotion, cancel), currency override, seed updates                   | Highest-risk change (touches salary writes). Test-first; cache invariant test.                                   |
+| 2     | Import idempotency and provenance, audit logs, rate limit, Origin check, authorization seam, logs                 | Audit touches every write: one `AuditService`, added service by service.                                         |
+| 3     | Fairness wording and thresholds; Ask Paywise parser and executor                                                  | Ask scope creep: five intents only; unsupported is a valid answer.                                               |
+| 4     | UI for scheduled revisions, currency, import summary, activity, Ask; frontend tests; re-measure                   | Cut Ask charts first if late (KPI and tables stay).                                                              |
+| 5 (½) | Deploy (managed Postgres, two projects, Cron), smoke test, README, video                                          | Deployment never exercised: do a preview deploy at the end of day 2 to de-risk.                                  |
 
-About 4.5 working days for revision 2, on top of the built baseline. If only 3 days remain: drop Ask Paywise to `metric` and `top_group` intents with table answers, and the Activity UI.
+About **5.5 working days** for revisions 2 and 2.1, on top of the built baseline (Day 0 adds one day). To stay at 4.5 days: Ask Paywise ships `metric` and `top_group` with table answers only, and the Activity UI moves to P2. If only 3 days remain: drop Ask Paywise to `metric` and `top_group` intents with table answers, and the Activity UI.
 
 ---
 
@@ -450,6 +484,7 @@ About 4.5 working days for revision 2, on top of the built baseline. If only 3 d
 - [x] Import: preview before save, row-level errors, one-transaction commit, history provenance
 - [x] Export: UTF-8 BOM + formula-injection safe + round trip tested
 - [x] Seed: 10,000 deterministic employees with documented planted patterns
+- [ ] Data layer on Sequelize + pg (no Drizzle, no Neon); `db:sync` with `schema.sql`; tests on PGlite-socket
 - [ ] Scheduled revisions, corrections and the current-salary invariant
 - [ ] Currency override, per-currency aggregates, three-decimal tests
 - [ ] Import idempotency and rollback tests

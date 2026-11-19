@@ -30,13 +30,13 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 ## Stack
 
-|        |                                                                                                                              |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| API    | Node 24, TypeScript, **Hono**, **Drizzle ORM**, **PostgreSQL**                                                               |
-| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** (server state), **Jotai** (UI state), **Recharts** |
-| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                             |
-| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker)                                               |
-| Deploy | Vercel (web + API) and Neon Postgres                                                                                         |
+|        |                                                                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API    | Node 24, TypeScript, **Hono**, **PostgreSQL** (Drizzle today; moving to `pg` + **Sequelize**, as in our other backends: [PLAN.md](PLAN.md) §3.11) |
+| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** (server state), **Jotai** (UI state), **Recharts**                      |
+| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                                                  |
+| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker)                                                                    |
+| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                                              |
 
 ```
 apps/api         Hono API: routes -> controllers -> services -> repositories, seed, migrations
@@ -82,4 +82,4 @@ What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no 
 
 ## Deploy
 
-See [docs/DEPLOY.md](docs/DEPLOY.md): two Vercel projects (API, web) from this repo, and Neon Postgres via the Vercel Marketplace.
+See [docs/DEPLOY.md](docs/DEPLOY.md): two Vercel projects (API, web) from this repo, and a managed Postgres database.
