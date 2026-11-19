@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { COUNTRIES, currencyForCountry } from "./countries";
 import {
+  loginSchema,
   salaryRevisionFieldsSchema,
   withSalaryRevisionRules,
   deactivateEmployeeSchema,
@@ -299,5 +300,20 @@ describe("salary change form schema", () => {
   it("keeps the correction and currency-change rules", () => {
     expect(formSchema.safeParse({ ...base, reason: "correction" }).success).toBe(false);
     expect(formSchema.safeParse({ ...base, reason: "currency_change" }).success).toBe(false);
+  });
+});
+
+describe("loginSchema", () => {
+  it("trims and lowercases the email, so sign-in ignores case", () => {
+    expect(loginSchema.parse({ email: "  HR@Acme.test ", password: "pw" })).toEqual({
+      email: "hr@acme.test",
+      password: "pw",
+    });
+  });
+
+  it("requires both fields, each with its own message", () => {
+    const result = loginSchema.safeParse({ email: " ", password: "" });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((i) => i.path.join("."))).toEqual(["email", "password"]);
   });
 });

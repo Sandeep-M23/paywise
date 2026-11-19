@@ -1,11 +1,6 @@
-import { z } from "zod";
+import { loginSchema, type LoginInput } from "@paywise/shared";
 import { validateBody } from "./validate";
 
-export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase(),
-  password: z.string().min(1).max(200),
-});
-
-export type LoginPayload = z.infer<typeof loginSchema>;
+export type LoginPayload = LoginInput;
 
 export const validateLoginBody = validateBody(loginSchema);

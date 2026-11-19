@@ -124,6 +124,14 @@ export const withSalaryRevisionRules = <T extends z.ZodType<RevisionRuleFields>>
 
 export const salaryRevisionCreateSchema = withSalaryRevisionRules(salaryRevisionFieldsSchema);
 
+/** Sign-in: one HR account; the email is compared case-insensitively. */
+export const loginSchema = z.object({
+  email: z.string().trim().min(1, "Enter your email").toLowerCase(),
+  password: z.string().min(1, "Enter your password").max(200),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
 export const deactivateEmployeeSchema = z.object({
   reason: text(500),
 });

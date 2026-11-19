@@ -1,45 +1,53 @@
 "use client";
 
+import { Field } from "@/components/FormField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { loginRequest } from "@/lib/auth-client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, type LoginInput } from "@paywise/shared";
 import { useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import type { z } from "zod";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
 
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  // Stays true after success, so the button doesn't re-enable while the app loads.
+  const [redirecting, setRedirecting] = useState(false);
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const { register, handleSubmit, setError, formState } = useForm<
+    z.input<typeof loginSchema>,
+    unknown,
+    LoginInput
+  >({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: "", password: "" },
+  });
+  const { errors, isSubmitting } = formState;
 
-    const form = new FormData(event.currentTarget);
+  const onSubmit = handleSubmit(async (values) => {
+    const result = await loginRequest(values);
 
-    setPending(true);
-    setError(null);
-    const result = await loginRequest({
-      email: String(form.get("email") ?? ""),
-      password: String(form.get("password") ?? ""),
-    });
     if (!result.ok) {
-      setError(result.message);
-      setPending(false);
+      setError("root", { message: result.message });
       return;
     }
 
+    setRedirecting(true);
     login(result.data.authToken);
     // Only same-site paths: `next` comes from the URL, so it must not send anyone off-site.
     const next = searchParams.get("next");
     // A full page load, not router.replace: a client-side switch from /login into
     // the app shows the route loader and then the startup splash (two splashes).
     window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
-  }
+  });
+
+  const pending = isSubmitting || redirecting;
 
   // Maglo's sign-in: no card, a large greeting, tall inputs and a full-width lime button.
   return (
@@ -49,34 +57,30 @@ export function LoginForm() {
         Sign in to manage employee compensation and salary insights.
       </p>
       <div>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          {error && (
+        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+          {errors.root && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>{errors.root.message}</AlertDescription>
             </Alert>
           )}
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
+          <Field id="email" label="Email" error={errors.email?.message}>
             <Input
               className="h-12"
               id="email"
-              name="email"
               type="email"
               autoComplete="username"
-              required
+              {...register("email")}
             />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
+          </Field>
+          <Field id="password" label="Password" error={errors.password?.message}>
             <Input
               className="h-12"
               id="password"
-              name="password"
               type="password"
               autoComplete="current-password"
-              required
+              {...register("password")}
             />
-          </div>
+          </Field>
           <Button type="submit" size="lg" className="mt-2 h-12" disabled={pending}>
             {pending ? "Signing in…" : "Sign in"}
           </Button>

@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import type { EmployeeDetail } from "@paywise/shared";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { deactivateEmployeeSchema, type EmployeeDetail } from "@paywise/shared";
+import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError } from "@/lib/api-client";
+import { applyApiErrors } from "@/lib/form-errors";
 import { useDeactivateEmployee } from "@/hooks/useEmployees";
 import { Field } from "@/components/FormField";
 
@@ -27,20 +30,29 @@ export function DeactivateDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const deactivate = useDeactivateEmployee(employee.id);
-  const [reason, setReason] = useState("");
-  const [error, setError] = useState<string>();
+  const { register, handleSubmit, setError, reset, formState } = useForm<
+    z.input<typeof deactivateEmployeeSchema>,
+    unknown,
+    z.output<typeof deactivateEmployeeSchema>
+  >({
+    resolver: zodResolver(deactivateEmployeeSchema),
+    defaultValues: { reason: "" },
+  });
 
-  async function confirm() {
-    if (!reason.trim()) return setError("Give a reason, e.g. Resigned");
+  // Each opening starts empty, not with the reason typed for someone else.
+  useEffect(() => {
+    if (open) reset({ reason: "" });
+  }, [open, reset]);
+
+  const onSubmit = handleSubmit(async ({ reason }) => {
     try {
-      await deactivate.mutateAsync(reason.trim());
+      await deactivate.mutateAsync(reason);
       toast.success(`${employee.fullName} deactivated`);
       onOpenChange(false);
-      setReason("");
-    } catch (e) {
-      toast.error(e instanceof ApiError ? e.message : "Could not deactivate");
+    } catch (error) {
+      applyApiErrors(error, setError);
     }
-  }
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,22 +63,24 @@ export function DeactivateDialog({
             They will no longer count in pay insights. Their record and salary history are kept.
           </DialogDescription>
         </DialogHeader>
-        <Field id="reason" label="Reason" error={error}>
-          <Textarea
+        <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+          <Field
             id="reason"
-            rows={2}
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-          />
-        </Field>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={confirm} disabled={deactivate.isPending}>
-            Deactivate
-          </Button>
-        </DialogFooter>
+            label="Reason"
+            error={formState.errors.reason?.message}
+            hint="For example: Resigned, Contract ended"
+          >
+            <Textarea id="reason" rows={2} autoFocus {...register("reason")} />
+          </Field>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="destructive" disabled={formState.isSubmitting}>
+              Deactivate
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
