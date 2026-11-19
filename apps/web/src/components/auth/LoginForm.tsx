@@ -6,12 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { loginRequest } from "@/lib/auth-client";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { login } = useAuth();
 
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +34,9 @@ export function LoginForm() {
     login(result.data.authToken);
     // Only same-site paths: `next` comes from the URL, so it must not send anyone off-site.
     const next = searchParams.get("next");
-    router.replace(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
+    // A full page load, not router.replace: a client-side switch from /login into
+    // the app shows the route loader and then the startup splash (two splashes).
+    window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
   }
 
   // Maglo's sign-in: no card, a large greeting, tall inputs and a full-width lime button.

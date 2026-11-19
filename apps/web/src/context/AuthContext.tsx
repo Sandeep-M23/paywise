@@ -48,9 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function logout() {
     clearAuthToken();
-    // Salaries cached for this user must not outlive the session.
     queryClient.clear();
-    notifyAuthChange();
+    // A full page load, not a client-side switch: it drops every salary held in
+    // memory, and Next.js would otherwise restore the sign-in form exactly as it
+    // was left (email and password filled in, button stuck on "Signing in…").
+    window.location.assign("/login");
   }
 
   return (

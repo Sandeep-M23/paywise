@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { getAuthToken } from "@/lib/auth-client";
 import { decodeAuthToken } from "@/lib/jwt";
@@ -14,7 +13,6 @@ import { decodeAuthToken } from "@/lib/jwt";
  */
 export function AuthGate({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     // `isAuthenticated` reads false for one tick during hydration, so check the
@@ -23,9 +21,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
     if (!isAuthenticated && !decodeAuthToken(getAuthToken() ?? "")) {
       // Read in the effect, not with useSearchParams, so the layout needs no Suspense.
       const next = encodeURIComponent(window.location.pathname + window.location.search);
-      router.replace(`/login?next=${next}`);
+      // Full load, for the same reason as AuthContext.logout.
+      window.location.replace(`/login?next=${next}`);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated]);
 
   return (
     <div hidden={!isAuthenticated} className="contents">
