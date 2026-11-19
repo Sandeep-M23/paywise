@@ -4,15 +4,29 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Loading: the skeleton shine and the global loading bar. */
+/* Loading: the skeleton and the global loading bar. The skeleton waits a beat
+   before fading in, so instant loads never flash, then breathes slowly. */
 @theme {
-  --animate-shimmer: shimmer 1.3s ease-in-out infinite;
-  --animate-loading-bar: loading-bar 1.2s ease-in-out infinite;
-  @keyframes shimmer {
+  --animate-skeleton:
+    skeleton-in 0.25s ease-out 0.1s both, skeleton-pulse 1.8s ease-in-out 0.35s infinite;
+  @keyframes skeleton-in {
+    0% {
+      opacity: 0;
+    }
     100% {
-      transform: translateX(100%);
+      opacity: 1;
     }
   }
+  @keyframes skeleton-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  --animate-loading-bar: loading-bar 1.2s ease-in-out infinite;
   @keyframes loading-bar {
     0% {
       transform: translateX(-100%);
@@ -26,7 +40,6 @@
 @theme inline {
   --color-canvas: var(--canvas);
   --color-skeleton: var(--skeleton);
-  --color-skeleton-shine: var(--skeleton-shine);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-link: var(--link);
@@ -114,8 +127,9 @@
   --input: #e2e2e2;
   --ring: #111111;
   --scrollbar: #111111;
-  --skeleton: #dadad3; /* clearly grey on white cards and on the grey canvas */
-  --skeleton-shine: #f7f7f4;
+  --skeleton: rgb(
+    17 17 17 / 0.11
+  ); /* translucent: a faint tint on white cards and the grey canvas alike */
   --chart-1: #c8ee44; /* lime marks, on request; values are also printed or in tooltips */
   --chart-2: #111111;
   --chart-3: #8f8f8f;
@@ -162,8 +176,7 @@
   --input: rgb(255 255 255 / 0.14);
   --ring: #c8ee44;
   --scrollbar: #5c5c5c;
-  --skeleton: #333333;
-  --skeleton-shine: #505050;
+  --skeleton: rgb(255 255 255 / 0.1);
   --chart-1: #c8ee44;
   --chart-2: #ffffff;
   --chart-3: #8f8f8f;
