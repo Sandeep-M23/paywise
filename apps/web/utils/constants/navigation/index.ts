@@ -110,7 +110,7 @@ export const LINKS: {
       steps: [
         {
           title: "Set a group raise",
-          text: "A % for everyone active who matches a country, department and job title. Use 0% to skip.",
+          text: "A % for everyone active who matches a country, department and job title. Type 0% to skip.",
         },
         {
           title: "Add individual raises",

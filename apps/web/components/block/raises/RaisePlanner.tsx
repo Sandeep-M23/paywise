@@ -51,7 +51,7 @@ import { useFilterOptions } from "@/utils/apis/meta";
 import { cn } from "@/lib/utils";
 import type { Facet, Individual, ManualReason } from "@/@types";
 
-const PRESETS = [0, 2, 3, 5, 8, 10];
+const PRESETS = [2, 3, 5, 8, 10];
 
 /** One person's typed raise as an override, or the reason it isn't valid yet. */
 function toOverride({ employee, mode, text }: Individual): RaiseOverride | { error: string } {
@@ -212,7 +212,7 @@ export function RaisePlanner() {
             <StepHeader
               step={1}
               title="Group raise"
-              description="Everyone active who matches gets this raise. Set 0% to only give individual raises."
+              description="Everyone active who matches gets this raise. Type 0% to only give individual raises."
             />
             <CardContent className="flex flex-col gap-5">
               <div className="flex flex-wrap items-end gap-4">
