@@ -5,368 +5,460 @@
 > **Deliverables:** requirements doc, a working backend and UI, a seed script for 10k employees, unit tests, a deployed app, a demo video, incremental commits, and AI/design artifacts.
 > **Research:** [`docs/RESEARCH.md`](docs/RESEARCH.md) covers competitor analysis, real HR problems (numbered #1–#12) and CSV import research. Features below cite those problem numbers.
 
-Note: parts of the brief came through truncated ("Ctries…", "agentic AI toof code quality…", "typically…ughtful"). Re-read the original email and update this plan if those gaps held any constraints.
+**Revision 2 (plan review).** The baseline, import/export, history, fairness and the raise planner are built (see §11 for status). This revision answers a staff-level review: effective-dated salaries, country/currency separation, import idempotency, audit logs, security hardening, careful fairness wording, and a controlled "Ask Paywise" query feature, reprioritised as P0 / P1 / P2. Nothing in the stack or architecture changes.
 
 ---
 
-## 0. Strategy in One Paragraph
+## 0. Revision 2: change summary
 
-More than 150 candidates build the same baseline (list, CRUD, averages, seed). We build that baseline well, then add **five features, each tied to a researched HR problem**: safe **CSV import** (moving off Excel), **CSV export**, **salary history**, a **pay fairness check**, and a **raise cost calculator**. We prefer depth over breadth, numbers HR can trust, a process reviewers can see in the commits, and code we can defend line by line in the technical interview.
+**Kept (sound decisions, now with evidence from the build):** Hono + Drizzle + Postgres, Next.js + shadcn + TanStack Query + Jotai, Vitest + PGlite; routes → controllers → services → repositories; Stripe-style integer money; append-only revisions under a row lock; import matched by `employee_code`, stateless preview, all-or-nothing commit of valid rows; statistics in SQL (`percentile_cont` = Excel `PERCENTILE.INC`); small-group suppression; the web app proxying `/api/*` so the session cookie is first-party; deterministic seed with planted patterns.
 
----
+**Contradictions resolved:**
 
-## 1. Locked Decisions
+| Was                                                                            | Problem                                                   | Now                                                                              |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Rule 5: `effective_on` ≤ today                                                 | Blocks scheduling next quarter's raise                    | Past, current and **scheduled** revisions (§3.3)                                 |
+| Rules 1 and 6: currency derived from country, never typed                      | Expat and USD-contract employees can't be represented     | Currency **defaults** from country; HR may override (§3.4)                       |
+| Gender gap "≥ 5% = EU Directive trigger", UI label "Review: gap ≥ 5%"          | Reads as a legal finding                                  | "Potential pay disparity", configurable analytical threshold, disclaimers (§3.6) |
+| Raise cost "read-only"                                                         | The built planner applies plans                           | Documented as built: plan → confirm → one transaction of revisions               |
+| "No per-user audit" (TRADEOFFS)                                                | No answer to "who changed this?"                          | `audit_logs` table written in the same transaction as each change (§3.7)         |
+| "Two Vercel projects plus CORS"; "Jotai holds filters"; old repo layout        | Out of date                                               | Same-origin proxy, URL-held filters, Outbox-style folders (§4)                   |
+| Import commit has no protection against a double click or a network retry      | A retried request imports twice (new revisions each time) | `Idempotency-Key` + request hash (§3.5)                                          |
+| No login throttling; CSRF relies on `SameSite=Lax` alone; threshold hard-coded | Review findings                                           | Rate limit, Origin check, configurable thresholds (§3.8)                         |
+| Frontend tests promised (RTL + MSW), one helper test exists                    | Gap against P0                                            | Core UI tests are P0 work (§7)                                                   |
 
-| Area         | Choice                                                                                                                  | Notes                                                                                                 |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Backend      | **Node.js + TypeScript**, **Hono**                                                                                      | Small, typed, runs natively as Vercel Functions. Validates requests with Zod.                         |
-| ORM / SQL    | **Drizzle ORM** + `drizzle-kit` migrations                                                                              | Type-safe schema, but stays close to SQL for `GROUP BY` and `percentile_cont`.                        |
-| Database     | **PostgreSQL** (Neon via the Vercel Marketplace; Docker locally)                                                        | `percentile_cont` = Excel `PERCENTILE.INC`, so medians reconcile with HR's spreadsheets.              |
-| Frontend     | **Next.js (App Router) + shadcn/ui + TailwindCSS**                                                                      | shadcn `DataTable` (TanStack Table) for the grid.                                                     |
-| Client state | **Jotai**                                                                                                               | UI state only: filters, sort, page, selected country, dialogs, import wizard step and column mapping. |
-| Server state | **TanStack Query**                                                                                                      | All API reads and writes: caching, `keepPreviousData`, mutations with invalidation.                   |
-| Charts       | **Recharts** (via shadcn `chart`)                                                                                       |                                                                                                       |
-| CSV          | **Papa Parse** (browser parsing for an instant preview) + a small serializer for export                                 | Server re-validates everything; it never trusts the client.                                           |
-| Deploy       | **Vercel** (web + api as two projects in one monorepo) + Neon                                                           | 4.5 MB request limit, so imports are capped at 10k rows.                                              |
-| Money        | **Stripe-style:** integer amount in the **smallest currency unit** + lowercase ISO 4217 code                            | See §3.2.                                                                                             |
-| Tests        | **Vitest**, **PGlite** (in-process Postgres), React Testing Library + MSW                                               | Fast and deterministic, with no Docker needed to run the tests.                                       |
-| Tooling      | npm workspaces (`@paywise/api`, `@paywise/web`, `@paywise/shared`), ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI | npm over pnpm: zero extra install for reviewers; workspaces cover our needs.                          |
-
-**Why a separate API rather than Next.js route handlers?** Clear layering (routes → services → repositories), testable without Next, and the backend stays visible as its own piece for reviewers. Trade-off: two Vercel projects plus CORS. Recorded in `docs/TRADEOFFS.md`.
+**Added:** scheduled revisions and their promotion, same-date corrections, currency override and three-decimal support, import idempotency and provenance, audit logs, login rate limiting, an authorization seam, Ask Paywise (P1), `docs/API.md`, `docs/SECURITY.md`.
 
 ---
 
-## 2. Feature Scope
+## 1. Strategy in One Paragraph
 
-### Core (the baseline: must be solid)
+More than 150 candidates build the same baseline (list, CRUD, averages, seed). We build that baseline well, then add features tied to researched HR problems: safe **CSV import**, **export**, **salary history**, a **pay fairness check**, a **raise planner**, and **Ask Paywise** for the brief's core question, "how does the organisation pay people?". We prefer numbers HR can trust over breadth: every salary change is dated and traceable, money never touches floating point, statistics are never presented as legal findings, and nothing is aggregated across currencies.
 
-| Feature             | Details                                                                                                                                                                 |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Employee directory  | Server-side pagination, sort, debounced search (name / email / code), filters (country, job title, department, status). Filters live in the URL.                        |
-| Add / edit employee | Shared Zod schema on client and server; currency derived from country. Salary is **not** edited here (see Change salary).                                               |
-| Remove employee     | **Deactivate** (soft delete) with a reason. History is kept; insights count active employees only.                                                                      |
-| Insights            | Per country: headcount, total, min / max / avg / **median**. Per job title in a country: min / median / avg / max. Department breakdown. Salary distribution histogram. |
-| Seed                | 10,000 deterministic employees across 8 countries (includes JPY, a zero-decimal currency), **with planted patterns** for the features to find.                          |
+---
 
-### Researched additions
+## 2. Locked Decisions
 
-| #   | Feature                                                                                        | Solves (RESEARCH §3) | Priority |
-| --- | ---------------------------------------------------------------------------------------------- | -------------------- | -------- |
-| A   | **CSV import**: template, column mapping, preview, row errors, all-or-nothing commit           | #9, #1               | **Must** |
-| B   | **Salary history**: change salary as its own action; old → new, effective date, reason, source | #2, #12              | **Must** |
-| C   | **CSV export**: current filtered view, Excel-safe, re-importable                               | #2, #9, #11          | **Must** |
-| D   | **Pay fairness**: outliers vs. peers (IQR) + gender gap ≥ 5% per job title × country           | #4, #5, #10          | Should   |
-| E   | **Raise cost calculator**: pick a group + %, see the cost per currency (read-only)             | #6, #11              | Should   |
-| F   | **Single-user login**: an HR password gate (env-configured, httpOnly session cookie)           | #8                   | Should   |
-| G   | **Undo import**: revert a whole import batch if nothing changed since                          | #9                   | Stretch  |
-| H   | **Pay compression view**: new hires vs. 3+ years in the same role and country                  | #3                   | Stretch  |
-
-**If time is short, cut in this order:** H → G → E → F → D. A, B and C stay.
-
-### Deliberately out of scope (goes in REQUIREMENTS with reasons)
-
-- Payroll, tax, net pay, payslips: a different product (country tax engines).
-- Live FX / one-currency org totals: needs a rate source and has staleness; comparisons stay within a country.
-- Pay ranges / compa-ratio: needs HR to define ranges first. First v2 item after import.
-- Multi-user roles, approvals, SSO: single persona.
-- Bonus / equity / total rewards: base salary answers the core questions.
-- Excel `.xlsx` parsing: CSV covers it (Excel's "Save as CSV UTF-8"); fewer dependencies.
+| Area         | Choice                                                                                                                          | Notes                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Backend      | **Node.js + TypeScript**, **Hono**                                                                                              | Small, typed, runs natively as a Vercel Function. Validates requests with Zod.           |
+| ORM / SQL    | **Drizzle ORM** + `drizzle-kit` migrations                                                                                      | Type-safe schema, close to SQL for `GROUP BY` and `percentile_cont`.                     |
+| Database     | **PostgreSQL** (Neon via the Vercel Marketplace; Docker locally)                                                                | `percentile_cont` = Excel `PERCENTILE.INC`, so medians reconcile with HR's spreadsheets. |
+| Frontend     | **Next.js (App Router) + shadcn/ui + TailwindCSS + Recharts**                                                                   | Virtualised, infinite directory over server pagination.                                  |
+| Client state | **TanStack Query** (server state), **URL** (directory filters), **Jotai** (transient UI state)                                  | Filters in the URL are shareable and reloadable.                                         |
+| CSV          | **Papa Parse** in the browser for an instant preview + a small serializer for export                                            | The server re-validates everything; it never trusts the client.                          |
+| Deploy       | **Vercel**: two projects (web, API) from one monorepo, + Neon. The web app proxies `/api/*`                                     | First-party cookie, no CORS. Trade-off vs one project in §3.10.                          |
+| Money        | **Stripe-style:** integer amount in the **smallest currency unit** + lowercase ISO 4217 code                                    | Exponent table: 0 (JPY), 2 (default), 3 (BHD, KWD, OMR).                                 |
+| Tests        | **Vitest**, **PGlite** (in-process Postgres), React Testing Library + MSW                                                       | Fast and deterministic; no Docker to run tests.                                          |
+| Tooling      | npm workspaces (`@paywise/api`, `@paywise/web`, `@paywise/shared`), ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI         | One gate (`npm run check`) locally and in CI.                                            |
+| Infra        | **No Redis, queues or extra services.** Postgres holds rate-limit counters and idempotency keys; Vercel Cron runs one daily job | Every moving part has to earn its place at 10k employees and one HR user.                |
 
 ---
 
 ## 3. Design
 
-### 3.1 Data model (Drizzle / Postgres)
+### 3.1 Feature scope and priorities
+
+**P0: must ship** (the assessment fails without these)
+
+| Feature                                                           | Status at revision 2                                                                |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Employee directory and CRUD (deactivate)                          | Built                                                                               |
+| Salary management with dated history                              | Built for past/current dates; **scheduled revisions, same-date corrections: to do** |
+| Country/currency separation                                       | **To do** (currency override, three-decimal coverage)                               |
+| 10,000 deterministic employee seed                                | Built; **extend** with currency overrides and scheduled raises                      |
+| Compensation analytics (country, title, department, distribution) | Built                                                                               |
+| CSV import and export                                             | Built; **idempotency, provenance and clearer summary: to do**                       |
+| Authentication and protected APIs                                 | Built; **rate limiting, Origin check, authorization seam, log hygiene: to do**      |
+| Audit logs                                                        | **To do**                                                                           |
+| Core backend and frontend tests                                   | Backend built (187 tests); **frontend component tests: to do**                      |
+| Deployment                                                        | **To do** (runbook written, not exercised)                                          |
+
+**P1: differentiators**
+
+| Feature                                                               | Status                                                              |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Pay fairness analysis (outliers, gender-based differences)            | Built; **terminology, disclaimers, configurable thresholds: to do** |
+| Raise planner (cost per currency; apply as revisions, all or nothing) | Built; future-dated plans become scheduled revisions                |
+| Ask Paywise (controlled analytics queries)                            | **To do**                                                           |
+
+**P2: stretch**: undo an import (if nothing changed since), pay compression view, advanced analytics (percentile bands per level, trends over time), audit log viewer UI.
+
+**Cut order if time runs short:** P2 entirely → Ask Paywise charts (keep KPI and table answers) → audit viewer → cancel-scheduled-revision UI (API stays). P0 is never cut.
+
+**Deliberately out of scope** (reasons in REQUIREMENTS): payroll and tax; currency conversion and org-wide totals in one currency; pay ranges and compa-ratio (first v2 item); multiple users, roles, approvals and SSO; bonus and equity; `.xlsx`; **relocation** (a v2 workflow, §3.4); unrestricted natural-language SQL.
+
+### 3.2 Data model (Drizzle / Postgres)
 
 ```
 employees
-  id               uuid PK
-  employee_code    text  NOT NULL UNIQUE        -- "EMP-00001"; stable identity for import matching
-  full_name        text  NOT NULL
-  email            text  NOT NULL               -- unique index on lower(email)
-  job_title        text  NOT NULL
-  department       text  NOT NULL
-  country_code     char(2) NOT NULL             -- ISO 3166-1 alpha-2
-  salary_amount    bigint NOT NULL CHECK (> 0)  -- minor units; denormalised copy of latest revision
-  salary_currency  char(3) NOT NULL             -- lowercase ISO 4217, derived from country
-  gender           text  NOT NULL               -- female | male | non_binary | undisclosed (aggregates only)
-  employment_type  text  NOT NULL               -- full_time | part_time | contract
-  hire_date        date  NOT NULL
-  status           text  NOT NULL default 'active'   -- active | inactive
-  created_at, updated_at timestamptz
+  id                    uuid PK
+  employee_code         text NOT NULL UNIQUE          -- "EMP-00001"; import matching key
+  full_name, email      text NOT NULL                 -- unique index on lower(email)
+  job_title, department text NOT NULL
+  country_code          char(2) NOT NULL              -- ISO 3166-1 alpha-2: work location
+  salary_amount         bigint NOT NULL CHECK (> 0)   -- CURRENT salary, minor units (cache, §3.3)
+  salary_currency       char(3) NOT NULL              -- ISO 4217 (lowercase): compensation currency
+  salary_effective_on   date NOT NULL                 -- NEW: date of the revision salary_amount came from
+  gender, employment_type, hire_date, status, deactivated_at, deactivation_reason
+  created_at, updated_at
 
-salary_revisions                                -- append-only
-  id               uuid PK
-  employee_id      uuid FK → employees
-  amount           bigint NOT NULL
-  previous_amount  bigint NULL                  -- NULL for the hire revision
-  currency         char(3) NOT NULL
-  effective_on     date NOT NULL
-  reason           text NOT NULL                -- hire | merit | promotion | market_adjustment | correction | import
-  note             text NULL
-  import_id        uuid NULL FK → imports
-  created_at       timestamptz
+salary_revisions                                       -- append-only: never UPDATEd or DELETEd
+  id                    uuid PK
+  employee_id           uuid FK → employees
+  amount                bigint NOT NULL CHECK (> 0)
+  currency              char(3) NOT NULL               -- may differ from the previous revision (§3.4)
+  effective_on          date NOT NULL
+  reason                text NOT NULL                  -- hire | merit | promotion | market_adjustment | correction | import | currency_change
+  note                  text NULL
+  corrects_revision_id  uuid NULL FK → salary_revisions  -- NEW: set on corrections
+  cancelled_at          timestamptz NULL               -- NEW: only ever set on a SCHEDULED revision (§3.3)
+  import_id             uuid NULL FK → imports
+  created_by            text NOT NULL                  -- NEW: actor id
+  created_at            timestamptz NOT NULL
+  (previous_amount is no longer stored: it is derived at read time with LAG over the effective timeline)
 
 imports
-  id, filename, row_count, created_count, updated_count, skipped_count,
-  status (committed | reverted), created_at
+  id, filename, row_count, created_count, updated_count, unchanged_count, skipped_count,
+  status (committed | reverted), created_by, rows jsonb (per-row outcome, errors; no raw file),
+  idempotency_key text UNIQUE NOT NULL                 -- NEW
+  request_hash   char(64) NOT NULL                     -- NEW: sha256 of the normalised mapping + rows
+  file_hash      char(64) NOT NULL                     -- NEW: warns "this file was imported on …"
+  created_at
+
+audit_logs                                             -- NEW, append-only (§3.7)
+  id uuid PK, actor_id text NOT NULL, entity_type text NOT NULL, entity_id uuid NOT NULL,
+  action text NOT NULL, before jsonb NULL, after jsonb NULL,
+  import_id uuid NULL, request_id text NULL, created_at timestamptz NOT NULL
+
+login_attempts                                         -- NEW (§3.8)
+  key text PK (hash of email + IP), window_start timestamptz, failures int
 
 INDEXES
-  employees (country_code, job_title), (country_code, department), (status),
-            gin (full_name gin_trgm_ops), unique (employee_code), unique lower(email)
-  salary_revisions (employee_id, effective_on)
+  employees        (country_code, job_title), (country_code, department), (status),
+                   gin (full_name gin_trgm_ops), unique (employee_code), unique lower(email)
+  salary_revisions (employee_id, effective_on DESC, created_at DESC)             -- timeline reads
+                   UNIQUE (employee_id, effective_on) WHERE corrects_revision_id IS NULL
+                                                    AND cancelled_at IS NULL     -- one original per date
+                   UNIQUE (corrects_revision_id)                                 -- a revision is corrected at most once
+                   (effective_on) WHERE cancelled_at IS NULL                    -- due-revision promotion
+  audit_logs       (entity_type, entity_id, created_at DESC)
+  imports          UNIQUE (idempotency_key)
 ```
 
-**Domain rules** (each one covered by a test):
+The ER diagram is in `docs/DESIGN.md` §2; the API contract is in `docs/API.md`.
 
-1. Currency is derived from the country, never typed in.
-2. `employees.salary_amount` changes **only** by writing a revision, in the same transaction.
-3. Revisions are append-only. Mistakes are fixed with a `correction` revision.
-4. Creating an employee writes a `hire` revision.
-5. `effective_on` ≤ today, ≥ hire date, ≥ the latest revision's date.
-6. `country_code` is immutable after creation (relocation means re-pricing in another currency, which is v2).
-7. Gender is used only in aggregates; groups with < 5 of either gender are suppressed.
+### 3.3 Salary history and effective dates
 
-### 3.2 Money (Stripe-style)
+**Vocabulary.** For an employee and a date _D_ (the organisation's date, UTC):
 
-- `salary_amount` is an integer in the smallest unit: `usd 85,000.00` → `8500000`, `jpy ¥9,000,000` → `9000000`.
-- `packages/shared/money.ts` is the **only** place that converts:
-  - `CURRENCY_EXPONENT` (default 2; `jpy`/`krw`/`vnd` = 0; `bhd`/`kwd`/`omr` = 3)
-  - `parseMoneyInput("₹12,00,000.00", "inr")` → `120000000`. Parses the string, never `parseFloat * 100`. Accepts Indian and Western grouping; rejects the ambiguous `12.000,50`.
-  - `formatMoney(amount, currency, locale)` via `Intl.NumberFormat`
-- API shape: `{ "salary": { "amount": 8500000, "currency": "usd" } }`.
-- Aggregates are computed in minor units in SQL and rounded to an integer in the repository layer.
+- The **effective timeline** is the non-cancelled revisions, ordered by `(effective_on, created_at)`. On one date, the latest-recorded revision wins, which is always the newest correction.
+- **Current** revision: the last one on the timeline with `effective_on ≤ today`. **Historical**: earlier ones. **Scheduled**: `effective_on > today`.
+- `employees.salary_amount / salary_currency / salary_effective_on` are a **cache of the current revision**. Lists, sorting and every aggregate read the cache (measured fast at 10k; §3.9).
 
-### 3.3 API (REST, Hono + Zod)
+**Domain rules** (each covered by a test; replaces the v1 list):
 
-```
-POST   /api/auth/login | /api/auth/logout | GET /api/auth/me
+1. A salary changes **only** by inserting a revision, inside the salary-revision service, in one transaction that holds `SELECT … FOR UPDATE` on the employee row.
+2. Revisions are append-only. The application never updates or deletes a revision, with one exception: a **scheduled** revision may be cancelled (`cancelled_at` set), because it has not happened yet. Cancelling is audited.
+3. `effective_on` ≥ hire date. Creating an employee writes the `hire` revision on the hire date (which may itself be in the future: a pre-boarded hire).
+4. **Conflicts:** at most one original (non-correction) revision per employee per date, enforced by the partial unique index and checked first in the service (409 `revision_date_taken` with "record a correction instead").
+5. **Backdating:** a new original revision may not be dated before the **current** revision (that would rewrite paid history). It may be dated between today and a scheduled revision; the scheduled one keeps its absolute amount.
+6. **Corrections:** reason `correction`, `corrects_revision_id` set, `effective_on` equal to the corrected revision's date. Any revision (historical, current or scheduled) can be corrected; a correction can itself be corrected (chain), never edited.
+7. **Cache:** when the change affects the current revision (effective ≤ today), the cache is updated in the same transaction. Scheduled revisions do **not** touch the cache.
+8. **Promotion:** `promoteDueRevisions(today)` moves the cache to the latest due revision for every employee whose cache is older than a due revision. It is idempotent and set-based (one `UPDATE … FROM`), run daily by Vercel Cron at 00:10 UTC (`POST /api/internal/promote-due`, `CRON_SECRET`), on API cold start, and at the end of each write transaction for the employee being written. A test asserts `cache == derived current` for every employee after each scenario.
+9. **Deactivation** cancels the employee's scheduled revisions in the same transaction (audited).
+10. **Concurrency:** per-employee writes serialise on the row lock; bulk writes (raise plans, imports) lock employees **in id order** to avoid deadlocks; the unique indexes are the backstop if two transactions race.
 
-GET    /api/employees?page=&pageSize=&sort=&order=&q=&country=&jobTitle=&department=&status=
-GET    /api/employees/:id                       -> includes salary history
-POST   /api/employees                           -> creates employee + hire revision
-PATCH  /api/employees/:id                       -> non-salary fields only
-POST   /api/employees/:id/deactivate            -> { reason }
-POST   /api/employees/:id/salary-revisions      -> { amount, effectiveOn, reason, note }
+**Why a cache plus promotion, not "derive current salary at read time":** every list, sort and analytics query (already measured at 1–10 ms) reads one table. Deriving the current revision per employee in each query is correct by construction but touches every query and costs a `LATERAL` lookup per employee. Promotion lag is bounded to minutes after UTC midnight and is closed by the cold-start and on-write runs. Trade-off recorded in TRADEOFFS; derivation is the fallback if a reviewer considers any lag unacceptable.
 
-GET    /api/insights/countries
-GET    /api/insights/countries/:code/job-titles
-GET    /api/insights/countries/:code/departments
-GET    /api/insights/countries/:code/distribution?buckets=10
-GET    /api/insights/fairness/outliers?country=&jobTitle=
-GET    /api/insights/fairness/gender-gap?country=
-POST   /api/insights/raise-cost                 -> { filters, percent } → per-currency current / increase / new
-
-GET    /api/export/employees.csv?<same filters as list>
-GET    /api/import/template.csv
-POST   /api/imports/preview                     -> { filename, mapping, rows[] } → per-row result, nothing saved
-POST   /api/imports                             -> same body; re-validates, commits in one transaction
-GET    /api/imports                             -> import log
-POST   /api/imports/:id/revert                  -> stretch
-
-GET    /api/meta/filters | GET /api/health
-```
-
-- Zod schemas live in `packages/shared` and are reused by the API and the web forms.
-- Errors: `{ error: { code, message, details? } }`. 400 bad query, 401, 404, 409 duplicate, 413 import too large, 422 validation.
-- Sort columns are whitelisted.
-
-### 3.4 CSV import design
+**API changes** (full contract in `docs/API.md`):
 
 ```
-[1 Template] → [2 Upload + map columns] → [3 Preview (nothing saved)] → [4 Confirm]
-   download     Papa Parse in browser         POST /imports/preview        POST /imports
-                auto-map headers (synonyms)   server classifies each row:  re-validate everything,
-                user overrides mapping        create / update / unchanged  ONE transaction:
-                (Jotai wizard state)          / error (row, column, msg)   employees + revisions
-                                              + diff for updates           (reason=import, import_id)
-                                              + download errors CSV        + imports row
+POST /api/employees/:id/salary-revisions   { amount, currency?, effectiveOn, reason, note?, correctsRevisionId? }
+POST /api/employees/:id/salary-revisions/:revisionId/cancel     -- scheduled only; 409 otherwise
+GET  /api/employees/:id                    -- revisions[] each with state: historical | current | scheduled | corrected | cancelled
+POST /api/employees/raises                 -- effectiveOn may be future → scheduled revisions
+POST /api/internal/promote-due             -- Vercel Cron only (Authorization: Bearer CRON_SECRET)
 ```
 
-- **Matching:** by `employee_code`. A known code is an update; a new code is a create. Duplicate codes or emails within the file are errors.
-- **Salary change via import** writes a revision with `reason=import` and `import_id`, so history shows "Imported from _file.csv_ on _date_".
-- **Preview is stateless:** the commit request re-sends the rows and the server re-validates them. Nothing is staged, so there is no stale state to manage.
-- **Commit policy:** error rows are **skipped** (the user sees exactly which ones in the preview and confirms). Valid rows are saved **all-or-nothing** in one transaction. Documented as a trade-off vs. "reject the whole file".
-- **Limits:** ≤ 10,000 rows (Vercel 4.5 MB body). Over that returns a 413 with a clear message.
-- **Parsing helpers (pure, in `shared`, heavily tested):** header synonym mapping, money parsing, ISO date parsing, trimming and normalisation, BOM stripping.
-- **Export:** UTF-8 **with BOM**, formula-injection-safe (`=`, `+`, `-`, `@`, tab and CR prefixed with `'`), and its columns are a superset of the import columns, so the round trip works.
+**UI:** the salary history timeline shows a "Scheduled" group above "Current" (with Cancel), corrections render the corrected entry struck through, and the change-salary dialog accepts future dates ("Takes effect on 1 Apr 2027. The current salary stays ₹28,20,000 until then.").
 
-### 3.5 Fairness and raise calculations
+### 3.4 Country and currency
 
-- **Outliers:** within a job title × country group (n ≥ 5), salary < Q1 − 1.5·IQR or > Q3 + 1.5·IQR (Tukey fences via `percentile_cont`).
-- **Gender gap:** per job title × country, `(avg_male − avg_female) / avg_male`, with the median gap shown too. Flagged at |gap| ≥ 5% (EU Directive threshold). Suppressed if either gender has < 5 people.
-- **Raise cost:** for the filtered active employees, per currency: current total, increase, new total. Read-only, nothing saved.
+- **Country** (`country_code`, ISO 3166-1 alpha-2) is the work location: it drives grouping, fairness peers and the default currency. Still immutable after creation in v1.
+- **Currency** (`salary_currency`, ISO 4217) is what pay is denominated in. Defaults from the country on create; HR may choose another supported currency. Changing an existing employee's currency is a **salary revision** with reason `currency_change`, since amount and currency change together (one point in history, audited).
+- **Supported currencies** live in `packages/shared` with their exponent: the 8 country defaults plus `usd`, `eur`, `gbp` overrides and `bhd`/`kwd` (three-decimal) and `jpy` (zero-decimal). Validation rejects anything else (400).
+- **No cross-currency aggregation.** Every aggregate groups by currency. A country summary with two currencies returns one row per currency; the UI labels the minority row ("12 people paid in USD"). Fairness peers are country × job title × currency. Raise cost is per currency (as built).
+- **Forms and import:** a currency select (default pre-filled from country, "Override" shown when it differs); an optional `currency` CSV column (blank = country default; a change on an existing employee becomes a `currency_change` revision).
+- **Relocation (v2, documented):** changing country means a new default currency, possibly a new peer group and a pay decision. v2 flow: "Relocate" action = country change + optional `currency_change` revision in one transaction, audited.
 
-### 3.6 Architecture
+### 3.5 CSV import reliability
+
+The flow stays: **Template → Upload → Map columns → Preview (nothing saved) → Confirm.**
+
+| Concern                    | Design                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Duplicate submit / retries | The wizard creates an **`Idempotency-Key`** (UUID) when the preview is accepted and sends it on commit. The server stores it with a SHA-256 of the normalised request. Same key + same hash → returns the original result (`200`, `replayed: true`); same key + different body → `409`. The key is written inside the commit transaction, so a failed commit leaves no key and can be retried. |
+| Same file twice            | `file_hash` match → a non-blocking warning in the preview: "This file was imported on 18 Nov by hr@acme.test".                                                                                                                                                                                                                                                                                 |
+| Invalid rows               | Never silently dropped. The preview lists every error (line, column, message); the confirm button says "Import 9,712 valid rows · 15 rows with errors will not be imported"; the errors CSV is downloadable before and after; `imports.rows` keeps line + code + messages (no raw values).                                                                                                     |
+| Duplicates                 | Within the file: duplicate `employee_code` or email → both rows are errors. Against the database: an email belonging to a different employee → error.                                                                                                                                                                                                                                          |
+| Atomicity                  | All valid rows commit in **one transaction** (batched `INSERT`/`UPDATE … FROM (VALUES …)`, 1,000 rows per statement). Employees are locked in id order.                                                                                                                                                                                                                                        |
+| Rollback                   | Any failure rolls back everything (employees, revisions, audit, import record, idempotency key). The UI says "Nothing was saved" with the reason, and the same file can be retried.                                                                                                                                                                                                            |
+| Salary history             | A changed salary or currency writes a revision (`reason=import`, `import_id`), dated the import day (an optional `effective_date` column is P2).                                                                                                                                                                                                                                               |
+| Provenance                 | `imports` records actor, filename, file hash, counts and per-row outcomes; revisions and audit entries carry `import_id`; employee history shows "Imported from _file.csv_ on _date_".                                                                                                                                                                                                         |
+| Limits                     | ≤ 10,000 rows and a 4.4 MB body (Vercel's 4.5 MB cap) → 413 with a clear message.                                                                                                                                                                                                                                                                                                              |
+
+**Summary shown after commit:** created, updated, unchanged, not imported (errors), plus links to the import detail and the errors CSV.
+
+### 3.6 Pay fairness and statistical insights
+
+**Terminology** (UI, API and docs): **Salary outliers**; **Gender-based compensation differences**; **Potential pay disparity** (a flag, not a finding). Labels "Review: gap ≥ 5%" and "EU Directive trigger" are retired.
+
+| Item                 | Definition                                                                                                                                                                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Comparison group     | Active, full-time employees with the same **country × job title × currency**. "Comparable job title" means the same title (no levelling data exists); stated in the UI.                                                                       |
+| Sample sizes         | Every group shows `n` (women / men for differences; peer count for outliers).                                                                                                                                                                 |
+| Suppression          | A difference is computed only when **both** women and men number ≥ 5 (configurable `FAIRNESS_MIN_GROUP`, default 5); otherwise the row says "Too few to compare" with no averages.                                                            |
+| Difference           | `(mean_men − mean_women) / mean_men`, median difference alongside. If `mean_men` is 0 or a gender is absent, the result is `null` ("not comparable"), never a division error.                                                                 |
+| Flag                 | \|difference\| ≥ `FAIRNESS_GAP_THRESHOLD` (default 0.05) → "Potential pay disparity". The threshold is an **analytical flag**, chosen to match a common reporting convention, not a legal standard; configurable via env and shown in the UI. |
+| Confidence           | Welch t-test, \|t\| ≥ 1.96 → "less likely to be chance". With ~150 groups some flags are chance; the UI says so.                                                                                                                              |
+| Outliers             | Tukey fences per group (n ≥ 5): below Q1 − 1.5·IQR or above Q3 + 1.5·IQR (`percentile_cont`). Peers with IQR = 0 produce no outliers (no division).                                                                                           |
+| Disclaimer (UI, CSV) | "These are statistical indicators. Differences can reflect tenure, level, performance or location within a country, which Paywise doesn't record. They are not evidence of discrimination or of legal non-compliance."                        |
+
+The "How to read this" panel shows the formulas with a worked example.
+
+### 3.7 Audit logging
+
+- **Table** `audit_logs` (§3.2). **Separate from salary history:** history answers "what was the salary on a date"; the audit log answers "who did what, when".
+- **Recorded actions:** `employee.created`, `employee.updated` (changed fields only), `employee.deactivated`, `salary_revision.created`, `salary_revision.cancelled`, `raise_plan.applied` (one summary entry + per-revision entries), `import.committed` (summary entry; per-employee entries carry `import_id`), `auth.login_failed` counts are **not** audited (rate-limit table only).
+- **What is stored:** identifiers, action, and a minimal diff. Salary amounts are **not** copied into audit entries (they live in history; the entry references the revision id). Gender changes are recorded as "changed" without values. No passwords, tokens or full request bodies.
+- **Integration:** an `AuditService.record(tx, entries)` called by services **inside the same transaction** as the change, with an `actor` passed down from the controller (`c.get("actor")`). If the audit insert fails, the change rolls back.
+- **Tamper resistance:** no update/delete code path exists; a trigger raises on `UPDATE` or `DELETE` of `audit_logs`; in production the app's database role is granted `INSERT, SELECT` only on the table. (Not tamper-proof against a database owner; stated in SECURITY.md.)
+- **API:** `GET /api/audit-logs?entityType=&entityId=&page=` (P0: for tests and the employee panel's "Activity" list; full viewer is P2).
+
+### 3.8 Security and authentication
+
+| Area             | Decision                                                                                                                                                                                      | Status             |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| Passwords        | scrypt (salted) hash in env; `timingSafeEqual`; the hash runs even for an unknown email                                                                                                       | Built              |
+| Session          | Signed (HMAC) cookie: `HttpOnly`, `Secure` in production, `SameSite=Lax`, `Path=/`, 8-hour expiry; first-party via the `/api` proxy                                                           | Built              |
+| CSRF             | `SameSite=Lax` blocks cross-site POSTs carrying the cookie; **plus** reject state-changing requests whose `Origin` (or `Sec-Fetch-Site`) isn't the app's own, and require `application/json`  | Origin check to do |
+| Authentication   | Middleware on every route except `/api/health` and `/api/auth/login`; the cron route uses `CRON_SECRET` instead                                                                               | Built              |
+| Authorization    | `authorize(actor, action)` in services for sensitive actions (salary change, currency override, import, raise apply, deactivate, audit read). One role (`hr_admin`) in v1; the seam is tested | To do              |
+| Login rate limit | 5 failures per email+IP per 15 minutes → 429 with `Retry-After`; counters in Postgres (`login_attempts`), not in memory (serverless instances don't share memory)                             | To do              |
+| Logs             | Structured: method, route, status, duration, request id. Never bodies, salaries or cookies; errors logged by code and stack only                                                              | To do (redaction)  |
+| Headers          | CSP, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` from Next.js config                                                                                       | To do              |
+| Data             | Synthetic seed only in every environment; reviewer credentials shared out of band                                                                                                             | Built              |
+
+Assumptions and limits (single shared account, no server-side session revocation other than rotating `SESSION_SECRET`, audit not tamper-proof against the DB owner) are in `docs/SECURITY.md`.
+
+### 3.9 Ask Paywise (P1): controlled analytics queries
+
+**Goal:** answer "how does the organisation pay people?" in plain language, **without** letting text become SQL.
 
 ```
-Next.js (Vercel) ──fetch/JSON + cookie──► Hono API (Vercel Functions)
-  shadcn + Tailwind + Recharts              routes       (HTTP, Zod parse, auth middleware)
-  Jotai (UI state)                            └► services      (domain rules, transactions)
-  TanStack Query (server state)                 └► repositories (Drizzle + SQL aggregates)
-  Papa Parse (import preview)                      └► Postgres (Neon)
-
-packages/shared: Zod schemas, DTO types, money, CSV helpers, country/currency config
+question ──► parser (pure, shared) ──► QueryPlan (Zod-validated) ──► executor (API) ──► predefined repository query ──► typed result
+                                         │ unsupported?                                    (parameterised, whitelisted)
+                                         └──► { supported: false, reason, suggestions }
 ```
 
-### 3.7 Seed (deterministic, with planted patterns)
+- **Parser:** deterministic rules over a vocabulary built from `/meta/filters`: countries (names, codes, "US", "UK", "Germany"), departments, job titles with simple synonyms ("engineers" → titles containing "Engineer"), metrics (average/mean, median, total payroll, count, min, max, distribution) and numbers with currency ("above 100k", "more than ₹20 lakh").
+- **QueryPlan intents** (each maps to one existing or new SQL function):
 
-- `generateEmployees(count, seed)` is a **pure function** using a seeded faker. Salary = title base band × country multiplier × spread.
-- 8 countries: US/usd, IN/inr, DE/eur, GB/gbp, JP/jpy, CA/cad, AU/aud, SG/sgd.
-- Each employee gets a hire revision; about 30% get 1–3 historical raises.
-- **Planted on purpose** (documented in `docs/SEED_DATA.md`): about 1% outliers; one role and country with a ~8% gender gap; compression in one role (recent hires above tenured staff).
-- The runner truncates and then inserts in batches of 1,000 in one transaction.
+| Intent                 | Example                                                | Result kind                                                                      |
+| ---------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `metric`               | "What is the average salary in India?"                 | KPI card                                                                         |
+| `metric` + filters     | "What is the median salary for engineers in the US?"   | KPI card + titles used                                                           |
+| `top_group`            | "Which department has the highest payroll in Germany?" | Ranked table + bar                                                               |
+| `count_threshold`      | "How many employees earn above 100,000 in the US?"     | KPI card                                                                         |
+| `compare_distribution` | "Compare salary distributions across countries"        | Per-country table (median, quartiles) + box-style chart, **in local currencies** |
+
+- **Rules:** a threshold needs one currency (from the country, or stated); otherwise the answer asks for a country. Cross-country answers are per currency, never summed. Every response echoes the interpretation ("Median salary · Software Engineer, Senior Software Engineer · United States · USD"). Suppression rules from §3.6 apply to any gender breakdown.
+- **Unsupported** questions (names, individuals' salaries, "who should we fire", free-form SQL) get `supported: false`, a reason and three example questions. Individual-level answers are out of scope by design.
+- **Safety:** the only inputs to SQL are the plan's validated enum values and bound parameters; question length ≤ 300 characters; no LLM in v1. A v2 option is an LLM that emits a `QueryPlan` JSON only, validated by the same schema.
+- **API:** `POST /api/ask { question }` → `{ supported, interpretation, result: { kind: kpi | table | chart, … } }`; `GET /api/ask/examples`.
+
+### 3.10 Architecture, transactions and deployment
+
+```
+Next.js (Vercel project 1) ── same-origin /api/* rewrite ──► Hono API (Vercel project 2, one Function)
+  shadcn + Tailwind + Recharts                                routes → controllers → services → repositories
+  TanStack Query (server state) · URL (filters) · Jotai (UI)    │ middlewares: auth, origin check, body limit, errors
+  Papa Parse (import preview)                                   └► Postgres (Neon, pooled)  ◄── Vercel Cron: promote-due
+packages/shared: Zod schemas, DTO types, money, CSV helpers, countries/currencies, Ask Paywise parser
+```
+
+**Transaction boundaries** (one database transaction each): create employee (+ hire revision + audit); update employee (+ audit); deactivate (+ cancel scheduled + audit); salary revision / correction / cancel (+ cache + audit); raise plan apply (all revisions + cache + audit); import commit (employees + revisions + import record + idempotency key + audit); promote-due (cache only, idempotent). Reads (lists, analytics, Ask) need no transaction.
+
+**Separate Vercel projects vs one Next.js deployment:**
+
+| Option                                             | For                                                                                                                 | Against                                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Two projects** (chosen): web proxies `/api/*`    | API testable and deployable without Next; clear layering for reviewers; API cold starts don't affect page rendering | Two deploys and env sets; an extra proxy hop (~ms); versions must stay in step                                          |
+| One project (Hono mounted in a Next route handler) | One deploy, no proxy hop, shared env                                                                                | Couples the API to Next's runtime and build; weaker separation; the API's tests and bundle get tangled with the web app |
+
+Both keep one browser origin. We keep two projects; the rewrite makes switching later a configuration change.
 
 ---
 
-## 4. Repo Layout
+## 4. Repo Layout (after the Outbox restructure)
 
 ```
 /
 ├── README.md  CLAUDE.md  PLAN.md
-├── docs/
-│   ├── RESEARCH.md  REQUIREMENTS.md  DESIGN.md
-│   ├── TRADEOFFS.md  PERFORMANCE.md  SEED_DATA.md
-│   └── ai/PROMPTS.md
-├── apps/
-│   ├── api/   src/{routes,services,repositories,db,db/seed}  test/
-│   └── web/   app/(employees|insights|import)  components/ atoms/ queries/ lib/  test/
-├── packages/shared/   schemas/ money.ts csv/ countries.ts
-├── docker-compose.yml
-└── .github/workflows/ci.yml
+├── docs/  RESEARCH  REQUIREMENTS  DESIGN  API  SECURITY  TRADEOFFS  PERFORMANCE  SEED_DATA  DEPLOY  ai/PROMPTS
+├── apps/api/src/
+│   ├── routes/<feature>/<feature>.ts (+ index.ts)   controllers/<feature>/<feature>.ts
+│   ├── services/<feature>/<feature>-service.ts, <feature>-repository.ts
+│   ├── middlewares/  validators/  interfaces/  config/  models/ (Employee, SalaryRevision, Import, AuditLog)
+│   └── utils/helpers/  scripts/ (migrate, seed, measure)          test/ (PGlite)
+├── apps/web/  app/(Main) app/(Auth)  components/{ui,Block,Shared,Icons}  hooks/  context/
+│              utils/{apis,atoms,constants,helpers,forms,services}
+├── packages/shared/src/  schemas  money  csv  countries  currencies  ask/ (parser, plan schema)
+└── docker-compose.yml  .github/workflows/ci.yml
 ```
+
+New feature folders: `services/audit/`, `services/ask/`, `controllers/ask/`, `routes/ask/`, `routes/internal/`, `components/Block/Ask/`.
 
 ---
 
-## 5. Build Sequence (incremental commits; `test:` before `feat:` for core logic)
+## 5. Build Sequence
 
-### Foundation
+Commits 1–36 of revision 1 are done (see `git log`). Revision 2 continues with small Conventional Commits; `test:` before `feat:` for shared logic and services; `npm run check` before every commit; a migration per schema step.
 
-1. `chore: init npm workspaces monorepo, tsconfig, eslint, prettier, vitest`
-2. `docs: add research` → `docs: one-page requirements` → `docs: design notes` → `docs: CLAUDE.md agent instructions`
-3. `test(shared)` → `feat(shared): money parse/format with currency exponents`
-4. `test(shared)` → `feat(shared): countries and employee/revision zod schemas`
+### Day 1: Effective dating and currency (P0)
 
-### Backend core
+1. `docs: revision 2 plan, API contract, security notes` _(this commit)_
+2. `test(shared)` → `feat(shared): supported currencies with exponents (jpy 0, bhd/kwd 3), currency on employee schemas`
+3. `feat(api): migration 0003: revision corrections/cancellation, salary_effective_on, created_by; drop stored previous_amount from reads`
+4. `test(api)` → `feat(api): scheduled revisions, date conflicts (409), backdating rule, corrections`
+5. `test(api)` → `feat(api): promoteDueRevisions + cron route + cold-start run; cache == derived invariant`
+6. `test(api)` → `feat(api): cancel scheduled revisions; deactivation cancels them`
+7. `test(api)` → `feat(api): currency override on create; currency_change revisions; per-currency aggregates`
+8. `feat(api): seed adds currency overrides and scheduled raises (tests assert them)`
 
-5. `chore(api): Hono app, drizzle schema, migrations, docker-compose postgres`
-6. `test(api): PGlite harness (migrated DB per file, truncate between tests)`
-7. `feat(api): create/read/update/deactivate employee + hire revision`
-8. `feat(api): salary revisions with domain rules 2–5` (row lock, transaction)
-9. `feat(api): paginated/filtered/sorted listing + trigram search`
-10. `feat(api): country / job-title / department / distribution insights` (hand-computed fixture; even-count median)
-11. `feat(api): deterministic seed with planted patterns` (pure generator tests: count, validity, determinism, uniqueness)
-12. `ci: lint, typecheck, test on GitHub Actions`
+### Day 2: Import reliability, audit, security (P0)
 
-### Import / export
+9. `test(api)` → `feat(api): import idempotency key + request hash; replay and conflict`
+10. `test(api)` → `feat(api): import provenance (file hash warning, actor, counts); rollback leaves no import or key`
+11. `test(api)` → `feat(api): audit_logs table, AuditService, immutability trigger`
+12. `feat(api): audit entries for employee, salary, raise plan and import writes (same transaction)`
+13. `test(api)` → `feat(api): login rate limit (Postgres counters), Origin check, authorize() seam`
+14. `chore(api): structured request logs without bodies or salaries`
+15. `fix(api): lock employees in id order for raise plans and imports`
 
-13. `test(shared)` → `feat(shared): CSV helpers` (header synonyms, BOM, date, money, normalisation, formula escaping)
-14. `feat(api): import preview` (classify create/update/unchanged/error, in-file duplicates, diffs)
-15. `feat(api): import commit` (one transaction, revisions with import_id, imports log, 413 limit)
-16. `feat(api): CSV export + template` (BOM, injection-safe, round-trip test: export → import = all unchanged)
+### Day 3: Fairness wording and Ask Paywise backend (P1)
 
-### Fairness and calculator
+16. `test(api)` → `feat(api): configurable fairness thresholds; null-safe differences; currency in peer groups`
+17. `feat(web): fairness terminology, sample sizes, disclaimers, worked example`
+18. `test(shared)` → `feat(shared): Ask Paywise parser and QueryPlan schema (supported and unsupported questions)`
+19. `test(api)` → `feat(api): Ask executor (metric, top_group, count_threshold, compare_distribution) + /ask routes`
 
-17. `feat(api): outlier and gender-gap endpoints` (fixture tests: fences, 5% flag, suppression)
-18. `feat(api): raise cost endpoint`
-19. `feat(api): single-user auth (session cookie) + middleware`
-20. `perf(api): indexes, EXPLAIN ANALYZE, timings in docs/PERFORMANCE.md`
+### Day 4: UI and frontend tests
 
-### Frontend
+20. `feat(web): scheduled and corrected revisions in history; future-dated change salary; cancel`
+21. `feat(web): currency select with override; import currency column; import summary and idempotent confirm`
+22. `feat(web): employee Activity list (audit)`
+23. `feat(web): Ask Paywise page (examples, KPI/table/chart answers, unsupported explanations)`
+24. `test(web): forms (money, currency), filter bar multi-select, import mapping and summary, Ask results (RTL + MSW)`
+25. `perf: re-measure (promotion, import with audit, ask) → PERFORMANCE.md`
 
-21. `chore(web): Next.js, Tailwind, shadcn, Jotai, TanStack Query provider, typed API client`
-22. `feat(web): login page + auth guard`
-23. `feat(web): employees table` (URL-synced Jotai filters, `useQuery` + `keepPreviousData`)
-24. `feat(web): employee detail drawer with salary history timeline`
-25. `feat(web): add/edit employee + change salary dialogs` (shared schemas, mutations + invalidation)
-26. `feat(web): deactivate with reason + toasts`
-27. `feat(web): import wizard` (template → upload/map → preview table with error filter + "download errors" → confirm → result)
-28. `feat(web): export current view`
-29. `feat(web): insights dashboard` (country table, job-title chart, distribution histogram, departments)
-30. `feat(web): fairness page + raise calculator`
-31. `test(web): form validation, column mapping, preview rendering, filter atoms ↔ URL` (RTL + MSW)
-32. `feat(web): loading skeletons, empty and error states`
+### Day 5 (half): Ship
 
-### Ship
-
-33. `chore: Vercel projects (api + web), env vars, CORS, Neon via Marketplace`
-34. `chore: run migrations + seed in prod`
-35. `docs: README (live URL, video, start-here), TRADEOFFS, SEED_DATA, ai/PROMPTS`
-36. Stretch commits: undo import, compression view
+26. `chore: Neon migrate + seed, two Vercel projects, CRON_SECRET, Vercel Cron`; smoke test
+27. `docs: README (live URL, credentials out of band, video), final AI log`
+28. Demo video; review commit history
 
 ---
 
 ## 6. Testing Strategy
 
-| Layer               | What                                                                                       | Tooling                       |
-| ------------------- | ------------------------------------------------------------------------------------------ | ----------------------------- |
-| Money + CSV helpers | Exponents, Indian/Western grouping, rejects, BOM, dates, header synonyms, formula escaping | Vitest (pure)                 |
-| Schemas             | Field rules, country ↔ currency                                                            | Vitest (pure)                 |
-| Services            | Domain rules 1–7, revision transactions, import classify/commit, export round trip         | Vitest + **PGlite**           |
-| Insights / fairness | Hand-computed fixtures: medians, IQR fences, gap %, suppression                            | Vitest + PGlite               |
-| API routes          | Status codes, error shape, auth required, 413                                              | Vitest + Hono `app.request()` |
-| Seed generator      | Count, validity, determinism, uniqueness, planted patterns present                         | Vitest (pure)                 |
-| UI                  | Forms, import mapping and preview, filter ↔ URL                                            | RTL + MSW                     |
+| Layer               | What (revision 2 additions in **bold**)                                                                                                                                                                                                                                                                                           | Tooling                           |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Money + currencies  | Exponents, Indian/Western grouping, rejects; **JPY (0) and BHD/KWD (3) parse, format and raise rounding**                                                                                                                                                                                                                         | Vitest (pure)                     |
+| Schemas             | Field rules; **currency defaults and allowed overrides; revision payloads (future dates, correction target)**                                                                                                                                                                                                                     | Vitest (pure)                     |
+| Salary revisions    | **Future-dated → scheduled (cache unchanged); current salary = latest ≤ today; promotion moves the cache on the due date and is idempotent; same-date original → 409; correction chain; backdating before current → 422; cancel only scheduled; deactivation cancels; concurrent writes serialise (two transactions, one waits)** | Vitest + PGlite, injected `today` |
+| Currency            | **Override on create; currency_change revision; aggregates split per currency; three-decimal amounts round-trip**                                                                                                                                                                                                                 | Vitest + PGlite                   |
+| Import              | Classify/commit, export round trip; **same key replays, different body → 409; failure mid-commit rolls back everything and leaves no key; file-hash warning; duplicate code/email in file and vs DB**                                                                                                                             | Vitest + PGlite                   |
+| Audit               | **Each write produces the expected entries in the same transaction; failed write → no entry; UPDATE/DELETE on audit_logs raise; entries contain no salary amounts**                                                                                                                                                               | Vitest + PGlite                   |
+| Fairness            | Medians, fences, gaps on hand-computed fixtures; **suppression at < 5 per gender, configurable threshold, absent gender and zero mean → null, IQR = 0 → no outliers**                                                                                                                                                             | Vitest + PGlite                   |
+| Security            | Auth required, 401s; **rate limit → 429 after 5 failures and resets; cross-origin POST → 403; authorize() denies a non-admin actor; cron route needs `CRON_SECRET`**                                                                                                                                                              | `app.request()`                   |
+| Ask Paywise         | **Parser: each supported example → expected plan; unsupported and adversarial inputs ("; DROP TABLE", names, other currencies) → `supported: false`; executor results on fixtures**                                                                                                                                               | Vitest (pure) + PGlite            |
+| Analytics           | Country/title/department/distribution on fixtures (even-count median)                                                                                                                                                                                                                                                             | Vitest + PGlite                   |
+| Seed                | Determinism, uniqueness, planted patterns; **currency overrides and scheduled raises present**                                                                                                                                                                                                                                    | Vitest (pure)                     |
+| UI                  | **Change-salary form (future date copy, currency), filter bar multi-select, import summary, Ask results and unsupported state**                                                                                                                                                                                                   | RTL + MSW                         |
+| End to end (manual) | Scripted Playwright walkthrough of every page (53 checks at revision 2)                                                                                                                                                                                                                                                           | Playwright (local)                |
 
-Rules: no network, a fixed seed and clock, an isolated DB per file, no 10k rows in unit tests. Target: the whole suite in under 15 s.
+Rules: no network; fixed seed; injected clock; an isolated PGlite database per file; fixtures of a handful of hand-computed employees; **never 10,000 rows in a unit test** (the seed generator is tested as a pure function). Target: the whole suite under 15 s.
 
 ---
 
 ## 7. Performance → `docs/PERFORMANCE.md`
 
-- Server-side pagination; never ship 10k rows to the browser.
-- Composite indexes match the filter and group-by patterns; `pg_trgm` covers search. Verify with `EXPLAIN ANALYZE`.
-- Each insight is one SQL query. TanStack Query uses a long `staleTime` for insights and metadata; mutations and import commits invalidate `['employees']` and `['insights']`.
-- Import: the browser parses; the server validates in one pass with set-based lookups (fetch the existing codes and emails once, not per row); commit uses batched inserts in one transaction.
-- Neon serverless driver + pooling for Vercel Functions.
-- Record measured p50 timings: list, insights, import preview of 10k rows, commit of 10k rows, seed.
+Already measured at 10k (p50): list 1–5 ms, search 10 ms, insights 2–4 ms, fairness 8 ms, export 51 ms, import preview 177 ms, import commit 853 ms, seed ~1 s.
+
+Revision 2 work to measure and record:
+
+- `promoteDueRevisions` on 10k employees with ~200 due revisions (one `UPDATE … FROM`, target < 50 ms).
+- Import commit with audit entries (+1 batched insert per 1,000 rows; target < 1.2 s for 9.7k rows).
+- Ask Paywise end to end (parse < 1 ms; queries reuse insight SQL; target p50 < 30 ms).
+- Revision timeline reads with the new `(employee_id, effective_on DESC, created_at DESC)` index.
+
+Unchanged principles: server-side pagination and filtering; aggregates in SQL; indexes match the queries; small pool (max 5) per Function; no 10k rows in the browser. At 1M employees: keyset pagination, materialized insight views refreshed after writes, and streamed imports via a background job.
 
 ---
 
 ## 8. AI Usage Artifacts → `docs/ai/`
 
-- `CLAUDE.md`: stack, folder conventions, test-first for `shared/` and services, "money only via `money.ts`", Conventional Commits.
-- `docs/ai/PROMPTS.md`: key prompts, what was accepted, and **what was corrected and why**.
-- "Where AI was wrong" log, e.g. float money math, unbounded sort params, wrong even-count median, missing BOM, CSV injection.
+`CLAUDE.md` holds the rules the agent must follow (money module, shared schemas, revision service, SQL aggregates, layering, CSV safety; revision 2 adds audit-in-transaction and no salaries in logs). `docs/ai/PROMPTS.md` records prompts, accepted output, and every correction, including this plan review.
 
 ---
 
 ## 9. Demo Video (4–5 min), told as the HR manager's day
 
-1. "We live in Excel." Import her CSV: mapping, preview with 3 errors, download errors, confirm. _(#9)_
+1. Import her CSV: mapping, preview with errors, "15 rows will not be imported", confirm; click again and nothing is duplicated. _(#9)_
 2. Find someone across 10k rows; open their history. _(#2)_
-3. Give a promotion raise and see it in the history. Try a bad effective date and see the validation.
-4. "How do we pay engineers in India?": medians and the distribution. _(#11)_
-5. Fairness: the planted outlier and the gender gap flagged at 5%. _(#4, #5)_
-6. "What does 6% for Germany Engineering cost?": the calculator. _(#6)_
-7. Export to Excel; names render correctly. _(#2)_
-8. A minute of code: monorepo, money and CSV tests, a green fast suite, CI, commit history, what's next.
+3. Schedule a promotion for next quarter: current salary unchanged, "Scheduled" in history. Correct a typo with a correction entry. _(#2, #12)_
+4. An expat on a USD contract in Singapore: currency override, shown per currency in insights.
+5. "How do we pay engineers in India?" in Ask Paywise; then an unsupported question and its explanation. _(#11)_
+6. Fairness: an outlier and a potential disparity, with sample sizes and the disclaimer. _(#4, #5)_
+7. Raise planner: 6% for Germany Engineering from 1 Jan → scheduled revisions. _(#6)_
+8. The employee's Activity log: who did what. Export to Excel.
+9. A minute of code: layering, tests, CI, commit history, what's next.
 
 ---
 
-## 10. Suggested Timeline (about 4 working days)
+## 10. Timeline
 
-| Day      | Work                                                                                                                  |
-| -------- | --------------------------------------------------------------------------------------------------------------------- |
-| 1        | Monorepo, docs (research, requirements, design, CLAUDE.md), shared money/schemas (TDD), API skeleton + PGlite harness |
-| 2        | Employee CRUD + revisions, listing, insights, seed, CI                                                                |
-| 3        | CSV helpers, import preview/commit, export, fairness, raise calculator, auth                                          |
-| 4        | Frontend: table, detail/history, forms, import wizard, insights, fairness                                             |
-| 5 (half) | Deploy, performance numbers, README, demo video, review commit history                                                |
+| Day   | Work                                                                                              | Risk and mitigation                                                             |
+| ----- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1     | Effective dating (migration, rules, promotion, cancel), currency override, seed updates           | Highest-risk change (touches salary writes). Test-first; cache invariant test.  |
+| 2     | Import idempotency and provenance, audit logs, rate limit, Origin check, authorization seam, logs | Audit touches every write: one `AuditService`, added service by service.        |
+| 3     | Fairness wording and thresholds; Ask Paywise parser and executor                                  | Ask scope creep: five intents only; unsupported is a valid answer.              |
+| 4     | UI for scheduled revisions, currency, import summary, activity, Ask; frontend tests; re-measure   | Cut Ask charts first if late (KPI and tables stay).                             |
+| 5 (½) | Deploy (Neon, two projects, Cron), smoke test, README, video                                      | Deployment never exercised: do a preview deploy at the end of day 2 to de-risk. |
+
+About 4.5 working days for revision 2, on top of the built baseline. If only 3 days remain: drop Ask Paywise to `metric` and `top_group` intents with table answers, and the Activity UI.
 
 ---
 
 ## 11. Submission Checklist
 
-- [ ] Research + requirements committed before the first feature commit
-- [ ] Incremental Conventional Commits; `test:` before `feat:` visible for core logic
-- [ ] Money: integer minor units + currency; no floats anywhere in the money path
-- [ ] Import: preview before save, row-level errors, one-transaction commit, history provenance
-- [ ] Export: UTF-8 BOM + formula-injection safe + round trip tested
-- [ ] All tests green locally and in CI; fast and deterministic
-- [ ] Seed: 10,000 deterministic employees with documented planted patterns
-- [ ] API and web live on Vercel; login credentials for reviewers in README
+- [x] Research and requirements committed before the first feature commit
+- [x] Incremental Conventional Commits; `test:` before `feat:` for core logic
+- [x] Money: integer minor units + currency; no floats in the money path
+- [x] Import: preview before save, row-level errors, one-transaction commit, history provenance
+- [x] Export: UTF-8 BOM + formula-injection safe + round trip tested
+- [x] Seed: 10,000 deterministic employees with documented planted patterns
+- [ ] Scheduled revisions, corrections and the current-salary invariant
+- [ ] Currency override, per-currency aggregates, three-decimal tests
+- [ ] Import idempotency and rollback tests
+- [ ] Audit logs written in the same transaction as every change
+- [ ] Login rate limit, Origin check, authorization seam, log hygiene
+- [ ] Fairness terminology and disclaimers; configurable threshold
+- [ ] Ask Paywise (P1)
+- [ ] Frontend component tests
+- [ ] API and web live on Vercel; Cron configured; credentials shared out of band
 - [ ] Demo video linked at the top of README
-- [ ] RESEARCH, REQUIREMENTS, DESIGN, TRADEOFFS, PERFORMANCE, SEED_DATA and AI docs committed
+- [ ] All docs current (REQUIREMENTS, DESIGN, API, SECURITY, TRADEOFFS, PERFORMANCE, SEED_DATA, AI log)
 - [ ] Can explain every decision in the technical interview
-- [ ] Repo link sent as a reply to the original email

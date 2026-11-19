@@ -28,4 +28,14 @@ Generation is a pure function, `generateEmployees({ count, seed, today })` in `a
 | Pay compression: hires from the last 18 months paid ~18% more than tenured peers | Software Engineers in India   | Compression view (stretch) / job-title spread |
 | ~0.5% paid 2.2× and ~0.5% paid 0.45× their market rate                           | Random, all countries         | Fairness: outliers (IQR)                      |
 
+### Planned additions (revision 2)
+
+| Pattern                                                              | Where            | Feature that should surface it                   |
+| -------------------------------------------------------------------- | ---------------- | ------------------------------------------------ |
+| ~1% paid in a currency other than their country's default (e.g. USD) | Singapore and UK | Currency override; per-currency rows in insights |
+| ~2% with a scheduled raise effective in the next 1–6 months          | All countries    | Scheduled revisions; current salary unchanged    |
+| A handful of same-date corrections in history                        | Random           | Corrections shown struck through in history      |
+
+Three-decimal currencies (BHD, KWD) aren't seeded (no seeded country uses them); they're covered by unit tests. The seed writes no audit entries: it's a data load, not user activity, and the runner truncates everything first.
+
 Tests in `generate.test.ts` assert these patterns exist, so a change to the generator can't silently remove them.

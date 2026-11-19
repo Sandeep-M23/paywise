@@ -15,6 +15,8 @@ Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a
 4. **SQL:** aggregates in SQL, not in JS loops. Whitelist sort columns. No string-built SQL from user input.
 5. **Layering:** routes (paths) → controllers (HTTP only) → services (rules, transactions) → repositories (queries). Only repositories touch Drizzle.
 6. **CSV export:** always UTF-8 BOM + formula-injection escaping.
+7. **Audit:** every write that changes an employee, a salary, a raise plan or an import also writes `audit_logs` entries in the same transaction, through the audit service. Never update or delete audit rows.
+8. **Logs and wording:** never log request bodies, cookies or salary amounts. Fairness figures are "indicators" or "potential disparities", never legal findings; amounts in different currencies are never added together.
 
 ## Folder structure (after the Outbox backend starter and frontends)
 

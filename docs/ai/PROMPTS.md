@@ -33,6 +33,16 @@ Shared logic (money, schemas, CSV helpers), the employee service, insights, the 
 
 Prompts, in short: "connect to Figma, find a suitable UI kit and implement it" (Maglo, then a darker, black-and-lime direction on request); "what if I want to give a custom raise to a particular employee"; "improve the import page"; "a multi-select filter, one button for all filters". Choices put to the user and accepted: Inter; plan raises first, then apply them in one all-or-nothing step as salary revisions; import history detail, row filters and fixing errors in place; multi-value filters as repeated query keys. Each behaviour change went test-first (`raisePlanSchema`, `applyRaise`, `applyRaises`, import detail, multi-value filters, default sort by employee code) and every page was screenshotted in light and dark mode.
 
+## Phase 5: Plan review (revision 2)
+
+Prompt, in short: act as a staff engineer reviewing the submission; update `PLAN.md` and its docs for effective-dated salaries, country/currency separation, import idempotency, fairness wording, audit logs, security, an "Ask Paywise" query feature, P0/P1/P2 priorities and testing, without writing application code or redesigning the stack.
+
+How it was done: the AI read the whole plan, every doc and the code the brief touched before editing, then listed contradictions between the plan, the docs and the code (e.g. "effective date ≤ today" vs. scheduling; "currency derived from country" vs. overrides; "raise cost read-only" vs. the built apply step; legal "EU 5% trigger" wording; "no per-user audit"). Docs mark every revision-2 item as **planned**, so they don't claim unbuilt features.
+
+Decisions taken (and alternatives rejected): keep a cached current salary and promote due revisions daily, on cold start and on write (rejected: deriving the current salary in every query, which touches every measured query); same-date changes as linked corrections (rejected: editing revisions); Postgres for idempotency keys and login counters (rejected: Redis); audit written by services in the same transaction (rejected: database triggers, which can't see the actor); Ask Paywise as a rule-based parser to a validated plan (rejected: LLM-generated SQL).
+
+Review findings recorded as work rather than hidden: bulk-raise row locks taken in no fixed order (deadlock risk), hard-coded fairness thresholds, a stale test count in the README, frontend component tests promised but not written, and a deployment never exercised.
+
 ## Where AI output was wrong, and what we changed
 
 | Problem                                                                                                                                          | How it was caught                                    | Fix                                                                                                                                                                                                             |

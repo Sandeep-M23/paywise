@@ -5,7 +5,9 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 - **Maintain** salary records: search, filter, add, edit, deactivate, with validation everywhere.
 - **Trust** them: every salary change is kept (old → new, effective date, reason, source), and money is stored the way Stripe stores it.
 - **Move off Excel**: import a CSV with column matching and a full preview before anything is saved; export any view back to Excel.
-- **Answer "how do we pay people?"**: pay by country, job title and department, salary distribution, pay outliers, gender pay gap (EU 5% rule), and a raise-cost planner.
+- **Answer "how do we pay people?"**: pay by country, job title and department, salary distribution, salary outliers, gender-based compensation differences (flagged as potential disparities, not findings), and a raise planner that applies changes in one step.
+
+**Status:** P0 and the P1 fairness and raise planner are built. Revision 2 of the plan adds scheduled salary changes, currency overrides, import idempotency, audit logs, security hardening and Ask Paywise; see [PLAN.md](PLAN.md) §3.1 and §5 for what is built and what is next.
 
 > **Live demo:** _add the Vercel URL here after deploying (see [docs/DEPLOY.md](docs/DEPLOY.md))_
 > **Demo video:** _add the link here_
@@ -17,7 +19,10 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | One page: goal, scope, what's left out and why. Written before any code.                                   |
 | [docs/RESEARCH.md](docs/RESEARCH.md)         | What other submissions built, real HR problems (sourced), CSV import practice. Every feature traces to it. |
-| [docs/DESIGN.md](docs/DESIGN.md)             | Architecture, data model, domain rules, money, import flow, analytics definitions                          |
+| [PLAN.md](PLAN.md)                           | Plan of action: priorities (P0/P1/P2), design decisions, build sequence, timeline, status                  |
+| [docs/DESIGN.md](docs/DESIGN.md)             | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions   |
+| [docs/API.md](docs/API.md)                   | HTTP contract: every endpoint, payloads, errors; built vs planned                                          |
+| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication, CSRF, rate limiting, logging, assumptions and limits                         |
 | [docs/TRADEOFFS.md](docs/TRADEOFFS.md)       | Decisions and what they cost                                                                               |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md)   | Measured timings on the 10k dataset and what changed because of them                                       |
 | [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)     | How AI was used, and where its output was wrong and corrected                                              |
@@ -64,12 +69,12 @@ Sign in with `HR_EMAIL` from `.env` and the password you hashed.
 ## Tests and checks
 
 ```bash
-npm test          # 156 tests, ~7 s: shared logic, API on PGlite, web helpers
+npm test          # 187 tests, ~6 s: shared logic, API on PGlite, web helpers
 npm run check     # format + typecheck + lint + tests (the pre-commit gate; CI runs the same)
 npm run measure -w @paywise/api   # time the main endpoints against a running API (needs HR_EMAIL/HR_PASSWORD)
 ```
 
-What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no float maths); validation schemas; CSV header mapping, row parsing and injection-safe export; every employee/salary-history domain rule; insights, outliers and gender-gap maths on small hand-computed fixtures; import preview/commit including an **export → import round trip**; auth; the seed generator's determinism and planted patterns.
+What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no float maths); validation schemas including multi-value filters; CSV header mapping, row parsing and injection-safe export; every employee/salary-history domain rule; raise plans (rounding, all-or-nothing apply); insights, outliers and gender-difference maths on small hand-computed fixtures; import preview/commit and import history including an **export → import round trip**; auth; the seed generator's determinism and planted patterns. Revision 2's added tests are listed in [PLAN.md](PLAN.md) §6.
 
 ## Seed data
 
