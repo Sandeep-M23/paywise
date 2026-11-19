@@ -3,6 +3,6 @@ import { defineProject } from "vitest/config";
 export default defineProject({
   test: {
     name: "web",
-    include: ["src/**/*.test.{ts,tsx}"],
+    include: ["utils/**/*.test.ts", "hooks/**/*.test.ts", "components/**/*.test.tsx"],
   },
 });

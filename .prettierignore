@@ -3,6 +3,6 @@ dist
 .next
 coverage
 package-lock.json
-apps/web/src/components/ui
+apps/web/components/ui
 apps/web/.next
 apps/api/api

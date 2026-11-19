@@ -55,6 +55,8 @@ Prompt, in short: compare Paywise with our domainstack backend and frontend, the
 
 Output: Express routes with per-route `verifyAccessToken` + Zod validator middleware, `asyncHandler` controllers, `http-errors` with a stable `code`, a central error handler; the web app under `src/` with `lib/api-client.ts`, `lib/auth-client.ts`, `context/AuthContext.tsx`, `components/<feature>/` and `hooks/useX.ts`. Route tests kept their shape through a loopback test server. Checked in headless Chrome: redirect to sign in, wrong password, sign-in, every page, CSV export, sign-out.
 
+Follow-up: the web app moved to our referral-stack frontend's layout (no `src/`; `app/(Auth|Main)`, `components/{block,shared,layout}`, `utils/{apis,services,constants,forms,helpers}`, `@types`). Decisions asked of the user: axios in `utils/services` with TanStack Query kept in `utils/apis`, the token in a js-cookie with a server-side redirect in `proxy.ts` (replacing the client-side gate), and `@types` for web-only types while API shapes stay in `@paywise/shared`.
+
 ## Where AI output was wrong, and what we changed
 
 | Problem                                                                                                                                                                                                                                                                  | How it was caught                                                | Fix                                                                                                                                                                                                             |

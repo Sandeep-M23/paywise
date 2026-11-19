@@ -241,17 +241,17 @@ The "How to read this" panel shows the formulas with a worked example.
 
 ### 3.8 Security and authentication
 
-| Area             | Decision                                                                                                                                                                                      | Status            |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| Passwords        | scrypt (salted) hash in env; `timingSafeEqual`; the hash runs even for an unknown email                                                                                                       | Built             |
-| Session          | JWT (HS256, 8-hour expiry) from `POST /auth/login`, kept in `localStorage` and sent as `Authorization: Bearer` (rev 2.2 replaces the signed cookie, as in our other apps)                     | Built             |
-| CSRF             | Not applicable: the browser never attaches the Bearer token by itself                                                                                                                         | Built             |
-| Authentication   | Middleware on every route except `/api/health` and `/api/auth/login`; the cron route uses `CRON_SECRET` instead                                                                               | Built             |
-| Authorization    | `authorize(actor, action)` in services for sensitive actions (salary change, currency override, import, raise apply, deactivate, audit read). One role (`hr_admin`) in v1; the seam is tested | To do             |
-| Login rate limit | 5 failures per email+IP per 15 minutes → 429 with `Retry-After`; counters in Postgres (`login_attempts`), not in memory (serverless instances don't share memory)                             | To do             |
-| Logs             | Structured: method, route, status, duration, request id. Never bodies, salaries or cookies; errors logged by code and stack only                                                              | To do (redaction) |
-| Headers          | CSP, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` from Next.js config                                                                                       | To do             |
-| Data             | Synthetic seed only in every environment; reviewer credentials shared out of band                                                                                                             | Built             |
+| Area             | Decision                                                                                                                                                                                                     | Status            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| Passwords        | scrypt (salted) hash in env; `timingSafeEqual`; the hash runs even for an unknown email                                                                                                                      | Built             |
+| Session          | JWT (HS256, 8-hour expiry) from `POST /auth/login`, kept in the `auth_token` cookie (js-cookie, not HttpOnly) and sent as `Authorization: Bearer` (rev 2.2 replaces the signed cookie, as in our other apps) | Built             |
+| CSRF             | Not applicable: the browser never attaches the Bearer token by itself                                                                                                                                        | Built             |
+| Authentication   | Middleware on every route except `/api/health` and `/api/auth/login`; the cron route uses `CRON_SECRET` instead                                                                                              | Built             |
+| Authorization    | `authorize(actor, action)` in services for sensitive actions (salary change, currency override, import, raise apply, deactivate, audit read). One role (`hr_admin`) in v1; the seam is tested                | To do             |
+| Login rate limit | 5 failures per email+IP per 15 minutes → 429 with `Retry-After`; counters in Postgres (`login_attempts`), not in memory (serverless instances don't share memory)                                            | To do             |
+| Logs             | Structured: method, route, status, duration, request id. Never bodies, salaries or cookies; errors logged by code and stack only                                                                             | To do (redaction) |
+| Headers          | CSP, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` from Next.js config                                                                                                      | To do             |
+| Data             | Synthetic seed only in every environment; reviewer credentials shared out of band                                                                                                                            | Built             |
 
 Assumptions and limits (single shared account, no server-side token revocation other than rotating `JWT_ACCESS_SECRET`, audit not tamper-proof against the DB owner) are in `docs/SECURITY.md`.
 
@@ -339,7 +339,7 @@ Follows the Outbox backends (`outbox-backend-starter`, domainstack, clavis, saas
 └── docker-compose.yml  .github/workflows/ci.yml
 ```
 
-New feature folders: `services/audit/`, `services/ask/`, `controllers/ask/`, `routes/ask/`, `routes/internal/`, `components/Block/Ask/`.
+New feature folders: `services/audit/`, `services/ask/`, `controllers/ask/`, `routes/ask/`, `routes/internal/`, `components/block/ask/`.
 
 ---
 

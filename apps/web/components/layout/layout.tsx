@@ -1,0 +1,25 @@
+import type { PageLayoutProps } from "@/@types";
+import { HeaderBar } from "@/components/shared/HeaderBar/HeaderBar";
+import { FetchingBar } from "@/components/shared/LoadingScreen/LoadingScreen";
+
+// From md up the shell is exactly the window: the black sidebar, then the page as a
+// rounded grey panel inset on the same black, so navigation and content never blur
+// together. Pages with a table let it take the remaining height and scroll inside it;
+// other pages scroll in the panel, with the scrollbar on the panel's right edge (the
+// side padding, not a max-width wrapper, keeps wide screens readable).
+const GUTTER = "px-4 sm:px-5 lg:px-[max(1.5rem,calc((100%_-_1600px)/2))]";
+
+/** The page panel beside the sidebar: loading bar, page header, then the page. */
+export function PageLayout({ children }: PageLayoutProps) {
+  return (
+    <main className="bg-canvas relative flex min-w-0 flex-1 flex-col md:my-2 md:mr-2 md:min-h-0 md:overflow-hidden md:rounded-2xl">
+      <FetchingBar />
+      <HeaderBar className={`${GUTTER} border-b py-3.5`} />
+      <div
+        className={`${GUTTER} flex flex-col gap-4 py-4 *:shrink-0 md:min-h-0 md:flex-1 md:overflow-y-auto lg:py-5`}
+      >
+        {children}
+      </div>
+    </main>
+  );
+}
