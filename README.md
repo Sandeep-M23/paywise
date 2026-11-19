@@ -30,19 +30,54 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 ## Stack
 
-|        |                                                                                                                                      |
-| ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| API    | Node 24, TypeScript, **Express**, `http-errors`, JWT Bearer auth, **PostgreSQL** via `pg` + **Sequelize** (as in our other backends) |
-| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** (server state), **Jotai** (UI state), **Recharts**         |
-| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                                     |
-| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker), reached by Sequelize over `pglite-socket`            |
-| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                                 |
+|        |                                                                                                                                                                             |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API    | Node 24, TypeScript, **Express**, `http-errors`, JWT Bearer auth, **PostgreSQL** via `pg` + **Sequelize** (as in our other backends)                                        |
+| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** over an **axios** client, **Jotai**, **react-hook-form**, **Recharts**; sign-in token in a cookie |
+| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                                                                            |
+| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker), reached by Sequelize over `pglite-socket`                                                   |
+| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                                                                        |
+
+## Folder structure
+
+An npm-workspaces monorepo. The API follows our Outbox backend starter (as in domainstack); the web app follows our referral-stack frontend.
 
 ```
-apps/api         Express API: routes -> controllers -> services -> repositories, seed, db:sync
-apps/web         Next.js app: app/(Auth|Main), components/{block,shared,layout}, utils/{apis,services,…}, @types; /api/* is proxied to the API
-packages/shared  Code both sides must agree on
-docs/            Requirements, research, design, trade-offs, performance, AI log
+apps/
+  api/                       Express API (deployed as one Vercel Function)
+    src/
+      routes/<feature>/      paths, with verifyAccessToken + validators per route
+      controllers/<feature>/ HTTP only, wrapped in asyncHandler
+      services/<feature>/    <feature>-service.ts (rules, transactions) + <feature>-repository.ts (SQL)
+      validators/            shared Zod schemas as Express middleware
+      middlewares/           JWT auth, body limit, central error handler (http-errors)
+      models/                one Sequelize model per table
+      config/                db, env, auth; schema.sql (constraints, indexes) for db:sync
+      interfaces/            types for helpers, middlewares, services
+      utils/                 auth (JWT, scrypt), helpers (errors, DTOs, http-response, clock)
+      scripts/               db:sync, seed, hash-password, measure
+    test/                    route, service and seed tests on PGlite (+ test db and server helpers)
+  web/                       Next.js 16 app (App Router)
+    app/
+      (Auth)/login/          sign-in
+      (Main)/<route>/        layout.tsx (page title) + page.tsx per page
+    components/
+      block/<feature>/       page sections: employees, insights, fairness, raises, import, ...
+      shared/<Name>/         reusable components (index.ts barrel)
+      layout/  icons/  ui/   page shell, icons, shadcn/ui
+    context/                 auth, providers (TanStack Query, Jotai, theme)
+    hooks/                   generic hooks
+    utils/
+      services/              axios client: Bearer token, 401 sign-out, ApiError
+      apis/<feature>/        TanStack Query hooks per feature
+      constants/  forms/  helpers/  atoms/
+    @types/                  web-only types (API types come from packages/shared)
+    proxy.ts                 server-side redirect to /login when signed out
+packages/
+  shared/                    code both sides must agree on
+    src/                     Zod schemas, money, currencies, countries, CSV helpers, DTO types
+    test/
+docs/                        requirements, research, design, API, security, trade-offs, performance, AI log
 ```
 
 ## Run it locally
@@ -69,7 +104,7 @@ Sign in with `HR_EMAIL` from `.env` and the password you hashed.
 ## Tests and checks
 
 ```bash
-npm test          # 188 tests, ~5 s: shared logic, API on PGlite, web helpers
+npm test          # 197 tests, ~5 s: shared logic, API on PGlite, web helpers
 npm run check     # format + typecheck + lint + tests (the pre-commit gate; CI runs the same)
 npm run measure -w @paywise/api   # time the main endpoints against a running API (needs HR_EMAIL/HR_PASSWORD)
 ```
