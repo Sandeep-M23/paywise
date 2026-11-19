@@ -69,6 +69,7 @@ export function LoginForm() {
               id="email"
               type="email"
               autoComplete="username"
+              placeholder="you@company.com"
               {...register("email")}
             />
           </Field>
@@ -78,6 +79,7 @@ export function LoginForm() {
               id="password"
               type="password"
               autoComplete="current-password"
+              placeholder="Enter your password"
               {...register("password")}
             />
           </Field>

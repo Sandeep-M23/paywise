@@ -8,7 +8,8 @@ import { Providers } from "@/context/Providers";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: { default: "Paywise", template: "%s · Paywise" },
+  // No title template: every route's title comes from HEADER_TITLE, already branded.
+  title: "Paywise",
   description: "Salary management for HR: records, history, imports and pay insights.",
 };
 

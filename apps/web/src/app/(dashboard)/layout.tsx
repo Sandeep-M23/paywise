@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { HEADER_TITLE } from "@/lib/constants/header";
 import { AuthGate } from "@/components/AuthGate";
 import { Sidebar } from "@/components/Sidebar";
 import { HeaderBar } from "@/components/HeaderBar";
@@ -10,6 +11,12 @@ import { FetchingBar, StartupScreen } from "@/components/LoadingScreen";
 // other pages scroll in the panel, with the scrollbar on the panel's right edge (the
 // side padding, not a max-width wrapper, keeps wide screens readable).
 const GUTTER = "px-4 sm:px-5 lg:px-[max(1.5rem,calc((100%_-_1600px)/2))]";
+
+// The overview ("/") is this group's own page, so its title lives here; every other
+// route sets its own in its layout.tsx.
+export const metadata = {
+  title: HEADER_TITLE.OVERVIEW,
+};
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   // The startup splash sits outside the gate so it covers the page from the first
