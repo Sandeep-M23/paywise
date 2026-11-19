@@ -18,7 +18,9 @@ export function LoginForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
     const form = new FormData(event.currentTarget);
+
     setPending(true);
     setError(null);
     const result = await loginRequest({
