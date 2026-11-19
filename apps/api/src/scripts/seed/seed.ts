@@ -18,14 +18,18 @@ export async function seedDatabase(db: Db, people: SeedEmployee[]) {
       const batch = people.slice(start, start + BATCH_SIZE).map((person) => ({
         ...person,
         id: randomUUID(),
+        revisionIds: person.history.map(() => randomUUID()),
         currency: currencyForCountry(person.employee.countryCode),
       }));
 
       await Employee.bulkCreate(
-        batch.map(({ id, currency, employee, deactivationReason }) => ({
+        batch.map(({ id, revisionIds, history, currency, employee, deactivationReason }) => ({
           id,
           ...employee,
           salaryCurrency: currency,
+          // The cache holds the latest revision (the generated history ends at or before its reference date).
+          currentRevisionId: revisionIds.at(-1)!,
+          salaryEffectiveOn: history.at(-1)!.effectiveOn,
           deactivatedAt: deactivationReason ? new Date() : null,
           deactivationReason: deactivationReason ?? null,
           ...(deactivationReason ? { status: "inactive" } : {}),
@@ -33,14 +37,15 @@ export async function seedDatabase(db: Db, people: SeedEmployee[]) {
         { transaction: tx.transaction },
       );
       await SalaryRevision.bulkCreate(
-        batch.flatMap(({ id, currency, history }) =>
+        batch.flatMap(({ id, revisionIds, currency, history }) =>
           history.map((revision, i) => ({
+            id: revisionIds[i]!,
             employeeId: id,
             amount: revision.amount,
-            previousAmount: i === 0 ? null : history[i - 1]!.amount,
             currency,
             effectiveOn: revision.effectiveOn,
             reason: revision.reason,
+            createdBy: "seed",
           })),
         ),
         { transaction: tx.transaction },

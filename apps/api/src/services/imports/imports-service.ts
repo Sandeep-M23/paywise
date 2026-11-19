@@ -117,11 +117,23 @@ async function plan(db: Db, request: ImportRequest, today: string, lock: boolean
     ? await select<{ employeeId: string; date: string }>(
         db,
         `SELECT employee_id AS "employeeId", min(effective_on) AS date FROM salary_revisions
-         WHERE employee_id IN (:ids) AND reason <> 'hire' GROUP BY employee_id`,
+         WHERE employee_id IN (:ids) AND reason <> 'hire' AND cancelled_at IS NULL
+         GROUP BY employee_id`,
         { ids: existingRows.map((r) => r.id) },
       )
     : [];
   const earliestChangeById = new Map(earliestChanges.map((e) => [e.employeeId, e.date]));
+
+  // An imported salary change is dated today; one change per person per date.
+  const changedToday = existingRows.length
+    ? await select<{ employeeId: string }>(
+        db,
+        `SELECT DISTINCT employee_id AS "employeeId" FROM salary_revisions
+         WHERE employee_id IN (:ids) AND effective_on = CAST(:today AS date) AND cancelled_at IS NULL`,
+        { ids: existingRows.map((r) => r.id), today },
+      )
+    : [];
+  const hasChangeToday = new Set(changedToday.map((r) => r.employeeId));
 
   const result: Plan = { rows: [], creates: [], updates: [] };
   for (const { line, values, result: parsedRow } of parsed) {
@@ -179,10 +191,20 @@ async function plan(db: Db, request: ImportRequest, today: string, lock: boolean
       errors.push({ field: "employeeCode", message: `${input.employeeCode} is inactive` });
     }
     const earliestChange = earliestChangeById.get(existing.id);
-    if (input.hireDate !== existing.hireDate && earliestChange && input.hireDate > earliestChange) {
+    if (
+      input.hireDate !== existing.hireDate &&
+      earliestChange &&
+      input.hireDate >= earliestChange
+    ) {
       errors.push({
         field: "hireDate",
-        message: `Hire date cannot be after the first salary change (${earliestChange})`,
+        message: `Hire date must be before the first salary change (${earliestChange})`,
+      });
+    }
+    if (input.salaryAmount !== existing.salaryAmount && hasChangeToday.has(existing.id)) {
+      errors.push({
+        field: "salary",
+        message: "Already has a salary change dated today; change it in Paywise instead",
       });
     }
 
@@ -257,30 +279,41 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
         );
         const importId = log.id;
 
+        const actor = by ?? "system";
+        // Each new employee's cache points at its hire revision (checked at commit).
         const newEmployees = creates.map(({ input }) => ({
           id: randomUUID(),
+          hireRevisionId: randomUUID(),
           ...input,
           gender: input.gender ?? "undisclosed",
           salaryCurrency: currencyForCountry(input.countryCode),
         }));
         for (const batch of chunks(newEmployees)) {
-          await Employee.bulkCreate(batch, { transaction: tx.transaction });
+          await Employee.bulkCreate(
+            batch.map(({ hireRevisionId, ...e }) => ({
+              ...e,
+              salaryEffectiveOn: e.hireDate,
+              currentRevisionId: hireRevisionId,
+              deactivatedAt: null,
+              deactivationReason: null,
+            })),
+            { transaction: tx.transaction },
+          );
           await SalaryRevision.bulkCreate(
             batch.map((e) => ({
+              id: e.hireRevisionId,
               employeeId: e.id,
               amount: e.salaryAmount,
-              previousAmount: null,
               currency: e.salaryCurrency,
               effectiveOn: e.hireDate,
               reason: "hire",
               importId,
+              createdBy: actor,
             })),
             { transaction: tx.transaction },
           );
         }
 
-        // One UPDATE ... FROM (VALUES ...) per batch instead of one per row:
-        // round trips dominate once the database is across a network.
         // One UPDATE ... FROM per batch instead of one per row: round trips dominate
         // once the database is across a network. Each batch is one JSON parameter.
         for (const batch of chunks(updates)) {
@@ -293,18 +326,16 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
             employment_type: input.employmentType,
             hire_date: input.hireDate,
             gender: input.gender ?? existing.gender,
-            salary_amount: input.salaryAmount,
           }));
           await execute(
             tx,
             `UPDATE employees AS e SET
                  full_name = v.full_name, email = v.email, job_title = v.job_title,
                  department = v.department, employment_type = v.employment_type,
-                 hire_date = v.hire_date, gender = v.gender, salary_amount = v.salary_amount,
-                 updated_at = now()
+                 hire_date = v.hire_date, gender = v.gender, updated_at = now()
                FROM jsonb_to_recordset(CAST(:values AS jsonb)) AS v(id uuid, full_name text,
                  email text, job_title text, department text, employment_type text,
-                 hire_date date, gender text, salary_amount bigint)
+                 hire_date date, gender text)
                WHERE e.id = v.id`,
             { values: JSON.stringify(values) },
           );
@@ -320,15 +351,21 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
           .map(({ existing, input }) => ({
             employeeId: existing.id,
             amount: input.salaryAmount,
-            previousAmount: existing.salaryAmount,
             currency: existing.salaryCurrency,
             effectiveOn: today,
             reason: "import",
             importId,
+            createdBy: actor,
           }));
         for (const batch of chunks(salaryChanges)) {
           await SalaryRevision.bulkCreate(batch, { transaction: tx.transaction });
         }
+        // Salary and hire-date changes move the cache (set-based, one statement).
+        await repo.refreshSalaryCache(
+          tx,
+          today,
+          updates.map(({ existing }) => existing.id),
+        );
 
         return {
           importId,

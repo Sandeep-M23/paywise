@@ -8,7 +8,8 @@ import type {
   RevisionReason,
   SalaryRevision,
 } from "@paywise/shared";
-import type { EmployeeRow, SalaryRevisionRow } from "../../models";
+import type { EmployeeRow } from "../../models";
+import type { RevisionWithState } from "../../services/employees/employees-repository";
 
 // Gender is deliberately absent from the summary: it is only used in aggregates
 // and shown on the individual record (see REQUIREMENTS.md).
@@ -28,7 +29,7 @@ export function toEmployeeSummary(row: EmployeeRow): EmployeeSummary {
   };
 }
 
-export function toSalaryRevision(row: SalaryRevisionRow): SalaryRevision {
+export function toSalaryRevision(row: RevisionWithState): SalaryRevision {
   return {
     id: row.id,
     amount: row.amount,
@@ -38,11 +39,14 @@ export function toSalaryRevision(row: SalaryRevisionRow): SalaryRevision {
     reason: row.reason as RevisionReason,
     note: row.note,
     importId: row.importId,
-    createdAt: row.createdAt.toISOString(),
+    correctsRevisionId: row.correctsRevisionId,
+    state: row.state,
+    createdBy: row.createdBy,
+    createdAt: new Date(row.createdAt).toISOString(),
   };
 }
 
-export function toEmployeeDetail(row: EmployeeRow, revisions: SalaryRevisionRow[]): EmployeeDetail {
+export function toEmployeeDetail(row: EmployeeRow, revisions: RevisionWithState[]): EmployeeDetail {
   return {
     ...toEmployeeSummary(row),
     gender: row.gender as Gender,

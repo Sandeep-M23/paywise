@@ -8,9 +8,10 @@ import {
 } from "sequelize";
 
 /**
- * Who someone is and where they work, plus a copy of their current salary
- * (minor units; written only together with a salary revision). Indexes, checks
- * and foreign keys are in config/schema.sql, applied after sync.
+ * Who someone is and where they work, plus a cache of their current salary: an
+ * exact copy of one of their revisions (the latest effective on or before today),
+ * pinned to it by a deferred composite foreign key in config/schema.sql.
+ * Indexes, checks and foreign keys are in config/schema.sql, applied after sync.
  */
 export class Employee extends Model<InferAttributes<Employee>, InferCreationAttributes<Employee>> {
   declare id: CreationOptional<string>;
@@ -22,6 +23,8 @@ export class Employee extends Model<InferAttributes<Employee>, InferCreationAttr
   declare countryCode: string;
   declare salaryAmount: number;
   declare salaryCurrency: string;
+  declare salaryEffectiveOn: string;
+  declare currentRevisionId: string;
   declare gender: CreationOptional<string>;
   declare employmentType: string;
   declare hireDate: string;
@@ -47,6 +50,8 @@ export class Employee extends Model<InferAttributes<Employee>, InferCreationAttr
         countryCode: { type: DataTypes.CHAR(2), allowNull: false },
         salaryAmount: { type: DataTypes.BIGINT, allowNull: false },
         salaryCurrency: { type: DataTypes.CHAR(3), allowNull: false },
+        salaryEffectiveOn: { type: DataTypes.DATEONLY, allowNull: false },
+        currentRevisionId: { type: DataTypes.UUID, allowNull: false },
         gender: { type: DataTypes.TEXT, allowNull: false, defaultValue: "undisclosed" },
         employmentType: { type: DataTypes.TEXT, allowNull: false },
         hireDate: { type: DataTypes.DATEONLY, allowNull: false },

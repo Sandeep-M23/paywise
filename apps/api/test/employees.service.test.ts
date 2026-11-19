@@ -78,8 +78,12 @@ describe("create", () => {
     );
   });
 
-  it("rejects a hire date in the future", async () => {
-    await expectAppError(service.create({ ...priya, hireDate: "2026-07-01" }), 422);
+  it("accepts a hire date in the future (a pre-boarded hire)", async () => {
+    const created = await service.create({ ...priya, hireDate: "2026-07-01" });
+    expect(created.salary.amount).toBe(180_000_000);
+    expect(created.revisions).toEqual([
+      expect.objectContaining({ reason: "hire", effectiveOn: "2026-07-01" }),
+    ]);
   });
 });
 
@@ -117,15 +121,27 @@ describe("changeSalary", () => {
     expect(employee.revisions).toHaveLength(2);
   });
 
-  it.each([
-    ["in the future", "2026-07-01"],
-    ["before the hire date", "2022-03-31"],
-  ])("rejects an effective date %s", async (_label, effectiveOn) => {
+  it("rejects an effective date before the hire date", async () => {
     const { id } = await service.create(priya);
     await expectAppError(
-      service.changeSalary(id, { amount: 200_000_000, effectiveOn, reason: "merit" }),
+      service.changeSalary(id, { amount: 200_000_000, effectiveOn: "2022-03-31", reason: "merit" }),
       422,
     );
+  });
+
+  it("schedules a future change without touching the current salary", async () => {
+    const { id } = await service.create(priya);
+    const employee = await service.changeSalary(id, {
+      amount: 200_000_000,
+      effectiveOn: "2026-07-01",
+      reason: "merit",
+    });
+    expect(employee.salary.amount).toBe(180_000_000);
+    expect(employee.revisions[0]).toMatchObject({
+      amount: 200_000_000,
+      effectiveOn: "2026-07-01",
+      state: "scheduled",
+    });
   });
 
   it("rejects an effective date before the latest revision", async () => {
@@ -180,6 +196,8 @@ describe("update", () => {
     const { id } = await service.create(priya);
     const updated = await service.update(id, { hireDate: "2022-03-15" });
     expect(updated.revisions.at(-1)).toMatchObject({ reason: "hire", effectiveOn: "2022-03-15" });
+    // The cache copies the hire revision, so it follows the new date too.
+    expect(await service.cacheDrift()).toBe(0);
   });
 
   it("rejects a hire date after an existing salary change", async () => {
@@ -341,7 +359,7 @@ describe("applyRaises", () => {
       ...when,
     });
 
-    expect(result).toEqual({ applied: 3, skipped: 0 });
+    expect(result).toEqual({ applied: 3, skipped: 0, scheduled: 0 });
     expect((await service.get(ids.priya)).salary.amount).toBe(198_000_000);
     expect((await service.get(ids.rahul)).salary.amount).toBe(132_000_001);
     const anna = await service.get(ids.anna);
@@ -375,11 +393,15 @@ describe("applyRaises", () => {
     expect((await service.get(ids.priya)).salary.amount).toBe(190_000_000);
   });
 
-  it("rejects an effective date in the future", async () => {
-    await expectAppError(
-      service.applyRaises({ percent: 5, effectiveOn: "2026-07-01", reason: "merit" }),
-      422,
-    );
+  it("schedules every raise when the date is in the future", async () => {
+    const result = await service.applyRaises({
+      percent: 10,
+      country: "IN",
+      effectiveOn: "2026-07-01",
+      reason: "merit",
+    });
+    expect(result).toEqual({ applied: 2, skipped: 0, scheduled: 2 });
+    expect((await service.get(ids.priya)).salary.amount).toBe(180_000_000);
   });
 
   it("rejects an individual raise that is not above the current salary", async () => {
@@ -409,7 +431,7 @@ describe("applyRaises", () => {
       salaryAmount: 10,
     });
     const result = await service.applyRaises({ percent: 1, country: "JP", ...when });
-    expect(result).toEqual({ applied: 0, skipped: 1 });
+    expect(result).toEqual({ applied: 0, skipped: 1, scheduled: 0 });
     expect((await service.get(tiny.id)).salary.amount).toBe(10);
   });
 });

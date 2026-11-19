@@ -18,15 +18,26 @@ export type EmployeeSummary = {
   status: EmployeeStatus;
 };
 
+/**
+ * historical: superseded by a later date · current: in force today · scheduled:
+ * takes effect later · corrected: replaced by a correction on the same date ·
+ * cancelled: a scheduled change that won't happen.
+ */
+export type RevisionState = "historical" | "current" | "scheduled" | "corrected" | "cancelled";
+
 export type SalaryRevision = {
   id: string;
   amount: number;
+  /** The amount in force just before this date (derived), null for the first. */
   previousAmount: number | null;
   currency: string;
   effectiveOn: string;
   reason: RevisionReason;
   note: string | null;
   importId: string | null;
+  correctsRevisionId: string | null;
+  state: RevisionState;
+  createdBy: string;
   createdAt: string;
 };
 
@@ -145,7 +156,8 @@ export type GenderGapGroup = {
   suppressed: boolean;
 };
 
-export type RaiseApplyResult = { applied: number; skipped: number };
+/** `scheduled`: how many of the applied revisions take effect in the future. */
+export type RaiseApplyResult = { applied: number; skipped: number; scheduled: number };
 
 export type RaiseCost = {
   currency: string;

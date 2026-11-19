@@ -33,14 +33,13 @@ describe("seedDatabase", () => {
     expect(mismatches).toEqual({ n: 0 });
   });
 
-  it("chains previous amounts through the history", async () => {
-    const broken = await one(`
-      SELECT count(*)::int AS n FROM (
-        SELECT previous_amount,
-               lag(amount) OVER (PARTITION BY employee_id ORDER BY effective_on, amount) AS expected
-        FROM salary_revisions) t
-      WHERE previous_amount IS DISTINCT FROM expected`);
-    expect(broken).toEqual({ n: 0 });
+  it("points each employee's cache at their latest revision", async () => {
+    const stale = await one(`
+      SELECT count(*)::int AS n FROM employees e
+      WHERE e.current_revision_id IS DISTINCT FROM (
+        SELECT r.id FROM salary_revisions r WHERE r.employee_id = e.id
+        ORDER BY r.effective_on DESC LIMIT 1)`);
+    expect(stale).toEqual({ n: 0 });
   });
 
   it("is repeatable: seeding again replaces rather than duplicates", async () => {
