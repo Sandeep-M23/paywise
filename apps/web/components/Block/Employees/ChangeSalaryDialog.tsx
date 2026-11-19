@@ -1,17 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
-import {
-  MANUAL_REVISION_REASONS,
-  parseMoneyInput,
-  salaryRevisionCreateSchema,
-  toMajorString,
-  type EmployeeDetail,
-} from "@paywise/shared";
+import { Field } from "@/components/Shared/FormField/FormField";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,10 +19,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { humanize, money, percent } from "@/utils/helpers/format";
-import { applyApiErrors } from "@/utils/forms/form-errors";
 import { useChangeSalary } from "@/utils/apis/employees";
-import { Field } from "@/components/Shared/FormField/FormField";
+import { applyApiErrors } from "@/utils/forms/form-errors";
+import { humanize, money, percent } from "@/utils/helpers/format";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  MANUAL_REVISION_REASONS,
+  parseMoneyInput,
+  salaryRevisionCreateSchema,
+  toMajorString,
+  type EmployeeDetail,
+} from "@paywise/shared";
+import { useEffect } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 
 const formSchema = salaryRevisionCreateSchema.omit({ amount: true }).extend({ amount: z.string() });
 type FormValues = z.input<typeof formSchema>;

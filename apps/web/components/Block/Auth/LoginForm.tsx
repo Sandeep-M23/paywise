@@ -1,15 +1,16 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api, ApiError } from "@/utils/services";
+import { useSearchParams } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 export function LoginForm() {
   const searchParams = useSearchParams();
+
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -23,7 +24,7 @@ export function LoginForm() {
         method: "POST",
         json: { email: form.get("email"), password: form.get("password") },
       });
-      // Only allow same-site relative paths, never an open redirect.
+
       const next = searchParams.get("next");
       window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
     } catch (e) {
@@ -34,10 +35,10 @@ export function LoginForm() {
 
   // Maglo's sign-in: no card, a large greeting, tall inputs and a full-width lime button.
   return (
-    <div className="w-full max-w-sm">
-      <h1 className="text-3xl font-semibold tracking-tight">Welcome back</h1>
+    <div className="w-full max-w-md">
+      <h1 className="text-3xl font-semibold tracking-tight">Welcome to Paywise</h1>
       <p className="text-muted-foreground mt-2 mb-8 text-sm">
-        Salary data is confidential. HR access only.
+        Sign in to manage employee compensation and salary insights.
       </p>
       <div>
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
