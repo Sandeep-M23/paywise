@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { employeeListQuerySchema } from "@paywise/shared";
 import type { DirectoryFilters } from "@/utils/apis/employees";
 
@@ -30,9 +30,17 @@ export function useDirectoryQuery() {
     return filters;
   }, [searchParams]);
 
+  // router.replace updates the URL after a moment; two changes in quick
+  // succession must build on each other, not both on the last render's query.
+  const latest = useRef(query);
+  useEffect(() => {
+    latest.current = query;
+  }, [query]);
+
   const setQuery = useCallback(
     (patch: Partial<DirectoryFilters>) => {
-      const next = { ...query, ...patch };
+      const next = { ...latest.current, ...patch };
+      latest.current = next;
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(next)) {
         if (Array.isArray(value)) {
@@ -45,7 +53,7 @@ export function useDirectoryQuery() {
       const search = params.toString();
       router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
     },
-    [query, router, pathname],
+    [router, pathname],
   );
 
   return [query, setQuery] as const;

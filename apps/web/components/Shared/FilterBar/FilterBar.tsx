@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { Filter, type AppIcon } from "@/components/Icons";
 import { Button } from "@/components/ui/button";
@@ -161,13 +161,34 @@ export function FilterBar({
 }
 
 function FacetOptions({ facet }: { facet: Facet }) {
+  // The parent's selection can lag a click (the directory's lives in the URL), so
+  // build each change on the latest local pick, or a quick second click would
+  // overwrite the first. Re-sync whenever the parent's selection actually changes.
+  const selectedKey = facet.selected.join("\u0000");
+  const [picked, setPicked] = useState(facet.selected);
+  const latest = useRef(facet.selected);
+  useEffect(() => {
+    latest.current = facet.selected;
+    setPicked(facet.selected);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on content, not identity
+  }, [selectedKey]);
+
   function toggle(value: string) {
-    if (facet.single) return facet.onChange([value]);
-    facet.onChange(
-      facet.selected.includes(value)
-        ? facet.selected.filter((v) => v !== value)
-        : [...facet.selected, value],
-    );
+    const current = latest.current;
+    const next = facet.single
+      ? [value]
+      : current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+    latest.current = next;
+    setPicked(next);
+    facet.onChange(next);
+  }
+
+  function clear() {
+    latest.current = [];
+    setPicked([]);
+    facet.onChange([]);
   }
   const searchable = facet.searchable ?? facet.options.length > 8;
 
@@ -180,11 +201,11 @@ function FacetOptions({ facet }: { facet: Facet }) {
           heading={
             facet.single
               ? `${facet.label}: pick one`
-              : `${facet.label}: pick any${facet.selected.length ? ` · ${facet.selected.length} picked` : ""}`
+              : `${facet.label}: pick any${picked.length ? ` · ${picked.length} picked` : ""}`
           }
         >
           {facet.options.map((option) => {
-            const checked = facet.selected.includes(option.value);
+            const checked = picked.includes(option.value);
             return (
               <CommandItem
                 key={option.value}
@@ -216,10 +237,10 @@ function FacetOptions({ facet }: { facet: Facet }) {
           })}
         </CommandGroup>
       </CommandList>
-      {!facet.single && facet.selected.length > 0 && (
+      {!facet.single && picked.length > 0 && (
         <button
           type="button"
-          onClick={() => facet.onChange([])}
+          onClick={clear}
           className="text-muted-foreground hover:text-foreground border-t px-3 py-2 text-left text-xs font-medium"
         >
           Clear {facet.label.toLowerCase()}
