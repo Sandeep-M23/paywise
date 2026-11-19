@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { COUNTRIES, currencyForCountry } from "./countries";
 import {
+  salaryRevisionFieldsSchema,
+  withSalaryRevisionRules,
   deactivateEmployeeSchema,
   employeeCreateSchema,
   employeeListQuerySchema,
@@ -278,5 +281,23 @@ describe("raiseApplySchema", () => {
       raiseApplySchema.safeParse({ percent: 3, effectiveOn: "2026-07-01", reason: "import" })
         .success,
     ).toBe(false);
+  });
+});
+
+describe("salary change form schema", () => {
+  // The web form swaps the amount for text; Zod 4 can't .omit() a refined schema,
+  // so the fields and the rules are exported separately and recombined.
+  const formSchema = withSalaryRevisionRules(
+    salaryRevisionFieldsSchema.omit({ amount: true }).extend({ amount: z.string() }),
+  );
+  const base = { amount: "1200.50", effectiveOn: "2026-06-30", reason: "merit" as const };
+
+  it("accepts a plain change with the amount as text", () => {
+    expect(formSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("keeps the correction and currency-change rules", () => {
+    expect(formSchema.safeParse({ ...base, reason: "correction" }).success).toBe(false);
+    expect(formSchema.safeParse({ ...base, reason: "currency_change" }).success).toBe(false);
   });
 });

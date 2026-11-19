@@ -90,24 +90,39 @@ export const employeeUpdateSchema = z
  * currency. `basedOnRevisionId` is the latest revision the user was looking at:
  * if someone else changed the salary since, the change is refused (409).
  */
-export const salaryRevisionCreateSchema = z
-  .object({
-    amount: minorAmountSchema,
-    currency: currencySchema.optional(),
-    effectiveOn: isoDateSchema,
-    reason: z.enum(SALARY_CHANGE_REASONS),
-    note: z.string().trim().max(500).optional(),
-    correctsRevisionId: z.uuid().optional(),
-    basedOnRevisionId: z.uuid().optional(),
-  })
-  .refine((r) => (r.reason === "correction") === (r.correctsRevisionId !== undefined), {
-    message: "A correction must name the revision it corrects, and only a correction can",
-    path: ["correctsRevisionId"],
-  })
-  .refine((r) => r.reason !== "currency_change" || r.currency !== undefined, {
-    message: "Choose the new currency",
-    path: ["currency"],
-  });
+export const salaryRevisionFieldsSchema = z.object({
+  amount: minorAmountSchema,
+  currency: currencySchema.optional(),
+  effectiveOn: isoDateSchema,
+  reason: z.enum(SALARY_CHANGE_REASONS),
+  note: z.string().trim().max(500).optional(),
+  correctsRevisionId: z.uuid().optional(),
+  basedOnRevisionId: z.uuid().optional(),
+});
+
+type RevisionRuleFields = {
+  reason: (typeof SALARY_CHANGE_REASONS)[number];
+  currency?: string;
+  correctsRevisionId?: string;
+};
+
+/**
+ * The cross-field rules of a salary change. Kept apart from the fields because
+ * Zod 4 can't .omit() or .extend() a refined schema, and the web form needs the
+ * fields with the amount as text but exactly these rules.
+ */
+export const withSalaryRevisionRules = <T extends z.ZodType<RevisionRuleFields>>(schema: T) =>
+  schema
+    .refine((r) => (r.reason === "correction") === (r.correctsRevisionId !== undefined), {
+      message: "A correction must name the revision it corrects, and only a correction can",
+      path: ["correctsRevisionId"],
+    })
+    .refine((r) => r.reason !== "currency_change" || r.currency !== undefined, {
+      message: "Choose the new currency",
+      path: ["currency"],
+    });
+
+export const salaryRevisionCreateSchema = withSalaryRevisionRules(salaryRevisionFieldsSchema);
 
 export const deactivateEmployeeSchema = z.object({
   reason: text(500),
