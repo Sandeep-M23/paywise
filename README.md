@@ -35,7 +35,7 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 ```
 apps/api         Hono API: routes -> controllers -> services -> repositories, seed, migrations
-apps/web         Next.js app; /api/* is proxied to the API (first-party session cookie)
+apps/web         Next.js app: Block/Shared components, utils/apis per feature; /api/* is proxied to the API
 packages/shared  Code both sides must agree on
 docs/            Requirements, research, design, trade-offs, performance, AI log
 ```
