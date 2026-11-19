@@ -1,4 +1,4 @@
-import { hashPassword } from "../middlewares/auth";
+import { hashPassword } from "../utils/auth/auth-utils";
 
 const password = process.argv[2];
 if (!password) {

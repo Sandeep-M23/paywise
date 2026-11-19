@@ -1,50 +1,51 @@
-import type { Context } from "hono";
-import {
-  deactivateEmployeeSchema,
-  employeeCreateSchema,
-  employeeListQuerySchema,
-  employeeUpdateSchema,
-  raiseApplySchema,
-  salaryRevisionCreateSchema,
+import type { Request, Response } from "express";
+import type {
+  EmployeeCreateInput,
+  EmployeeListQuery,
+  EmployeeUpdateInput,
+  RaiseApplyRequest,
+  SalaryRevisionCreateInput,
 } from "@paywise/shared";
-import { parseBody, parseQuery } from "../../validators/validate";
 import type { EmployeeService } from "../../services/employees/employees-service";
+import { asyncHandler } from "../../utils/helpers/http-response";
 
-/** HTTP only: validate the request, call the service, shape the response. */
+/** HTTP only: read the validated request, call the service, shape the response. */
 export function employeeController(service: EmployeeService) {
   return {
-    async list(c: Context) {
-      return c.json(await service.list(parseQuery(c, employeeListQuerySchema)));
-    },
+    list: asyncHandler(async (req: Request, res: Response) => {
+      res.json(await service.list(req.query as unknown as EmployeeListQuery));
+    }, "listEmployees"),
 
-    async create(c: Context) {
-      return c.json(await service.create(await parseBody(c, employeeCreateSchema)), 201);
-    },
+    create: asyncHandler(async (req: Request, res: Response) => {
+      const input: EmployeeCreateInput = req.body;
+      res.status(201).json(await service.create(input, { by: req.user?.email }));
+    }, "createEmployee"),
 
     /** A raise plan applied as salary revisions, all or nothing. */
-    async applyRaises(c: Context) {
-      return c.json(await service.applyRaises(await parseBody(c, raiseApplySchema)), 201);
-    },
+    applyRaises: asyncHandler(async (req: Request, res: Response) => {
+      const plan: RaiseApplyRequest = req.body;
+      res.status(201).json(await service.applyRaises(plan, { by: req.user?.email }));
+    }, "applyRaises"),
 
-    async get(c: Context) {
-      return c.json(await service.get(c.req.param("id")!));
-    },
+    get: asyncHandler(async (req: Request, res: Response) => {
+      res.json(await service.get(req.params.id!));
+    }, "getEmployee"),
 
-    async update(c: Context) {
-      return c.json(
-        await service.update(c.req.param("id")!, await parseBody(c, employeeUpdateSchema)),
-      );
-    },
+    update: asyncHandler(async (req: Request, res: Response) => {
+      const patch: EmployeeUpdateInput = req.body;
+      res.json(await service.update(req.params.id!, patch));
+    }, "updateEmployee"),
 
-    async deactivate(c: Context) {
-      return c.json(
-        await service.deactivate(c.req.param("id")!, await parseBody(c, deactivateEmployeeSchema)),
-      );
-    },
+    deactivate: asyncHandler(async (req: Request, res: Response) => {
+      const { reason }: { reason: string } = req.body;
+      res.json(await service.deactivate(req.params.id!, { reason }));
+    }, "deactivateEmployee"),
 
-    async changeSalary(c: Context) {
-      const input = await parseBody(c, salaryRevisionCreateSchema);
-      return c.json(await service.changeSalary(c.req.param("id")!, input), 201);
-    },
+    changeSalary: asyncHandler(async (req: Request, res: Response) => {
+      const input: SalaryRevisionCreateInput = req.body;
+      res
+        .status(201)
+        .json(await service.changeSalary(req.params.id!, input, { by: req.user?.email }));
+    }, "changeSalary"),
   };
 }

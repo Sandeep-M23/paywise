@@ -1,13 +1,13 @@
 # Paywise: API Contract
 
-REST + JSON under `/api`. The browser calls the web app's origin, which proxies `/api/*` to the API, so the session cookie is first-party.
+REST + JSON under `/api`, served by Express. The browser calls the web app's origin, which proxies `/api/*` to the API; it can also call the API directly (`NEXT_PUBLIC_BACKEND_API_URL`), since auth is a header, not a cookie.
 
 **Status:** **Built** = in the code today · **Changed** = built, and revision 2 changes the contract · **Planned** = revision 2 (see `PLAN.md` §5).
 
 ## Conventions
 
-- **Auth:** every route needs the session cookie except `GET /api/health`, `POST /api/auth/login`, and `POST /api/internal/*` (which needs `Authorization: Bearer <CRON_SECRET>`).
-- **CSRF (Planned):** `POST`, `PATCH` and `DELETE` must be `Content-Type: application/json` and come from the app's own `Origin`; otherwise `403 forbidden_origin`.
+- **Auth:** every route needs `Authorization: Bearer <authToken>` (the JWT from `POST /api/auth/login`) except `GET /api/health`, `POST /api/auth/login`, and `POST /api/internal/*` (which needs `Authorization: Bearer <CRON_SECRET>`).
+- **CSRF:** not applicable: the browser never attaches the token by itself, so a cross-site page can't send an authenticated request.
 - **Money:** always `{ "amount": <integer minor units>, "currency": "<lowercase ISO 4217>" }`. JPY has 0 decimals, BHD/KWD 3, most others 2.
 - **Dates:** `YYYY-MM-DD` (organisation date, UTC). **Lists:** `?page=1&pageSize=25` (max 100) → `{ data, page, pageSize, total }`. Multi-value filters repeat the key: `?country=IN&country=DE` means "any of".
 - **Errors:** `{ "error": { "code": "…", "message": "…", "details": [{ "path", "message" }] } }`.
@@ -16,7 +16,7 @@ REST + JSON under `/api`. The browser calls the web app's origin, which proxies 
 | ------ | ------------------------------------------------------------------------------------- |
 | 400    | `invalid_query`, `validation_failed`, `unsupported_currency`                          |
 | 401    | `unauthenticated`, `invalid_credentials`                                              |
-| 403    | `forbidden`, `forbidden_origin` (Planned)                                             |
+| 403    | `forbidden` (Planned)                                                                 |
 | 404    | `not_found`                                                                           |
 | 409    | `duplicate`, `revision_date_taken`, `not_scheduled`, `idempotency_conflict` (Planned) |
 | 413    | `import_too_large`                                                                    |
@@ -25,11 +25,12 @@ REST + JSON under `/api`. The browser calls the web app's origin, which proxies 
 
 ## Auth
 
-| Method & path           | Request               | Response                   | Status                                                           |
-| ----------------------- | --------------------- | -------------------------- | ---------------------------------------------------------------- |
-| `POST /api/auth/login`  | `{ email, password }` | `{ email }` + `Set-Cookie` | Changed: rate limited (5 failures / 15 min per email + IP → 429) |
-| `POST /api/auth/logout` |                       | `{ ok: true }`             | Built                                                            |
-| `GET /api/auth/me`      |                       | `{ email }`                | Built                                                            |
+| Method & path          | Request               | Response                                                       | Status                                                           |
+| ---------------------- | --------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `POST /api/auth/login` | `{ email, password }` | `{ status, message, data: { authToken, email } }` (8-hour JWT) | Changed: rate limited (5 failures / 15 min per email + IP → 429) |
+| `GET /api/auth/me`     |                       | `{ email }`                                                    | Built                                                            |
+
+Signing out is client-side: the web app drops the token. A token can't be revoked before it expires (`docs/SECURITY.md`).
 
 ## Employees
 

@@ -1,15 +1,32 @@
-import { Hono } from "hono";
+import { Router, type RequestHandler } from "express";
 import { importController } from "../../controllers/imports/imports";
-import type { ImportService } from "../../services/imports/imports-service";
-import { limitImportBody } from "../../middlewares/body-limit";
 import type { ExportService } from "../../services/exports/exports-service";
+import type { ImportService } from "../../services/imports/imports-service";
+import * as importValidator from "../../validators/imports";
 
-export function importRoutes(service: ImportService, exports: ExportService) {
+export function importRoutes(
+  service: ImportService,
+  exports: ExportService,
+  verifyAccessToken: RequestHandler,
+) {
+  const router = Router();
   const controller = importController(service, exports);
-  return new Hono<{ Variables: { userEmail?: string } }>()
-    .get("/", controller.list)
-    .get("/template.csv", controller.template)
-    .get("/:id", controller.get)
-    .post("/preview", limitImportBody, controller.preview)
-    .post("/", limitImportBody, controller.commit);
+
+  router.get("/", verifyAccessToken, controller.list);
+
+  router.get("/template.csv", verifyAccessToken, controller.template);
+
+  router.get("/:id", verifyAccessToken, controller.get);
+
+  // The larger body limit is applied in app.ts, before the app-wide JSON parser.
+  router.post(
+    "/preview",
+    verifyAccessToken,
+    importValidator.validateImportBody,
+    controller.preview,
+  );
+
+  router.post("/", verifyAccessToken, importValidator.validateImportBody, controller.commit);
+
+  return router;
 }

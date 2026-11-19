@@ -4,7 +4,7 @@ Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a
 
 ## Stack
 
-- npm workspaces: `apps/api` (Hono + PostgreSQL via `pg` + Sequelize; schema from models + `config/schema.sql` via `npm run db:sync`), `apps/web` (Next.js App Router + shadcn/ui + Tailwind + Jotai + TanStack Query + Recharts), `packages/shared` (Zod schemas, money, CSV helpers, countries).
+- npm workspaces: `apps/api` (Express 4 + http-errors + JWT Bearer auth + PostgreSQL via `pg` + Sequelize; schema from models + `config/schema.sql` via `npm run db:sync`), `apps/web` (Next.js App Router + shadcn/ui + Tailwind + Jotai + TanStack Query + Recharts), `packages/shared` (Zod schemas, money, CSV helpers, countries).
 - TypeScript strict everywhere. Vitest for all tests; PGlite for DB tests.
 
 ## Non-negotiable rules
@@ -16,13 +16,13 @@ Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a
 5. **Layering:** routes (paths) → controllers (HTTP only) → services (rules, transactions) → repositories (queries). Only repositories touch the database (Sequelize models, or `select`/`execute` from `config/db.ts` with named replacements). Never build SQL from user input; pass the `db` handle through so queries join the open transaction.
 6. **CSV export:** always UTF-8 BOM + formula-injection escaping.
 7. **Audit:** every write that changes an employee, a salary, a raise plan or an import also writes `audit_logs` entries in the same transaction, through the audit service. Never update or delete audit rows.
-8. **Logs and wording:** never log request bodies, cookies or salary amounts. Fairness figures are "indicators" or "potential disparities", never legal findings; amounts in different currencies are never added together.
+8. **Logs and wording:** never log request bodies, tokens or salary amounts. Fairness figures are "indicators" or "potential disparities", never legal findings; amounts in different currencies are never added together.
 
 ## Folder structure (after the Outbox backend starter and frontends)
 
 Names: kebab-case for files and folders; camelCase for variables; PascalCase for components, classes and data models.
 
-- **API** `apps/api/src/`: `routes/<feature>/<feature>.ts` (+ `routes/index.ts`), `controllers/<feature>/<feature>.ts`, `services/<feature>/<feature>-service.ts` and `<feature>-repository.ts`, `middlewares/`, `validators/`, `interfaces/`, `config/`, `models/` (one file per table), `utils/helpers/`, `scripts/`.
+- **API** `apps/api/src/`: `routes/<feature>/<feature>.ts` (+ `routes/index.ts`), `controllers/<feature>/<feature>.ts`, `services/<feature>/<feature>-service.ts` and `<feature>-repository.ts`, `middlewares/` (`verifyAccessToken`, body limit, error handler), `validators/<feature>.ts` (Zod middlewares), `interfaces/`, `config/`, `models/` (one file per table), `utils/auth/`, `utils/helpers/` (`asyncHandler`, `httpResponse`, http-errors helpers), `scripts/`. Controllers are wrapped in `asyncHandler`; throw `http-errors` (via `utils/helpers/errors.ts`), never plain `Error`, for expected failures.
 - **Web** `apps/web/`: `app/(Main)/` and `app/(Auth)/` route groups; `components/ui/` (shadcn), `components/Block/<Feature>/` (page sections), `components/Shared/<Component>/<Component>.tsx` (reusable), `components/Icons/`; `hooks/useX.ts`; `context/`; `utils/apis/<feature>/` (TanStack Query hooks), `utils/atoms/<feature>/`, `utils/constants/`, `utils/helpers/`, `utils/forms/`, `utils/services/` (HTTP client).
 
 ## Workflow

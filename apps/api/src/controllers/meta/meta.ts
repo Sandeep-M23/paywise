@@ -1,10 +1,11 @@
-import type { Context } from "hono";
+import type { Request, Response } from "express";
 import type { InsightsService } from "../../services/insights/insights-service";
+import { asyncHandler } from "../../utils/helpers/http-response";
 
 export function metaController(service: InsightsService) {
   return {
-    async filters(c: Context) {
-      return c.json(await service.filterOptions());
-    },
+    filters: asyncHandler(async (_req: Request, res: Response) => {
+      res.json(await service.filterOptions());
+    }, "filterOptions"),
   };
 }

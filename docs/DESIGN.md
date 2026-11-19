@@ -15,7 +15,7 @@ flowchart LR
     P[Papa Parse<br/>CSV preview]
   end
   subgraph Vercel Functions
-    R[Hono routes + controllers<br/>Zod parse, auth, origin check]
+    R[Express routes + controllers<br/>Zod validators, JWT auth, http-errors]
     S[Services<br/>domain rules, transactions, audit]
     D[Repositories<br/>Sequelize models +<br/>SQL aggregates]
   end
@@ -36,9 +36,10 @@ flowchart LR
 - **Layering:** routes declare paths; controllers handle only HTTP concerns (validate, call a service, shape the response); services own the business rules, transactions and audit entries; repositories own SQL. Folders follow the Outbox backend starter: `routes/<feature>/`, `controllers/<feature>/`, `services/<feature>/` (`-service.ts` and `-repository.ts`), plus `middlewares/`, `validators/`, `interfaces/`, `config/` and `models/`. Repositories receive the database handle, so tests inject an in-process Postgres (PGlite).
 - **Data layer:** PostgreSQL through `pg` + **Sequelize**, as in the Outbox backends (no other ORM, no vendor driver): PascalCase models for CRUD and row locks, and `sequelize.query` with named replacements for every statistic and bulk write. The schema comes from the models via `npm run db:sync` (`sync({ alter: true })`) plus an idempotent `schema.sql` for what `sync()` can't express (`CHECK`s, partial and covering indexes, deferred composite FKs, the audit trigger). Any Postgres host works, configured by `DB_*` variables. `config/db.ts` gives every repository a `Db` handle (`{ sequelize, transaction? }`) and `select` / `execute` helpers, so a function runs the same inside or outside a transaction. `bigint` money arrives as an exact JS number (an `int8` type parser; every amount is far below 2⁵³). Details: `PLAN.md` §3.11.
 - **Aggregates run in SQL** (`GROUP BY`, `percentile_cont`, `width_bucket`). The API never loads 10k rows into memory to compute statistics.
-- **One origin for the browser:** the web app rewrites `/api/*` to the API deployment, so the signed session cookie is first-party: no CORS, and no third-party cookie blocking. `proxy.ts` (Next 16's middleware) only redirects visitors without a cookie to `/login`; the API verifies the session on every request.
+- **HTTP layer:** Express 4, as in our other backends. Each route lists its middlewares: `verifyAccessToken`, then a validator that runs the shared Zod schema and replaces `req.body` / `req.query` with the parsed value, then the controller, wrapped in `asyncHandler` so rejected promises reach the central error handler. Errors are `http-errors` with a stable `code` (and field `details`), serialised as `{ error: { code, message, details } }`; unexpected errors become a generic 500.
+- **Auth:** `POST /api/auth/login` returns a signed JWT (8 hours). The web app keeps it in `localStorage` and sends `Authorization: Bearer` on every call; `AuthContext` gates the app pages on the client and a 401 signs the user out. By default the web app still rewrites `/api/*` to the API, so the browser talks to one origin.
 - **State on the client:** TanStack Query owns everything fetched (keys per resource; every write invalidates employees, insights, fairness and filter options). Directory filters, sort and page live in the **URL**, so views can be shared and reloaded; a filter with several values repeats its key (`?country=IN&country=DE`), which the API reads as "any of", so commas inside values such as "VP, Sales" are safe. Jotai holds only transient UI state.
-- **Deploy:** the API is bundled with esbuild into one Vercel Function (Hono's Vercel adapter); the web app is a standard Next.js project. Two projects vs one is weighed in `TRADEOFFS.md`; steps in `DEPLOY.md`.
+- **Deploy:** the API is bundled with esbuild into one Vercel Function (the Express app is the exported `(req, res)` handler); the web app is a standard Next.js project. Two projects vs one is weighed in `TRADEOFFS.md`; steps in `DEPLOY.md`.
 
 ## 2. Data Model
 
@@ -257,6 +258,6 @@ Reads (lists, analytics, Ask) run without explicit transactions. PGlite tests co
 
 - **Pure logic** (money, currencies, CSV helpers, schemas, seed generator, Ask parser): plain Vitest, written test-first.
 - **Services and SQL**: Vitest against **PGlite** (real Postgres in-process; with Sequelize it is reached over `@electric-sql/pglite-socket`). Each file gets a freshly created DB; tables are truncated between tests. Fixtures are a handful of hand-computed employees, never the 10k seed.
-- **Routes**: Hono's `app.request()`, with no network.
+- **Routes**: the Express app served on a random loopback port (`test/http.ts`) and called with `fetch`, so tests assert on real status codes, headers and bytes; nothing leaves the machine.
 - **UI**: React Testing Library + MSW (planned beyond today's helper tests); a local Playwright walkthrough checks every page.
 - No clock or randomness leaks: fixed seed, injected "today".

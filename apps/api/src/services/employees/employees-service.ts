@@ -13,7 +13,7 @@ import {
 } from "@paywise/shared";
 import { inTransaction, type Db } from "../../config/db";
 import type { Clock } from "../../utils/helpers/clock";
-import { AppError, conflict, invalid, mapDbError, notFound } from "../../utils/helpers/errors";
+import { conflict, mapDbError, notFound, invalid } from "../../utils/helpers/errors";
 import * as repo from "./employees-repository";
 import { toEmployeeDetail, toEmployeeSummary } from "../../utils/helpers/dto";
 
@@ -175,8 +175,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
         // a value they never saw (SCHEMA_REVIEW F1).
         const head = await repo.timelineHead(tx, id);
         if (input.basedOnRevisionId && head && input.basedOnRevisionId !== head.id) {
-          throw new AppError(
-            409,
+          throw conflict(
             "stale_salary",
             "Someone else changed this salary since you opened it; reload and try again",
           );

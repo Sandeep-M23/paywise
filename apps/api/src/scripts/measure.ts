@@ -8,12 +8,16 @@ import { autoMapColumns, unescapeCsvCell, type ImportRequest } from "@paywise/sh
 
 const base = process.env.BASE_URL ?? "http://localhost:4000";
 const runs = 7;
-let cookie = "";
+let token = "";
 
 async function call(path: string, init: RequestInit = {}) {
   const res = await fetch(`${base}/api${path}`, {
     ...init,
-    headers: { "content-type": "application/json", cookie, ...init.headers },
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
   });
   if (!res.ok) throw new Error(`${path}: ${res.status} ${await res.text()}`);
   return res;
@@ -37,7 +41,7 @@ const login = await call("/auth/login", {
   method: "POST",
   body: JSON.stringify({ email: process.env.HR_EMAIL, password: process.env.HR_PASSWORD }),
 });
-cookie = login.headers.get("set-cookie")!.split(";")[0]!;
+token = ((await login.json()) as { data: { authToken: string } }).data.authToken;
 
 await time("List page 1 (25 rows, default sort)", () => call("/employees"));
 await time("List sorted by salary, page 200", () =>

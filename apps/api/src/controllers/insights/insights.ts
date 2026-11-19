@@ -1,51 +1,52 @@
-import type { Context } from "hono";
+import type { Request, Response } from "express";
 import {
-  fairnessQuerySchema,
   findCountry,
-  raiseCostRequestSchema,
   type CountryCode,
+  type FairnessQuery,
+  type RaiseCostRequest,
 } from "@paywise/shared";
-import { notFound } from "../../utils/helpers/errors";
-import { distributionQuery } from "../../validators/insights";
-import { parseBody, parseQuery } from "../../validators/validate";
 import type { FairnessService } from "../../services/fairness/fairness-service";
 import type { InsightsService } from "../../services/insights/insights-service";
+import { notFound } from "../../utils/helpers/errors";
+import { asyncHandler } from "../../utils/helpers/http-response";
+import type { DistributionQuery } from "../../validators/insights";
 
-function countryParam(c: Context): CountryCode {
-  const country = findCountry(c.req.param("code") ?? "");
+function countryParam(req: Request): CountryCode {
+  const country = findCountry(req.params.code ?? "");
   if (!country) throw notFound("Country");
   return country.code;
 }
 
 export function insightsController(service: InsightsService, fairness: FairnessService) {
   return {
-    async outliers(c: Context) {
-      return c.json(await fairness.outliers(parseQuery(c, fairnessQuerySchema)));
-    },
+    outliers: asyncHandler(async (req: Request, res: Response) => {
+      res.json(await fairness.outliers(req.query as unknown as FairnessQuery));
+    }, "outliers"),
 
-    async genderGaps(c: Context) {
-      return c.json(await fairness.genderGaps(parseQuery(c, fairnessQuerySchema)));
-    },
+    genderGaps: asyncHandler(async (req: Request, res: Response) => {
+      res.json(await fairness.genderGaps(req.query as unknown as FairnessQuery));
+    }, "genderGaps"),
 
-    async raiseCost(c: Context) {
-      return c.json(await fairness.raiseCost(await parseBody(c, raiseCostRequestSchema)));
-    },
+    raiseCost: asyncHandler(async (req: Request, res: Response) => {
+      const request: RaiseCostRequest = req.body;
+      res.json(await fairness.raiseCost(request));
+    }, "raiseCost"),
 
-    async countries(c: Context) {
-      return c.json(await service.countrySummaries());
-    },
+    countries: asyncHandler(async (_req: Request, res: Response) => {
+      res.json(await service.countrySummaries());
+    }, "countries"),
 
-    async jobTitles(c: Context) {
-      return c.json(await service.jobTitles(countryParam(c)));
-    },
+    jobTitles: asyncHandler(async (req: Request, res: Response) => {
+      res.json(await service.jobTitles(countryParam(req)));
+    }, "jobTitles"),
 
-    async departments(c: Context) {
-      return c.json(await service.departments(countryParam(c)));
-    },
+    departments: asyncHandler(async (req: Request, res: Response) => {
+      res.json(await service.departments(countryParam(req)));
+    }, "departments"),
 
-    async distribution(c: Context) {
-      const { buckets } = parseQuery(c, distributionQuery);
-      return c.json(await service.distribution(countryParam(c), buckets));
-    },
+    distribution: asyncHandler(async (req: Request, res: Response) => {
+      const { buckets } = req.query as unknown as DistributionQuery;
+      res.json(await service.distribution(countryParam(req), buckets));
+    }, "distribution"),
   };
 }

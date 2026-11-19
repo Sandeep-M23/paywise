@@ -1,16 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app";
+import { serve, type TestServer } from "./http";
 import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
 let testDb: Awaited<ReturnType<typeof createTestDb>>;
-let app: ReturnType<typeof createApp>;
+let app: TestServer;
 
 beforeAll(async () => {
   testDb = await createTestDb();
-  app = createApp({ db: testDb.db, clock: fixedClock("2026-06-30"), auth: "disabled" });
+  app = await serve(
+    createApp({ db: testDb.db, clock: fixedClock("2026-06-30"), auth: "disabled" }),
+  );
 });
-afterAll(() => testDb.close());
+afterAll(async () => {
+  await app.close();
+  await testDb.close();
+});
 
 describe("insight routes", () => {
   it("accepts lower-case country codes", async () => {

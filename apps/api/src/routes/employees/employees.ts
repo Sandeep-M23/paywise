@@ -1,15 +1,51 @@
-import { Hono } from "hono";
+import { Router, type RequestHandler } from "express";
 import { employeeController } from "../../controllers/employees/employees";
 import type { EmployeeService } from "../../services/employees/employees-service";
+import * as employeeValidator from "../../validators/employees";
 
-export function employeeRoutes(service: EmployeeService) {
+export function employeeRoutes(service: EmployeeService, verifyAccessToken: RequestHandler) {
+  const router = Router();
   const controller = employeeController(service);
-  return new Hono()
-    .get("/", controller.list)
-    .post("/", controller.create)
-    .post("/raises", controller.applyRaises)
-    .get("/:id", controller.get)
-    .patch("/:id", controller.update)
-    .post("/:id/deactivate", controller.deactivate)
-    .post("/:id/salary-revisions", controller.changeSalary);
+
+  router.get("/", verifyAccessToken, employeeValidator.validateListEmployeesQuery, controller.list);
+
+  router.post(
+    "/",
+    verifyAccessToken,
+    employeeValidator.validateCreateEmployeeBody,
+    controller.create,
+  );
+
+  // Before /:id, so "raises" is never read as an id.
+  router.post(
+    "/raises",
+    verifyAccessToken,
+    employeeValidator.validateApplyRaisesBody,
+    controller.applyRaises,
+  );
+
+  router.get("/:id", verifyAccessToken, controller.get);
+
+  router.patch(
+    "/:id",
+    verifyAccessToken,
+    employeeValidator.validateUpdateEmployeeBody,
+    controller.update,
+  );
+
+  router.post(
+    "/:id/deactivate",
+    verifyAccessToken,
+    employeeValidator.validateDeactivateEmployeeBody,
+    controller.deactivate,
+  );
+
+  router.post(
+    "/:id/salary-revisions",
+    verifyAccessToken,
+    employeeValidator.validateChangeSalaryBody,
+    controller.changeSalary,
+  );
+
+  return router;
 }

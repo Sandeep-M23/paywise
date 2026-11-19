@@ -1,27 +1,27 @@
+import createError, { type HttpError } from "http-errors";
+
 export type ErrorDetail = { path: string; message: string };
 
+/** An http-errors error plus the stable `code` (and field details) the web app reads. */
+export type ApiHttpError = HttpError & { code: string; details?: ErrorDetail[] };
+
 /** An expected failure that maps directly to an HTTP response. */
-export class AppError extends Error {
-  constructor(
-    readonly status: 400 | 401 | 404 | 409 | 413 | 422,
-    readonly code: string,
-    message: string,
-    readonly details?: ErrorDetail[],
-  ) {
-    super(message);
-    this.name = "AppError";
-  }
-}
+export const httpError = (status: number, code: string, message: string, details?: ErrorDetail[]) =>
+  createError(status, message, { code, details }) as ApiHttpError;
 
-export const notFound = (what: string) => new AppError(404, "not_found", `${what} not found`);
+// Duck-typed by http-errors itself, so errors from express.json()'s own copy of the package count too.
+export const isHttpError = (error: unknown): error is ApiHttpError =>
+  createError.isHttpError(error);
 
-export const conflict = (code: string, message: string) => new AppError(409, code, message);
+export const notFound = (what: string) => httpError(404, "not_found", `${what} not found`);
+
+export const conflict = (code: string, message: string) => httpError(409, code, message);
 
 export const invalid = (path: string, message: string) =>
-  new AppError(422, "validation_failed", message, [{ path, message }]);
+  httpError(422, "validation_failed", message, [{ path, message }]);
 
 const UNIQUE_VIOLATION = "23505";
-const CONSTRAINT_ERRORS: Record<string, () => AppError> = {
+const CONSTRAINT_ERRORS: Record<string, () => ApiHttpError> = {
   employees_code_unique: () => conflict("duplicate_employee_code", "Employee code already exists"),
   employees_email_unique: () => conflict("duplicate_email", "Email already belongs to an employee"),
   salary_revisions_one_original_per_date: () =>

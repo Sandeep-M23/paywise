@@ -1,8 +1,12 @@
-import { Hono } from "hono";
+import { Router, type RequestHandler } from "express";
 import { metaController } from "../../controllers/meta/meta";
 import type { InsightsService } from "../../services/insights/insights-service";
 
-export function metaRoutes(service: InsightsService) {
+export function metaRoutes(service: InsightsService, verifyAccessToken: RequestHandler) {
+  const router = Router();
   const controller = metaController(service);
-  return new Hono().get("/filters", controller.filters);
+
+  router.get("/filters", verifyAccessToken, controller.filters);
+
+  return router;
 }

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ApiErrorBody, EmployeeDetail, Page, EmployeeSummary } from "@paywise/shared";
 import { createApp } from "../src/app";
+import { serve, type TestServer } from "./http";
 import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
@@ -17,14 +18,19 @@ const body = {
 };
 
 let testDb: Awaited<ReturnType<typeof createTestDb>>;
-let app: ReturnType<typeof createApp>;
+let app: TestServer;
 
 beforeAll(async () => {
   testDb = await createTestDb();
-  app = createApp({ db: testDb.db, clock: fixedClock("2026-06-30"), auth: "disabled" });
+  app = await serve(
+    createApp({ db: testDb.db, clock: fixedClock("2026-06-30"), auth: "disabled" }),
+  );
 });
 beforeEach(() => testDb.reset());
-afterAll(() => testDb.close());
+afterAll(async () => {
+  await app.close();
+  await testDb.close();
+});
 
 const send = (method: string, path: string, json?: unknown) =>
   app.request(`/api${path}`, {

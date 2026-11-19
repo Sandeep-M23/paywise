@@ -1,15 +1,14 @@
-import type { Context } from "hono";
+import type { Request, Response } from "express";
 import type { ExportService } from "../../services/exports/exports-service";
-import { csvResponse } from "../../utils/helpers/http-response";
-import { exportFilters } from "../../validators/exports";
-import { parseQuery } from "../../validators/validate";
+import { asyncHandler, sendCsv } from "../../utils/helpers/http-response";
+import type { ExportFilters } from "../../validators/exports";
 
 export function exportController(exports: ExportService) {
   return {
-    async employees(c: Context) {
-      const csv = await exports.employeesCsv(parseQuery(c, exportFilters));
+    employees: asyncHandler(async (req: Request, res: Response) => {
+      const csv = await exports.employeesCsv(req.query as unknown as ExportFilters);
       const date = new Date().toISOString().slice(0, 10);
-      return csvResponse(csv, `paywise-employees-${date}.csv`);
-    },
+      sendCsv(res, csv, `paywise-employees-${date}.csv`);
+    }, "exportEmployees"),
   };
 }

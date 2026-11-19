@@ -22,7 +22,7 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 | [PLAN.md](PLAN.md)                           | Plan of action: priorities (P0/P1/P2), design decisions, build sequence, timeline, status                  |
 | [docs/DESIGN.md](docs/DESIGN.md)             | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions   |
 | [docs/API.md](docs/API.md)                   | HTTP contract: every endpoint, payloads, errors; built vs planned                                          |
-| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication, CSRF, rate limiting, logging, assumptions and limits                         |
+| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication (JWT), rate limiting, logging, assumptions and limits                         |
 | [docs/TRADEOFFS.md](docs/TRADEOFFS.md)       | Decisions and what they cost                                                                               |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md)   | Measured timings on the 10k dataset and what changed because of them                                       |
 | [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)     | How AI was used, and where its output was wrong and corrected                                              |
@@ -30,17 +30,17 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 ## Stack
 
-|        |                                                                                                                              |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| API    | Node 24, TypeScript, **Hono**, **PostgreSQL** via `pg` + **Sequelize** (as in our other backends)                            |
-| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** (server state), **Jotai** (UI state), **Recharts** |
-| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                             |
-| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker), reached by Sequelize over `pglite-socket`    |
-| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                         |
+|        |                                                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| API    | Node 24, TypeScript, **Express**, `http-errors`, JWT Bearer auth, **PostgreSQL** via `pg` + **Sequelize** (as in our other backends) |
+| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** (server state), **Jotai** (UI state), **Recharts**         |
+| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                                     |
+| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker), reached by Sequelize over `pglite-socket`            |
+| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                                 |
 
 ```
-apps/api         Hono API: routes -> controllers -> services -> repositories, seed, migrations
-apps/web         Next.js app: Block/Shared components, utils/apis per feature; /api/* is proxied to the API
+apps/api         Express API: routes -> controllers -> services -> repositories, seed, migrations
+apps/web         Next.js app (src/): app, components/<feature>, hooks, context, lib; /api/* is proxied to the API
 packages/shared  Code both sides must agree on
 docs/            Requirements, research, design, trade-offs, performance, AI log
 ```
@@ -55,7 +55,7 @@ docker compose up -d db                     # Postgres on localhost:5433
 
 cp apps/api/.env.example apps/api/.env       # DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 npm run hash-password -w @paywise/api -- 'choose-a-password'   # paste into HR_PASSWORD_HASH
-# also set SESSION_SECRET (e.g. `openssl rand -base64 48`)
+# also set JWT_ACCESS_SECRET (e.g. `openssl rand -base64 48`)
 
 npm run db:sync -w @paywise/api              # tables from the models + config/schema.sql
 npm run db:seed -w @paywise/api             # 10,000 employees in ~1 s

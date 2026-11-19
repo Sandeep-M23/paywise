@@ -13,7 +13,7 @@
 
 ## 0. Revision 2: change summary
 
-**Kept (sound decisions, now with evidence from the build):** Hono + PostgreSQL, Next.js + shadcn + TanStack Query + Jotai, Vitest + PGlite; routes → controllers → services → repositories; Stripe-style integer money; append-only revisions under a row lock; import matched by `employee_code`, stateless preview, all-or-nothing commit of valid rows; statistics in SQL (`percentile_cont` = Excel `PERCENTILE.INC`); small-group suppression; the web app proxying `/api/*` so the session cookie is first-party; deterministic seed with planted patterns.
+**Kept (sound decisions, now with evidence from the build):** Hono (replaced by Express in rev 2.2, to match our other backends) + PostgreSQL, Next.js + shadcn + TanStack Query + Jotai, Vitest + PGlite; routes → controllers → services → repositories; Stripe-style integer money; append-only revisions under a row lock; import matched by `employee_code`, stateless preview, all-or-nothing commit of valid rows; statistics in SQL (`percentile_cont` = Excel `PERCENTILE.INC`); small-group suppression; the web app proxying `/api/*` so the session cookie is first-party; deterministic seed with planted patterns.
 
 **Contradictions resolved:**
 
@@ -44,13 +44,13 @@ More than 150 candidates build the same baseline (list, CRUD, averages, seed). W
 
 | Area         | Choice                                                                                                                                                       | Notes                                                                                                               |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
-| Backend      | **Node.js + TypeScript**, **Hono**                                                                                                                           | Small, typed, runs natively as a Vercel Function. Validates requests with Zod.                                      |
+| Backend      | **Node.js + TypeScript**, **Express 4** + `http-errors`, as in our other backends (rev 2.2 replaces Hono)                                                    | One Vercel Function (the app is the handler). Validates requests with the shared Zod schemas.                       |
 | Data access  | **Sequelize** (`pg` driver), as in the Outbox backends: PascalCase models for CRUD; `sequelize.query` with **named replacements** for analytics and bulk SQL | Rev 2.1 replaces Drizzle. Statistics stay hand-written SQL (`percentile_cont`, `UPDATE … FROM (VALUES …)`).         |
 | Database     | **PostgreSQL**, any host reachable from Vercel, configured by `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSL`; Docker locally    | Rev 2.1 drops Neon. Options: Supabase, Railway, Render, AWS RDS (§3.11).                                            |
 | Frontend     | **Next.js (App Router) + shadcn/ui + TailwindCSS + Recharts**                                                                                                | Virtualised, infinite directory over server pagination.                                                             |
 | Client state | **TanStack Query** (server state), **URL** (directory filters), **Jotai** (transient UI state)                                                               | Filters in the URL are shareable and reloadable.                                                                    |
 | CSV          | **Papa Parse** in the browser for an instant preview + a small serializer for export                                                                         | The server re-validates everything; it never trusts the client.                                                     |
-| Deploy       | **Vercel**: two projects (web, API) from one monorepo + a managed Postgres. The web app proxies `/api/*`                                                     | First-party cookie, no CORS. Trade-off vs one project in §3.10.                                                     |
+| Deploy       | **Vercel**: two projects (web, API) from one monorepo + a managed Postgres. The web app proxies `/api/*`                                                     | One origin by default; Bearer auth needs no first-party cookie. Trade-off vs one project in §3.10.                  |
 | Money        | **Stripe-style:** integer amount in the **smallest currency unit** + lowercase ISO 4217 code                                                                 | Exponent table: 0 (JPY), 2 (default), 3 (BHD, KWD, OMR).                                                            |
 | Tests        | **Vitest**, **PGlite** served over `@electric-sql/pglite-socket` so Sequelize connects to it like a server; React Testing Library + MSW                      | Fast and deterministic; no Docker for unit and service tests. Concurrency tests need real Postgres (`TEST_PG_URL`). |
 | Tooling      | npm workspaces (`@paywise/api`, `@paywise/web`, `@paywise/shared`), ESLint, Prettier, `tsc --noEmit`, GitHub Actions CI                                      | One gate (`npm run check`) locally and in CI.                                                                       |
@@ -241,19 +241,19 @@ The "How to read this" panel shows the formulas with a worked example.
 
 ### 3.8 Security and authentication
 
-| Area             | Decision                                                                                                                                                                                      | Status             |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| Passwords        | scrypt (salted) hash in env; `timingSafeEqual`; the hash runs even for an unknown email                                                                                                       | Built              |
-| Session          | Signed (HMAC) cookie: `HttpOnly`, `Secure` in production, `SameSite=Lax`, `Path=/`, 8-hour expiry; first-party via the `/api` proxy                                                           | Built              |
-| CSRF             | `SameSite=Lax` blocks cross-site POSTs carrying the cookie; **plus** reject state-changing requests whose `Origin` (or `Sec-Fetch-Site`) isn't the app's own, and require `application/json`  | Origin check to do |
-| Authentication   | Middleware on every route except `/api/health` and `/api/auth/login`; the cron route uses `CRON_SECRET` instead                                                                               | Built              |
-| Authorization    | `authorize(actor, action)` in services for sensitive actions (salary change, currency override, import, raise apply, deactivate, audit read). One role (`hr_admin`) in v1; the seam is tested | To do              |
-| Login rate limit | 5 failures per email+IP per 15 minutes → 429 with `Retry-After`; counters in Postgres (`login_attempts`), not in memory (serverless instances don't share memory)                             | To do              |
-| Logs             | Structured: method, route, status, duration, request id. Never bodies, salaries or cookies; errors logged by code and stack only                                                              | To do (redaction)  |
-| Headers          | CSP, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` from Next.js config                                                                                       | To do              |
-| Data             | Synthetic seed only in every environment; reviewer credentials shared out of band                                                                                                             | Built              |
+| Area             | Decision                                                                                                                                                                                      | Status            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| Passwords        | scrypt (salted) hash in env; `timingSafeEqual`; the hash runs even for an unknown email                                                                                                       | Built             |
+| Session          | JWT (HS256, 8-hour expiry) from `POST /auth/login`, kept in `localStorage` and sent as `Authorization: Bearer` (rev 2.2 replaces the signed cookie, as in our other apps)                     | Built             |
+| CSRF             | Not applicable: the browser never attaches the Bearer token by itself                                                                                                                         | Built             |
+| Authentication   | Middleware on every route except `/api/health` and `/api/auth/login`; the cron route uses `CRON_SECRET` instead                                                                               | Built             |
+| Authorization    | `authorize(actor, action)` in services for sensitive actions (salary change, currency override, import, raise apply, deactivate, audit read). One role (`hr_admin`) in v1; the seam is tested | To do             |
+| Login rate limit | 5 failures per email+IP per 15 minutes → 429 with `Retry-After`; counters in Postgres (`login_attempts`), not in memory (serverless instances don't share memory)                             | To do             |
+| Logs             | Structured: method, route, status, duration, request id. Never bodies, salaries or cookies; errors logged by code and stack only                                                              | To do (redaction) |
+| Headers          | CSP, `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` from Next.js config                                                                                       | To do             |
+| Data             | Synthetic seed only in every environment; reviewer credentials shared out of band                                                                                                             | Built             |
 
-Assumptions and limits (single shared account, no server-side session revocation other than rotating `SESSION_SECRET`, audit not tamper-proof against the DB owner) are in `docs/SECURITY.md`.
+Assumptions and limits (single shared account, no server-side token revocation other than rotating `JWT_ACCESS_SECRET`, audit not tamper-proof against the DB owner) are in `docs/SECURITY.md`.
 
 ### 3.9 Ask Paywise (P1): controlled analytics queries
 
@@ -284,9 +284,9 @@ question ──► parser (pure, shared) ──► QueryPlan (Zod-validated) ─
 ### 3.10 Architecture, transactions and deployment
 
 ```
-Next.js (Vercel project 1) ── same-origin /api/* rewrite ──► Hono API (Vercel project 2, one Function)
+Next.js (Vercel project 1) ── same-origin /api/* rewrite ──► Express API (Vercel project 2, one Function)
   shadcn + Tailwind + Recharts                                routes → controllers → services → repositories
-  TanStack Query (server state) · URL (filters) · Jotai (UI)    │ middlewares: auth, origin check, body limit, errors
+  TanStack Query (server state) · URL (filters) · Jotai (UI)    │ middlewares: JWT auth, Zod validators, body limit, errors
   Papa Parse (import preview)                                   └► PostgreSQL (any host, pooled) ◄── Vercel Cron: promote-due
 packages/shared: Zod schemas, DTO types, money, CSV helpers, countries/currencies, Ask Paywise parser
 ```
@@ -295,10 +295,10 @@ packages/shared: Zod schemas, DTO types, money, CSV helpers, countries/currencie
 
 **Separate Vercel projects vs one Next.js deployment:**
 
-| Option                                             | For                                                                                                                 | Against                                                                                                                 |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Two projects** (chosen): web proxies `/api/*`    | API testable and deployable without Next; clear layering for reviewers; API cold starts don't affect page rendering | Two deploys and env sets; an extra proxy hop (~ms); versions must stay in step                                          |
-| One project (Hono mounted in a Next route handler) | One deploy, no proxy hop, shared env                                                                                | Couples the API to Next's runtime and build; weaker separation; the API's tests and bundle get tangled with the web app |
+| Option                                            | For                                                                                                                 | Against                                                                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Two projects** (chosen): web proxies `/api/*`   | API testable and deployable without Next; clear layering for reviewers; API cold starts don't affect page rendering | Two deploys and env sets; an extra proxy hop (~ms); versions must stay in step                                          |
+| One project (API mounted in a Next route handler) | One deploy, no proxy hop, shared env                                                                                | Couples the API to Next's runtime and build; weaker separation; the API's tests and bundle get tangled with the web app |
 
 Both keep one browser origin. We keep two projects; the rewrite makes switching later a configuration change.
 

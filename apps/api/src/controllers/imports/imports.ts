@@ -1,36 +1,35 @@
-import type { Context } from "hono";
-import type { ImportContext } from "../../interfaces/controllers/imports";
+import type { Request, Response } from "express";
 import { z } from "zod";
-import { importRequestSchema } from "@paywise/shared";
+import type { ImportRequest } from "@paywise/shared";
 import type { ExportService } from "../../services/exports/exports-service";
-import { csvResponse } from "../../utils/helpers/http-response";
-import { notFound } from "../../utils/helpers/errors";
-import { parseBody } from "../../validators/validate";
 import type { ImportService } from "../../services/imports/imports-service";
+import { notFound } from "../../utils/helpers/errors";
+import { asyncHandler, sendCsv } from "../../utils/helpers/http-response";
 
 export function importController(service: ImportService, exports: ExportService) {
   return {
-    async list(c: Context) {
-      return c.json(await service.list());
-    },
+    list: asyncHandler(async (_req: Request, res: Response) => {
+      res.json(await service.list());
+    }, "listImports"),
 
-    template() {
-      return csvResponse(exports.templateCsv(), "paywise-import-template.csv");
-    },
+    template: asyncHandler(async (_req: Request, res: Response) => {
+      sendCsv(res, exports.templateCsv(), "paywise-import-template.csv");
+    }, "importTemplate"),
 
-    async get(c: Context) {
-      const id = z.uuid().safeParse(c.req.param("id"));
+    get: asyncHandler(async (req: Request, res: Response) => {
+      const id = z.uuid().safeParse(req.params.id);
       if (!id.success) throw notFound("Import");
-      return c.json(await service.get(id.data));
-    },
+      res.json(await service.get(id.data));
+    }, "getImport"),
 
-    async preview(c: Context) {
-      return c.json(await service.preview(await parseBody(c, importRequestSchema)));
-    },
+    preview: asyncHandler(async (req: Request, res: Response) => {
+      const request: ImportRequest = req.body;
+      res.json(await service.preview(request));
+    }, "previewImport"),
 
-    async commit(c: ImportContext) {
-      const request = await parseBody(c, importRequestSchema);
-      return c.json(await service.commit(request, { by: c.get("userEmail") }), 201);
-    },
+    commit: asyncHandler(async (req: Request, res: Response) => {
+      const request: ImportRequest = req.body;
+      res.status(201).json(await service.commit(request, { by: req.user?.email }));
+    }, "commitImport"),
   };
 }

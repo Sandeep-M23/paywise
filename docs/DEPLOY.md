@@ -32,7 +32,7 @@ Environment variables:
 | `DB_SSL`                                                          | `true` for hosted Postgres                                        |
 | `HR_EMAIL`                                                        | the HR sign-in email                                              |
 | `HR_PASSWORD_HASH`                                                | output of `npm run hash-password -w @paywise/api -- '<password>'` |
-| `SESSION_SECRET`                                                  | `openssl rand -base64 48`                                         |
+| `JWT_ACCESS_SECRET`                                               | `openssl rand -base64 48`                                         |
 
 Check: `https://<api-project>.vercel.app/api/health` → `{"ok":true}`.
 
@@ -46,7 +46,7 @@ New Vercel project → same repo:
 | Framework Preset | Next.js    |
 | Node.js version  | 24.x       |
 
-Environment variable: `API_URL` = `https://<api-project>.vercel.app` (no trailing slash). The web app proxies `/api/*` there, so the browser only ever talks to the web domain and the session cookie is first-party.
+Environment variable: `API_URL` = `https://<api-project>.vercel.app` (no trailing slash). The web app proxies `/api/*` there, so the browser only ever talks to the web domain. (Auth is a Bearer token, so calling the API domain directly with `NEXT_PUBLIC_BACKEND_API_URL` also works.)
 
 ## 4. Smoke test
 

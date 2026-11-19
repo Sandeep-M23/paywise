@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { EmployeeCreateInput } from "@paywise/shared";
 import { createEmployeeService } from "../src/services/employees/employees-service";
-import { AppError } from "../src/utils/helpers/errors";
+import { isHttpError, type ApiHttpError } from "../src/utils/helpers/errors";
 import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
@@ -30,14 +30,14 @@ beforeAll(async () => {
 beforeEach(() => testDb.reset());
 afterAll(() => testDb.close());
 
-async function expectAppError(promise: Promise<unknown>, status: number, code?: string) {
+async function expectHttpError(promise: Promise<unknown>, status: number, code?: string) {
   const error = await promise.then(
     () => null,
     (e: unknown) => e,
   );
-  expect(error).toBeInstanceOf(AppError);
-  expect((error as AppError).status).toBe(status);
-  if (code) expect((error as AppError).code).toBe(code);
+  expect(isHttpError(error)).toBe(true);
+  expect((error as ApiHttpError).status).toBe(status);
+  if (code) expect((error as ApiHttpError).code).toBe(code);
 }
 
 describe("create", () => {
@@ -62,7 +62,7 @@ describe("create", () => {
 
   it("rejects a duplicate employee code", async () => {
     await service.create(priya);
-    await expectAppError(
+    await expectHttpError(
       service.create({ ...priya, email: "other@acme.test" }),
       409,
       "duplicate_employee_code",
@@ -71,7 +71,7 @@ describe("create", () => {
 
   it("rejects a duplicate email regardless of case", async () => {
     await service.create(priya);
-    await expectAppError(
+    await expectHttpError(
       service.create({ ...priya, employeeCode: "EMP-00002", email: "PRIYA.SHARMA@acme.test" }),
       409,
       "duplicate_email",
@@ -89,8 +89,8 @@ describe("create", () => {
 
 describe("get", () => {
   it("returns 404 for an unknown or malformed id", async () => {
-    await expectAppError(service.get("8f6a3a8e-3c43-4b8e-9b0a-2b7f5f9a1c11"), 404);
-    await expectAppError(service.get("not-a-uuid"), 404);
+    await expectHttpError(service.get("8f6a3a8e-3c43-4b8e-9b0a-2b7f5f9a1c11"), 404);
+    await expectHttpError(service.get("not-a-uuid"), 404);
   });
 
   it("includes gender on the detail view", async () => {
@@ -123,7 +123,7 @@ describe("changeSalary", () => {
 
   it("rejects an effective date before the hire date", async () => {
     const { id } = await service.create(priya);
-    await expectAppError(
+    await expectHttpError(
       service.changeSalary(id, { amount: 200_000_000, effectiveOn: "2022-03-31", reason: "merit" }),
       422,
     );
@@ -151,7 +151,7 @@ describe("changeSalary", () => {
       effectiveOn: "2026-04-01",
       reason: "merit",
     });
-    await expectAppError(
+    await expectHttpError(
       service.changeSalary(id, { amount: 210_000_000, effectiveOn: "2025-04-01", reason: "merit" }),
       422,
     );
@@ -159,7 +159,7 @@ describe("changeSalary", () => {
 
   it("rejects a change to the same amount", async () => {
     const { id } = await service.create(priya);
-    await expectAppError(
+    await expectHttpError(
       service.changeSalary(id, { amount: 180_000_000, effectiveOn: TODAY, reason: "merit" }),
       422,
     );
@@ -168,7 +168,7 @@ describe("changeSalary", () => {
   it("rejects a change for an inactive employee", async () => {
     const { id } = await service.create(priya);
     await service.deactivate(id, { reason: "Resigned" });
-    await expectAppError(
+    await expectHttpError(
       service.changeSalary(id, { amount: 200_000_000, effectiveOn: TODAY, reason: "merit" }),
       409,
     );
@@ -189,7 +189,7 @@ describe("update", () => {
       employeeCode: "EMP-00002",
       email: "arjun@acme.test",
     });
-    await expectAppError(service.update(other.id, { email: priya.email }), 409, "duplicate_email");
+    await expectHttpError(service.update(other.id, { email: priya.email }), 409, "duplicate_email");
   });
 
   it("moves the hire revision when the hire date is corrected", async () => {
@@ -207,7 +207,7 @@ describe("update", () => {
       effectiveOn: "2023-04-01",
       reason: "merit",
     });
-    await expectAppError(service.update(id, { hireDate: "2023-05-01" }), 422);
+    await expectHttpError(service.update(id, { hireDate: "2023-05-01" }), 422);
   });
 });
 
@@ -222,7 +222,7 @@ describe("deactivate", () => {
   it("rejects deactivating twice", async () => {
     const { id } = await service.create(priya);
     await service.deactivate(id, { reason: "Resigned" });
-    await expectAppError(service.deactivate(id, { reason: "Again" }), 409);
+    await expectHttpError(service.deactivate(id, { reason: "Again" }), 409);
   });
 });
 
@@ -380,7 +380,7 @@ describe("applyRaises", () => {
       reason: "promotion",
     });
 
-    await expectAppError(
+    await expectHttpError(
       service.applyRaises({
         percent: 10,
         country: "IN",
@@ -405,7 +405,7 @@ describe("applyRaises", () => {
   });
 
   it("rejects an individual raise that is not above the current salary", async () => {
-    await expectAppError(
+    await expectHttpError(
       service.applyRaises({
         overrides: [{ employeeId: ids.anna, newAmount: 5_000_000 }],
         ...when,
@@ -416,7 +416,7 @@ describe("applyRaises", () => {
 
   it("rejects individual raises for inactive people", async () => {
     await service.deactivate(ids.anna, { reason: "Resigned" });
-    await expectAppError(
+    await expectHttpError(
       service.applyRaises({ overrides: [{ employeeId: ids.anna, percent: 5 }], ...when }),
       422,
     );

@@ -8,19 +8,23 @@ import {
   type ImportRequest,
 } from "@paywise/shared";
 import { createApp } from "../src/app";
+import { serve, type TestServer } from "./http";
 import { fixedClock } from "../src/utils/helpers/clock";
 import { createEmployeeService } from "../src/services/employees/employees-service";
 import { createTestDb } from "./db";
 
 const clock = fixedClock("2026-06-30");
 let testDb: Awaited<ReturnType<typeof createTestDb>>;
-let app: ReturnType<typeof createApp>;
+let app: TestServer;
 
 beforeAll(async () => {
   testDb = await createTestDb();
-  app = createApp({ db: testDb.db, clock, auth: "disabled" });
+  app = await serve(createApp({ db: testDb.db, clock, auth: "disabled" }));
 });
-afterAll(() => testDb.close());
+afterAll(async () => {
+  await app.close();
+  await testDb.close();
+});
 
 const people: EmployeeCreateInput[] = [
   {
