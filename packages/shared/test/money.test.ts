@@ -6,7 +6,7 @@ import {
   formatMoneyParts,
   parseMoneyInput,
   toMajorString,
-} from "./money";
+} from "../src/money";
 
 describe("currencyExponent", () => {
   it("defaults to 2 decimal places", () => {

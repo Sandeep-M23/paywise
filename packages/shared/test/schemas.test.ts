@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { COUNTRIES, currencyForCountry } from "./countries";
+import { COUNTRIES, currencyForCountry } from "../src/countries";
 import {
   loginSchema,
   salaryRevisionFieldsSchema,
@@ -12,7 +12,7 @@ import {
   raiseApplySchema,
   raisePlanSchema,
   salaryRevisionCreateSchema,
-} from "./schemas";
+} from "../src/schemas";
 
 const validEmployee = {
   employeeCode: "EMP-00001",

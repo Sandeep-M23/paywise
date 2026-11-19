@@ -28,6 +28,7 @@ Names: kebab-case for files and folders; camelCase for variables; PascalCase for
 ## Workflow
 
 - **Test first** for `packages/shared` and services: commit `test:` and then `feat:`, or one commit that contains both, with the test visible.
+- Tests live in a `test/` folder per workspace (`apps/api/test/`, `packages/shared/test/`), never beside the code in `src/`; name them `<feature>.<layer>.test.ts` in the API.
 - Tests must be fast and deterministic: no network, no real clock (inject `today`), no unseeded randomness, small hand-computed fixtures.
 - Conventional Commits (`feat(api): …`, `test(shared): …`, `docs: …`). Keep commits small and focused.
 - Run `npm run typecheck && npm test` before every commit.

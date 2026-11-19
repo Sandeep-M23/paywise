@@ -7,7 +7,7 @@ import {
   toCsv,
   unescapeCsvCell,
   escapeCsvCell,
-} from "./csv";
+} from "../src/csv";
 
 describe("autoMapColumns", () => {
   it("matches common header spellings to fields", () => {

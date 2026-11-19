@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { COUNTRY_CODES, employeeCreateSchema } from "@paywise/shared";
-import { generateEmployees, type SeedEmployee } from "./generate";
+import { generateEmployees, type SeedEmployee } from "../src/scripts/seed/generate";
 
 const TODAY = "2026-06-30";
 const people = generateEmployees({ count: 3000, seed: 42, today: TODAY });

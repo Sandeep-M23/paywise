@@ -38,4 +38,4 @@ Generation is a pure function, `generateEmployees({ count, seed, today })` in `a
 
 Three-decimal currencies (BHD, KWD) aren't seeded (no seeded country uses them); they're covered by unit tests. The seed writes no audit entries: it's a data load, not user activity, and the runner truncates everything first.
 
-Tests in `generate.test.ts` assert these patterns exist, so a change to the generator can't silently remove them.
+Tests in `apps/api/test/seed.generate.test.ts` assert these patterns exist, so a change to the generator can't silently remove them.

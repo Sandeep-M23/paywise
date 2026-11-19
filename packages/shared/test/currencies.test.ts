@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { COUNTRIES } from "./countries";
-import { CURRENCY_CODES, isSupportedCurrency } from "./currencies";
-import { currencyExponent, formatMoney, parseMoneyInput, toMajorString } from "./money";
-import { currencySchema } from "./schemas";
+import { COUNTRIES } from "../src/countries";
+import { CURRENCY_CODES, isSupportedCurrency } from "../src/currencies";
+import { currencyExponent, formatMoney, parseMoneyInput, toMajorString } from "../src/money";
+import { currencySchema } from "../src/schemas";
 
 describe("supported currencies", () => {
   it("include every country's default and the three-decimal overrides", () => {
