@@ -42,7 +42,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ApiError } from "@/utils/services";
 import { useEmployeeSearch } from "@/utils/apis/employees";
-import { humanize, money } from "@/utils/helpers/others/format";
+import { date, humanize, money } from "@/utils/helpers/others/format";
 import { useClientNow } from "@/hooks/useClientNow";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useApplyRaises, useRaiseCost } from "@/utils/apis/raises";
@@ -134,7 +134,9 @@ export function RaisePlanner() {
       setIndividuals([]);
       setNote("");
       toast.success(
-        `Raised ${result.applied.toLocaleString()} salaries` +
+        (result.scheduled
+          ? `Scheduled ${result.applied.toLocaleString()} raises from ${date(effectiveOn)}`
+          : `Raised ${result.applied.toLocaleString()} salaries`) +
           (result.skipped ? ` (${result.skipped} too small to change)` : ""),
       );
     } catch (e) {
@@ -378,11 +380,18 @@ export function RaisePlanner() {
 
           <div className="flex flex-col gap-3 border-t pt-4">
             <div className="grid grid-cols-2 gap-3">
-              <Field id="effectiveOn" label="Effective from">
+              <Field
+                id="effectiveOn"
+                label="Effective from"
+                hint={
+                  today && effectiveOn > today
+                    ? "Scheduled: current salaries stay until then"
+                    : undefined
+                }
+              >
                 <Input
                   id="effectiveOn"
                   type="date"
-                  max={today || undefined}
                   value={effectiveOn}
                   onChange={(e) => setPickedDate(e.target.value)}
                 />

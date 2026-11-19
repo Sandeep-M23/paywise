@@ -21,7 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useChangeSalary } from "@/utils/apis/employees";
 import { applyApiErrors } from "@/utils/helpers/others/form-errors";
-import { humanize, money, percent } from "@/utils/helpers/others/format";
+import { date, humanize, money, percent } from "@/utils/helpers/others/format";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { salaryChangeFormSchema, type SalaryChangeFormValues } from "@/utils/forms/schemas";
 import {
@@ -67,6 +67,9 @@ export function ChangeSalaryDialog({
   // Live preview of the change, so typos like an extra zero are obvious.
   const parsed = parseMoneyInput(watch("amount") ?? "", currency);
   const change = parsed.ok ? parsed.value / employee.salary.amount - 1 : null;
+  // A future date schedules the change: the current salary stays until then.
+  const effectiveOn = watch("effectiveOn") ?? "";
+  const scheduled = effectiveOn > today();
 
   const onSubmit = handleSubmit(async (values) => {
     const amount = parseMoneyInput(values.amount, currency);
@@ -77,7 +80,11 @@ export function ChangeSalaryDialog({
         amount: amount.value,
         note: values.note || undefined,
       });
-      toast.success("Salary updated and recorded in history");
+      toast.success(
+        scheduled
+          ? `Salary change scheduled for ${date(values.effectiveOn)}`
+          : "Salary updated and recorded in history",
+      );
       onOpenChange(false);
     } catch (error) {
       applyApiErrors(error, setError);
@@ -113,8 +120,9 @@ export function ChangeSalaryDialog({
               id="effectiveOn"
               label="Effective from"
               error={formState.errors.effectiveOn?.message}
+              hint={scheduled ? "Scheduled: the current salary stays until then" : undefined}
             >
-              <Input id="effectiveOn" type="date" max={today()} {...register("effectiveOn")} />
+              <Input id="effectiveOn" type="date" {...register("effectiveOn")} />
             </Field>
             <Field id="reason" label="Reason" error={formState.errors.reason?.message}>
               <Controller
