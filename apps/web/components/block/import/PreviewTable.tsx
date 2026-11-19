@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { IMPORT_FIELD_LABELS, type ImportPreviewRow, type ImportRowStatus } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
 import { scrollTable, stickyHeader } from "@/utils/constants/table";
@@ -17,7 +17,11 @@ import {
 } from "@/components/ui/table";
 import { humanize, money } from "@/utils/helpers/others/format";
 
+// Rows are already in the browser; render them in batches as the user scrolls,
+// so a 10,000-row file doesn't build every row up front.
 const PAGE = 100;
+// Start the next batch this far before the end, so scrolling never hits a gap.
+const PREFETCH = "0px 0px 600px 0px";
 
 /** "Hire date (YYYY-MM-DD)" -> "Hire date": the hint belongs on the mapping screen only. */
 const fieldLabel = (field: string) =>
@@ -52,6 +56,22 @@ export function PreviewTable({
   const [filter, setFilter] = useState<ImportRowStatus | "all">(hasErrors ? "error" : "all");
   const [limit, setLimit] = useState(PAGE);
   const visible = rows.filter((r) => filter === "all" || r.status === filter);
+  const hasMore = visible.length > limit;
+
+  const scroller = useRef<HTMLDivElement>(null);
+  const sentinel = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    const root = scroller.current;
+    const target = sentinel.current;
+    if (!hasMore || !root || !target) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => entry?.isIntersecting && setLimit((n) => n + PAGE),
+      { root, rootMargin: PREFETCH },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, limit]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -68,6 +88,8 @@ export function PreviewTable({
             onClick={() => {
               setFilter(status);
               setLimit(PAGE);
+              // A different filter is a different list: start reading from the top.
+              scroller.current?.scrollTo({ top: 0 });
             }}
           >
             {status === "all" ? "All" : STATUS_LABEL[status]} (
@@ -87,7 +109,7 @@ export function PreviewTable({
           </>
         }
       >
-        <Table containerClassName={scrollTable(maxHeight)}>
+        <Table containerClassName={scrollTable(maxHeight)} containerRef={scroller}>
           <TableHeader className={stickyHeader}>
             <TableRow>
               <TableHead className="w-16">Line</TableHead>
@@ -158,14 +180,16 @@ export function PreviewTable({
                 </TableCell>
               </TableRow>
             ))}
+            {hasMore && (
+              <TableRow ref={sentinel} aria-hidden className="hover:bg-transparent">
+                <TableCell colSpan={4} className="text-muted-foreground py-3 text-center text-xs">
+                  Loading more rows…
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </TableFrame>
-      {visible.length > limit && (
-        <Button variant="ghost" onClick={() => setLimit(limit + PAGE)}>
-          Show more ({(visible.length - limit).toLocaleString()} remaining)
-        </Button>
-      )}
     </div>
   );
 }
