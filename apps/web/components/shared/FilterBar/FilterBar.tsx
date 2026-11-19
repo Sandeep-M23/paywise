@@ -127,7 +127,13 @@ export function FilterBar({
           {active && <FacetOptions key={active.key} facet={active} />}
         </div>
         <div className="flex items-center justify-between gap-2 border-t px-3 py-2">
-          <Button variant="ghost" size="sm" disabled={applied.length === 0} onClick={clearAll}>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={applied.length === 0}
+            onClick={clearAll}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
             Clear all
           </Button>
           <Button size="sm" onClick={() => setOpen(false)}>
