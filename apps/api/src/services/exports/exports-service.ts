@@ -4,9 +4,8 @@ import {
   toCsv,
   type EmployeeListQuery,
 } from "@paywise/shared";
-import { select, type Db } from "../../config/db";
-import type { EmployeeRow } from "../../models";
-import { EMPLOYEE_COLUMNS, employeeFilters } from "../employees/employees-repository";
+import type { Db } from "../../config/db";
+import { allEmployees } from "../employees/employees-repository";
 import { toEmployeeSummary } from "../../utils/helpers/dto";
 
 type ExportFilters = Pick<
@@ -30,12 +29,7 @@ const TEMPLATE_HEADERS = [
 export function createExportService({ db }: { db: Db }) {
   return {
     async employeesCsv(filters: ExportFilters): Promise<string> {
-      const where = employeeFilters(filters);
-      const rows = await select<EmployeeRow>(
-        db,
-        `SELECT ${EMPLOYEE_COLUMNS} FROM employees WHERE ${where.sql} ORDER BY employee_code`,
-        where.replacements,
-      );
+      const rows = await allEmployees(db, filters);
       return toCsv(
         EXPORT_HEADERS,
         rows.map((row) => employeeToCsvRecord(toEmployeeSummary(row))),

@@ -12,11 +12,12 @@ import {
   type ImportRequest,
   type ImportResult,
 } from "@paywise/shared";
-import { execute, inTransaction, select, type Db } from "../../config/db";
-import { Employee, Import, SalaryRevision, type EmployeeRow, type ImportRow } from "../../models";
+import { inTransaction, type Db } from "../../config/db";
+import type { EmployeeRow, ImportRow } from "../../models";
 import type { Clock } from "../../utils/helpers/clock";
 import { invalid, mapDbError, notFound } from "../../utils/helpers/errors";
 import * as repo from "../employees/employees-repository";
+import * as importRepo from "./imports-repository";
 
 const BATCH_SIZE = 1_000;
 
@@ -82,45 +83,17 @@ async function plan(db: Db, request: ImportRequest, today: string, lock: boolean
 
   const codes = [...firstLineByCode.keys()];
   const emails = [...firstLineByEmail.keys()];
-  const existingRows = codes.length
-    ? await select<EmployeeRow>(
-        db,
-        `SELECT ${repo.EMPLOYEE_COLUMNS} FROM employees WHERE employee_code IN (:codes)
-         ${lock ? "ORDER BY id FOR UPDATE" : ""}`,
-        { codes },
-      )
-    : [];
+  const existingRows = await importRepo.employeesByCodes(db, codes, { lock });
   const byCode = new Map(existingRows.map((row) => [row.employeeCode, row]));
 
-  const emailOwners = emails.length
-    ? await select<{ code: string; email: string }>(
-        db,
-        `SELECT employee_code AS code, lower(email) AS email FROM employees
-         WHERE lower(email) IN (:emails)`,
-        { emails },
-      )
-    : [];
-  const ownerByEmail = new Map(emailOwners.map((o) => [o.email, o.code]));
+  const owners = await importRepo.emailOwners(db, emails);
+  const ownerByEmail = new Map(owners.map((o) => [o.email, o.code]));
 
-  const earliestChanges = existingRows.length
-    ? await select<{ employeeId: string; date: string }>(
-        db,
-        `SELECT employee_id AS "employeeId", min(effective_on) AS date FROM salary_revisions
-         WHERE employee_id IN (:ids) AND reason <> 'hire' AND cancelled_at IS NULL
-         GROUP BY employee_id`,
-        { ids: existingRows.map((r) => r.id) },
-      )
-    : [];
-  const earliestChangeById = new Map(earliestChanges.map((e) => [e.employeeId, e.date]));
+  const ids = existingRows.map((r) => r.id);
+  const earliest = await importRepo.earliestChanges(db, ids);
+  const earliestChangeById = new Map(earliest.map((e) => [e.employeeId, e.date]));
 
-  const changedToday = existingRows.length
-    ? await select<{ employeeId: string }>(
-        db,
-        `SELECT DISTINCT employee_id AS "employeeId" FROM salary_revisions
-         WHERE employee_id IN (:ids) AND effective_on = CAST(:today AS date) AND cancelled_at IS NULL`,
-        { ids: existingRows.map((r) => r.id), today },
-      )
-    : [];
+  const changedToday = await importRepo.employeesChangedOn(db, ids, today);
   const hasChangeToday = new Set(changedToday.map((r) => r.employeeId));
 
   const result: Plan = { rows: [], creates: [], updates: [] };
@@ -253,19 +226,15 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
           throw invalid("rows", "Nothing to import: every row is unchanged or has errors");
         }
 
-        const log = await Import.create(
-          {
-            filename: request.filename,
-            rowCount: summary.total,
-            createdCount: summary.create,
-            updatedCount: summary.update,
-            skippedCount: summary.error,
-            createdBy: by ?? null,
-            rows: rows.filter((row) => row.status !== "unchanged"),
-          },
-          { transaction: tx.transaction },
-        );
-        const importId = log.id;
+        const importId = await importRepo.insertImport(tx, {
+          filename: request.filename,
+          rowCount: summary.total,
+          createdCount: summary.create,
+          updatedCount: summary.update,
+          skippedCount: summary.error,
+          createdBy: by ?? null,
+          rows: rows.filter((row) => row.status !== "unchanged"),
+        });
 
         const actor = by ?? "system";
         const newEmployees = creates.map(({ input }) => ({
@@ -276,7 +245,8 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
           salaryCurrency: currencyForCountry(input.countryCode),
         }));
         for (const batch of chunks(newEmployees)) {
-          await Employee.bulkCreate(
+          await importRepo.insertEmployees(
+            tx,
             batch.map(({ hireRevisionId, ...e }) => ({
               ...e,
               salaryEffectiveOn: e.hireDate,
@@ -284,9 +254,9 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
               deactivatedAt: null,
               deactivationReason: null,
             })),
-            { transaction: tx.transaction },
           );
-          await SalaryRevision.bulkCreate(
+          await importRepo.insertRevisions(
+            tx,
             batch.map((e) => ({
               id: e.hireRevisionId,
               employeeId: e.id,
@@ -297,7 +267,6 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
               importId,
               createdBy: actor,
             })),
-            { transaction: tx.transaction },
           );
         }
 
@@ -312,18 +281,7 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
             hire_date: input.hireDate,
             gender: input.gender ?? existing.gender,
           }));
-          await execute(
-            tx,
-            `UPDATE employees AS e SET
-                 full_name = v.full_name, email = v.email, job_title = v.job_title,
-                 department = v.department, employment_type = v.employment_type,
-                 hire_date = v.hire_date, gender = v.gender, updated_at = now()
-               FROM jsonb_to_recordset(CAST(:values AS jsonb)) AS v(id uuid, full_name text,
-                 email text, job_title text, department text, employment_type text,
-                 hire_date date, gender text)
-               WHERE e.id = v.id`,
-            { values: JSON.stringify(values) },
-          );
+          await importRepo.updateEmployeesFromImport(tx, values);
         }
         for (const { existing, input, changes } of updates) {
           if (changes.some((c) => c.field === "hireDate")) {
@@ -342,7 +300,7 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
             createdBy: actor,
           }));
         for (const batch of chunks(salaryChanges)) {
-          await SalaryRevision.bulkCreate(batch, { transaction: tx.transaction });
+          await importRepo.insertRevisions(tx, batch);
         }
         await repo.refreshSalaryCache(
           tx,
@@ -361,21 +319,12 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
     },
 
     async list(): Promise<ImportLogEntry[]> {
-      const rows = (await Import.findAll({
-        attributes: { exclude: ["rows"] },
-        order: [["createdAt", "DESC"]],
-        limit: 50,
-        raw: true,
-        transaction: db.transaction,
-      })) as unknown as Omit<ImportRow, "rows">[];
+      const rows = await importRepo.recentImports(db, 50);
       return rows.map(toLogEntry);
     },
 
     async get(id: string): Promise<ImportDetail> {
-      const row = (await Import.findByPk(id, {
-        raw: true,
-        transaction: db.transaction,
-      })) as ImportRow | null;
+      const row = await importRepo.findImport(db, id);
       if (!row) throw notFound("Import");
       return { ...toLogEntry(row), rows: row.rows };
     },

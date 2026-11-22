@@ -52,6 +52,19 @@ export function employeeFilters(
   return { sql: conditions.length ? conditions.join(" AND ") : "TRUE", replacements };
 }
 
+/** Every employee matching the directory filters, unpaged (CSV export). */
+export function allEmployees(
+  db: Db,
+  filters: Pick<EmployeeListQuery, "status" | "country" | "jobTitle" | "department" | "q">,
+) {
+  const where = employeeFilters(filters);
+  return select<EmployeeRow>(
+    db,
+    `SELECT ${EMPLOYEE_COLUMNS} FROM employees WHERE ${where.sql} ORDER BY employee_code`,
+    where.replacements,
+  );
+}
+
 export async function listEmployees(db: Db, query: EmployeeListQuery) {
   const where = employeeFilters(query);
   const order = `${SORT_COLUMNS[query.sort]} ${query.order === "asc" ? "ASC" : "DESC"}`;

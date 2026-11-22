@@ -5,7 +5,8 @@ import type {
   RaiseCost,
   RaiseCostRequest,
 } from "@paywise/shared";
-import { select, type Db } from "../../config/db";
+import type { Db } from "../../config/db";
+import * as repo from "./fairness-repository";
 import { raisePlanCost } from "../employees/employees-repository";
 
 const MIN_PEERS_FOR_OUTLIERS = 5;
@@ -15,47 +16,10 @@ const SIGNIFICANT_T = 1.96;
 
 const num = (value: unknown) => Number(value);
 
-type Filters = { country?: string; jobTitle?: string; department?: string };
-
-function comparableWhere(filters: Filters): { sql: string; replacements: Filters } {
-  const conditions = ["status = 'active'", "employment_type = 'full_time'"];
-  if (filters.country) conditions.push("country_code = :country");
-  if (filters.jobTitle) conditions.push("job_title = :jobTitle");
-  if (filters.department) conditions.push("department = :department");
-  return { sql: conditions.join(" AND "), replacements: filters };
-}
-
 export function createFairnessService({ db }: { db: Db }) {
   return {
     async outliers(filters: FairnessQuery): Promise<PayOutlier[]> {
-      const where = comparableWhere(filters);
-      const rows = await select<Record<string, unknown>>(
-        db,
-        `
-        WITH peers AS (
-          SELECT country_code, job_title, count(*) AS n,
-                 percentile_cont(0.25) WITHIN GROUP (ORDER BY salary_amount) AS q1,
-                 percentile_cont(0.5)  WITHIN GROUP (ORDER BY salary_amount) AS median,
-                 percentile_cont(0.75) WITHIN GROUP (ORDER BY salary_amount) AS q3
-          FROM employees
-          WHERE ${where.sql}
-          GROUP BY country_code, job_title
-          HAVING count(*) >= :minPeers
-        ), fenced AS (
-          SELECT *, q1 - 1.5 * (q3 - q1) AS lower_fence, q3 + 1.5 * (q3 - q1) AS upper_fence
-          FROM peers
-        )
-        SELECT e.id, e.employee_code, e.full_name, e.country_code, e.job_title, e.department,
-               e.salary_amount, e.salary_currency, f.n, f.median, f.lower_fence, f.upper_fence
-        FROM employees e
-        JOIN fenced f ON f.country_code = e.country_code AND f.job_title = e.job_title
-        WHERE e.status = 'active' AND e.employment_type = 'full_time'
-          AND (e.salary_amount < f.lower_fence OR e.salary_amount > f.upper_fence)
-        ORDER BY abs(e.salary_amount - f.median) / f.median DESC, e.employee_code
-        LIMIT 500
-      `,
-        { ...where.replacements, minPeers: MIN_PEERS_FOR_OUTLIERS },
-      );
+      const rows = await repo.outlierRows(db, filters, MIN_PEERS_FOR_OUTLIERS);
 
       return rows.map((r) => {
         const amount = num(r.salary_amount);
@@ -79,27 +43,7 @@ export function createFairnessService({ db }: { db: Db }) {
     },
 
     async genderGaps(filters: FairnessQuery): Promise<GenderGapGroup[]> {
-      const where = comparableWhere(filters);
-      const rows = await select<Record<string, unknown>>(
-        db,
-        `
-        SELECT country_code, job_title, salary_currency,
-          count(*) FILTER (WHERE gender = 'female') AS female_count,
-          count(*) FILTER (WHERE gender = 'male')   AS male_count,
-          avg(salary_amount) FILTER (WHERE gender = 'female') AS female_mean,
-          avg(salary_amount) FILTER (WHERE gender = 'male')   AS male_mean,
-          percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_amount)
-            FILTER (WHERE gender = 'female') AS female_median,
-          percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_amount)
-            FILTER (WHERE gender = 'male') AS male_median,
-          stddev_samp(salary_amount) FILTER (WHERE gender = 'female') AS female_sd,
-          stddev_samp(salary_amount) FILTER (WHERE gender = 'male') AS male_sd
-        FROM employees
-        WHERE ${where.sql} AND gender IN ('female', 'male')
-        GROUP BY country_code, job_title, salary_currency
-      `,
-        where.replacements,
-      );
+      const rows = await repo.genderGapRows(db, filters);
 
       const groups = rows.map((r): GenderGapGroup => {
         const femaleCount = num(r.female_count);
