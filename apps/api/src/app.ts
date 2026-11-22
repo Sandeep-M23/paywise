@@ -6,6 +6,7 @@ import type { Db } from "./config/db";
 import type { AuthConfig } from "./interfaces/middlewares/auth";
 import { importBodyParser, MAX_JSON_BODY } from "./middlewares/body-limit";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler";
+import { promoteDueRevisionsDaily } from "./middlewares/promote-due";
 import { createRouter } from "./routes";
 import { createEmployeeService } from "./services/employees/employees-service";
 import { createExportService } from "./services/exports/exports-service";
@@ -34,11 +35,14 @@ export function createApp({ db, clock, auth }: AppDeps) {
   app.use("/api/imports", importBodyParser);
   app.use(express.json({ limit: MAX_JSON_BODY }));
 
+  const employees = createEmployeeService({ db, clock });
+  app.use("/api", promoteDueRevisionsDaily({ clock, promote: employees.promoteDueRevisions }));
+
   app.use(
     "/api",
     createRouter(
       {
-        employees: createEmployeeService({ db, clock }),
+        employees,
         insights: createInsightsService({ db }),
         fairness: createFairnessService({ db }),
         imports: createImportService({ db, clock }),
