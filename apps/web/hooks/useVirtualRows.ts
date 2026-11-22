@@ -55,6 +55,6 @@ export function useVirtualRows({
     paddingTop: items[0]?.start ?? 0,
     paddingBottom: virtualizer.getTotalSize() - (items.at(-1)?.end ?? 0),
     showTop,
-    scrollToTop: () => scroller.current?.scrollTo({ top: 0, behavior: "smooth" }),
+    scrollToTop: () => virtualizer.scrollToOffset(0),
   };
 }
