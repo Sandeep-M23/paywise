@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { autoMapColumns } from "@paywise/shared";
-import { buildImportRequest, errorReportCsv, parseCsvText } from "./import-file";
+import {
+  buildImportRequest,
+  errorReportCsv,
+  parseCsvText,
+} from "../utils/helpers/import/import-file";
 
 const csv = [
   "\uFEFFEmp ID,Name,Email,Designation,Dept,Country,CTC,Type,DOJ",

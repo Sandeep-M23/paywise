@@ -73,6 +73,7 @@ apps/
       constants/  forms/  helpers/  atoms/
     @types/                  web-only types (API types come from packages/shared)
     proxy.ts                 server-side redirect to /login when signed out
+    test/                    tests for web helpers (CSV parsing and mapping)
 packages/
   shared/                    code both sides must agree on
     src/                     Zod schemas, money, currencies, countries, CSV helpers, DTO types
