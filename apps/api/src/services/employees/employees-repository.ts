@@ -1,5 +1,5 @@
 import type { EmployeeListQuery, RaiseCostRequest, RaiseApplyResult } from "@paywise/shared";
-import { execute, select, type Db } from "../../config/db";
+import { select, type Db } from "../../config/db";
 import { Employee, SalaryRevision, type EmployeeRow, type SalaryRevisionRow } from "../../models";
 
 const SORT_COLUMNS = {
