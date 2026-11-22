@@ -34,25 +34,16 @@ The web app keeps the previous page on screen while the next loads, debounces se
 - **Never ship 10k rows to the browser**: server-side paging, sorting and filtering.
 - **Aggregates in SQL**: no endpoint loads all employees into Node to compute statistics.
 - **Indexes match the queries**: `(country_code, job_title)`, `(country_code, department)`, `status`, unique `employee_code`, unique `lower(email)`, trigram GIN on `full_name`, and `(employee_id, effective_on)` on revisions.
-- **`salary_amount` is denormalised** onto `employees` as a cache of the **current** revision (the latest effective on or before today), so lists and aggregates never need a "latest revision per employee" subquery. It's written only in the same transaction as the revision, or by the idempotent due-revision promotion (planned).
+- **`salary_amount` is denormalised** onto `employees` as a cache of the **current** revision (the latest effective on or before today), so lists and aggregates never need a "latest revision per employee" subquery. It's written only in the same transaction as the revision, or by the idempotent due-revision promotion on the first request of each day.
 - **Import limits**: at most 10,000 rows per file and a 4.4 MB request body (Vercel Functions cap at 4.5 MB), with a clear 413 message.
 - **Small connection pool** (max 5) per function instance.
 
-## Revision 2: planned changes and targets
+## Not measured yet
 
-Not measured yet; each gets a row in the table above once built (`PLAN.md` §7).
+- **Promoting due salary changes** (`promoteDueRevisions`, once per day on the first API request): a lock of the stale rows followed by one `UPDATE … FROM`, touching only employees whose change came due that day.
+- **Salary history reads** for one employee: one query over that employee's revisions with `LAG` for the previous amount.
 
-| Change                                                     | Cost model                                                                                                 | Target p50                          |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| `promoteDueRevisions(today)` (daily, cold start, on write) | One `UPDATE employees … FROM (latest due revision per employee)` using the partial index on `effective_on` | < 50 ms at 10k with ~200 due        |
-| Revision timeline reads                                    | Index `(employee_id, effective_on DESC, created_at DESC)`; `LAG` for the previous amount                   | < 5 ms per employee                 |
-| Audit entries on import                                    | One batched `INSERT` per 1,000 rows in the same transaction                                                | Import commit < 1.2 s for 9.7k rows |
-| Idempotency check                                          | One unique-index lookup before the transaction                                                             | < 2 ms                              |
-| Login rate limit                                           | One upsert on `login_attempts` per failed login                                                            | < 5 ms                              |
-| Ask Paywise                                                | Rule-based parse (< 1 ms) + one predefined aggregate query (same SQL as insights)                          | < 30 ms                             |
-| Per-currency aggregates                                    | `GROUP BY …, salary_currency`; same indexes                                                                | Unchanged (2–8 ms)                  |
-
-**Transaction boundaries and locking:** see `DESIGN.md` §8. Bulk writes lock employees in id order (no deadlocks between two raise plans or imports); a single salary change locks one row.
+**Transaction boundaries and locking:** see `DESIGN.md` §6. Bulk writes lock employees in id order (no deadlocks between two raise plans or imports); a single salary change locks one row.
 
 **Request limits:** page size ≤ 100, import ≤ 10,000 rows and 4.4 MB, Ask question ≤ 300 characters, JSON bodies only for writes.
 

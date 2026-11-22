@@ -15,7 +15,7 @@ Read `docs/REQUIREMENTS.md` and `docs/DESIGN.md` before changing behaviour. If a
 4. **SQL:** aggregates in SQL, not in JS loops. Whitelist sort columns. No string-built SQL from user input.
 5. **Layering:** routes (paths) → controllers (HTTP only) → services (rules, transactions) → repositories (queries). Only repositories touch the database (Sequelize models, or `select`/`execute` from `config/db.ts` with named replacements). Never build SQL from user input; pass the `db` handle through so queries join the open transaction.
 6. **CSV export:** always UTF-8 BOM + formula-injection escaping.
-7. **Audit:** every write that changes an employee, a salary, a raise plan or an import also writes `audit_logs` entries in the same transaction, through the audit service. Never update or delete audit rows.
+7. **History:** salary history is append-only: never update or delete a revision (cancel a scheduled one, or record a correction). Every revision records who made it (`createdBy`), and every import records who ran it.
 8. **Logs and wording:** never log request bodies, tokens or salary amounts. Fairness figures are "indicators" or "potential disparities", never legal findings; amounts in different currencies are never added together.
 
 ## Folder structure (after the Outbox backend starter and frontends)

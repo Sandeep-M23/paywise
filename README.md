@@ -7,7 +7,7 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 - **Move off Excel**: import a CSV with column matching and a full preview before anything is saved; export any view back to Excel.
 - **Answer "how do we pay people?"**: pay by country, job title and department, salary distribution, salary outliers, gender-based compensation differences (flagged as potential disparities, not findings), and a raise planner that applies changes in one step.
 
-**Status:** P0 and the P1 fairness and raise planner are built. Revision 2 of the plan adds scheduled salary changes, currency overrides, import idempotency, audit logs, security hardening and Ask Paywise; see [PLAN.md](PLAN.md) §3.1 and §5 for what is built and what is next.
+**Status:** every requirement in [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) is built, including scheduled salary changes and the P1 pay fairness and raise planner. What was left out, and why, is listed there too.
 
 > **Live demo:** _add the Vercel URL here after deploying (see [docs/DEPLOY.md](docs/DEPLOY.md))_
 > **Demo video:** _add the link here_
@@ -21,8 +21,8 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 | [docs/RESEARCH.md](docs/RESEARCH.md)         | What other submissions built, real HR problems (sourced), CSV import practice. Every feature traces to it. |
 | [PLAN.md](PLAN.md)                           | Plan of action: priorities (P0/P1/P2), design decisions, build sequence, timeline, status                  |
 | [docs/DESIGN.md](docs/DESIGN.md)             | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions   |
-| [docs/API.md](docs/API.md)                   | HTTP contract: every endpoint, payloads, errors; built vs planned                                          |
-| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication (JWT), rate limiting, logging, assumptions and limits                         |
+| [docs/API.md](docs/API.md)                   | HTTP contract: every endpoint, payloads, errors                                                            |
+| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication (JWT), logging, assumptions, and what isn't covered                           |
 | [docs/TRADEOFFS.md](docs/TRADEOFFS.md)       | Decisions and what they cost                                                                               |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md)   | Measured timings on the 10k dataset and what changed because of them                                       |
 | [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)     | How AI was used, and where its output was wrong and corrected                                              |

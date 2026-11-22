@@ -1,5 +1,7 @@
 # Plan of Action: Paywise (Salary Management Tool)
 
+> **Status (read first):** this is the planning record, kept as it was written. Everything in [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) is built. Some revision 2 items below were dropped rather than built: the audit log, login rate limiting, import idempotency, Ask Paywise, the authorization layer and the daily cron (scheduled changes now take effect on the first request of each day). REQUIREMENTS.md lists them under "Deliberately left out", with reasons.
+
 > **Assessment:** build salary management software for an org with 10,000 employees.
 > **Persona:** an HR Manager who now manages salaries in Excel sheets across countries.
 > **Deliverables:** requirements doc, a working backend and UI, a seed script for 10k employees, unit tests, a deployed app, a demo video, incremental commits, and AI/design artifacts.

@@ -1,5 +1,7 @@
 # Schema Review: salary data model
 
+> **Status (read first):** a proposal written before revision 2 was built, kept as written. Built since: F1 (`stale_salary`), F2 (lock first, then update, in due-revision promotion), F3 (locks in id order; deadlocks and races become 409), F4 (cache pinned to its revision by a composite FK), F5 (correction self-FK), F6 (`ON DELETE RESTRICT`), F7 (`CHECK`s), F8 (one original per date) and F10 (index dropped). Not built: F9 (import replay) and the `audit_logs` table; promotion runs on the first request of each day, not on a cron.
+
 A senior-backend review of the salary data model: the **built** schema (`apps/api/src/models/`, migrations `0001`–`0002`) and the **planned** one (`PLAN.md` revision 2, §3.2–3.7). It covers concurrent HR writes, effective dates, currency, audit and import provenance, and ends with a concrete PostgreSQL schema.
 
 **Status: proposal.** It builds on PLAN.md revision 2 and keeps all of its decisions, including the cached current salary, the correction chain, the currency override, `Idempotency-Key` and `audit_logs`. It adds the constraints and concurrency rules that the plan leaves implicit. Every claim marked _verified_ was run on PostgreSQL ([§10](#10-evidence)).
