@@ -11,11 +11,6 @@ const THEMES = [
   { value: "system", label: "System", icon: Monitor },
 ] as const;
 
-/**
- * Light / Dark / System as a three-way switch, in the account popover. The
- * stored theme is only known in the browser, so nothing is marked until mount
- * (otherwise the server and client markup would disagree).
- */
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);

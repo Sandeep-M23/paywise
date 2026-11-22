@@ -53,7 +53,6 @@ import type { Facet, Individual, ManualReason } from "@/@types";
 
 const PRESETS = [2, 3, 5, 8, 10];
 
-/** One person's typed raise as an override, or the reason it isn't valid yet. */
 function toOverride({ employee, mode, text }: Individual): RaiseOverride | { error: string } {
   if (!text.trim()) return { error: "Enter a raise" };
   if (mode === "percent") {
@@ -76,7 +75,6 @@ export function RaisePlanner() {
   const [individuals, setIndividuals] = useState<Individual[]>([]);
   const now = useClientNow();
   const today = now?.toISOString().slice(0, 10) ?? "";
-  // Empty until the user picks a date: then it means "today".
   const [pickedDate, setPickedDate] = useState("");
   const effectiveOn = pickedDate || today;
   const [reason, setReason] = useState<ManualReason>("merit");
@@ -107,7 +105,6 @@ export function RaisePlanner() {
   }, [debounced]);
   const { data: cost, isFetching } = useRaiseCost(requested);
 
-  // Only the very first estimate shows placeholders; later ones dim the old figures.
   const costLoading = requested !== null && cost === undefined;
   const people = cost?.reduce((sum, row) => sum + row.headcount, 0) ?? 0;
   const canApply =
@@ -190,8 +187,6 @@ export function RaisePlanner() {
       options: (options?.jobTitles ?? []).map((t) => ({ value: t, label: t })),
     },
   ];
-  // Plain words for who the group raise reaches, e.g. "Active employees in India or
-  // Germany, in Engineering". Filters combine with "and"; values within one with "or".
   const names = (values: string[], lookup?: (v: string) => string) =>
     values.map((v) => (lookup ? lookup(v) : v)).join(" or ");
   const scope = [
@@ -313,7 +308,6 @@ export function RaisePlanner() {
           </Card>
         </div>
 
-        {/* The summary stays in view while the plan is edited. */}
         <aside
           aria-label="Cost and apply"
           className={cn(
@@ -468,7 +462,6 @@ export function RaisePlanner() {
   );
 }
 
-/** A numbered step heading: the planner reads top to bottom, then the summary. */
 function StepHeader({
   step,
   title,

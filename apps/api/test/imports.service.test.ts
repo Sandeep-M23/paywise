@@ -20,7 +20,6 @@ beforeAll(async () => {
 });
 afterAll(() => testDb.close());
 
-// Existing employee in the database before each import.
 beforeEach(async () => {
   await testDb.reset();
   await employees.create({
@@ -62,7 +61,6 @@ const request = (...rows: ImportRowValues[]): ImportRequest => ({
   rows: rows.map((values, i) => ({ line: i + 2, values })),
 });
 
-// `table` is always a literal from this file, never input.
 const count = async (table: string) =>
   (await select<{ n: number }>(testDb.db, `SELECT count(*)::int AS n FROM ${table}`))[0]!.n;
 

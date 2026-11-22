@@ -6,10 +6,6 @@ import type { SeedEmployee } from "./generate";
 
 const BATCH_SIZE = 1_000;
 
-/**
- * Replaces all data with the given people in one transaction, inserting in
- * batches (one round trip per 1,000 rows instead of one per row).
- */
 export async function seedDatabase(db: Db, people: SeedEmployee[]) {
   await inTransaction(db, async (tx) => {
     await execute(tx, "TRUNCATE salary_revisions, employees, imports CASCADE");
@@ -27,7 +23,6 @@ export async function seedDatabase(db: Db, people: SeedEmployee[]) {
           id,
           ...employee,
           salaryCurrency: currency,
-          // The cache holds the latest revision (the generated history ends at or before its reference date).
           currentRevisionId: revisionIds.at(-1)!,
           salaryEffectiveOn: history.at(-1)!.effectiveOn,
           deactivatedAt: deactivationReason ? new Date() : null,

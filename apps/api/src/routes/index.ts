@@ -11,7 +11,6 @@ import { importRoutes } from "./imports/imports";
 import { insightRoutes } from "./insights/insights";
 import { metaRoutes } from "./meta/meta";
 
-/** Every feature's routes, mounted under /api. Auth routes only exist when auth is on. */
 export function createRouter(services: Services, auth: AuthConfig | "disabled") {
   const router = Router();
   const verify = auth === "disabled" ? skipAuth : verifyAccessToken(auth);

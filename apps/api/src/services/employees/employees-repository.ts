@@ -2,7 +2,6 @@ import type { EmployeeListQuery, RaiseCostRequest, RaiseApplyResult } from "@pay
 import { execute, select, type Db } from "../../config/db";
 import { Employee, SalaryRevision, type EmployeeRow, type SalaryRevisionRow } from "../../models";
 
-// Whitelist: the sort parameter picks one of these, never raw text.
 const SORT_COLUMNS = {
   fullName: "full_name",
   employeeCode: "employee_code",
@@ -13,7 +12,6 @@ const SORT_COLUMNS = {
   hireDate: "hire_date",
 } satisfies Record<EmployeeListQuery["sort"], string>;
 
-/** Every employee column, aliased to the model's attribute names. */
 export const EMPLOYEE_COLUMNS = `id, employee_code AS "employeeCode", full_name AS "fullName", email,
   job_title AS "jobTitle", department, country_code AS "countryCode",
   salary_amount AS "salaryAmount", salary_currency AS "salaryCurrency",
@@ -22,12 +20,10 @@ export const EMPLOYEE_COLUMNS = `id, employee_code AS "employeeCode", full_name 
   deactivated_at AS "deactivatedAt", deactivation_reason AS "deactivationReason",
   created_at AS "createdAt", updated_at AS "updatedAt"`;
 
-/** A WHERE fragment and its named replacements; values never become SQL text. */
 export type Where = { sql: string; replacements: Record<string, unknown> };
 
 const escapeLike = (value: string) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
 
-/** The directory's filters as SQL. Within a filter any value matches; filters combine with AND. */
 export function employeeFilters(
   query: Pick<EmployeeListQuery, "status" | "country" | "jobTitle" | "department" | "q">,
 ): Where {
@@ -62,7 +58,6 @@ export async function listEmployees(db: Db, query: EmployeeListQuery) {
   const [rows, [totals]] = await Promise.all([
     select<EmployeeRow>(
       db,
-      // id as a tie-breaker keeps paging stable when sort values repeat.
       `SELECT ${EMPLOYEE_COLUMNS} FROM employees WHERE ${where.sql}
        ORDER BY ${order}, id ASC LIMIT :limit OFFSET :offset`,
       {
@@ -119,7 +114,6 @@ export type NewEmployee = Omit<
 > &
   Partial<Pick<EmployeeRow, "id" | "gender" | "status" | "deactivatedAt" | "deactivationReason">>;
 
-/** Inserts an employee. The cache columns must point at a revision inserted in the same transaction. */
 export async function insertEmployee(db: Db, values: NewEmployee): Promise<EmployeeRow> {
   const created = await Employee.create(
     { deactivatedAt: null, deactivationReason: null, ...values },
@@ -150,18 +144,11 @@ export async function insertRevision(db: Db, values: NewRevision): Promise<Salar
   return created.get({ plain: true });
 }
 
-/** A revision as the history shows it: the derived previous amount and its state on `today`. */
 export type RevisionWithState = SalaryRevisionRow & {
   previousAmount: number | null;
   state: "historical" | "current" | "scheduled" | "corrected" | "cancelled";
 };
 
-/**
- * The employee's history, newest first, each revision with its state on `today` and
- * the amount in force just before its date (derived, so a later correction can't
- * leave it stale). On one date the latest-recorded revision wins; earlier ones on
- * that date were corrected.
- */
 export async function listRevisions(
   db: Db,
   employeeId: string,
@@ -195,7 +182,6 @@ export async function listRevisions(
   );
 }
 
-/** One revision of this employee, or undefined. */
 export async function findRevision(db: Db, employeeId: string, revisionId: string) {
   const row = await SalaryRevision.findOne({
     where: { id: revisionId, employeeId },
@@ -205,7 +191,6 @@ export async function findRevision(db: Db, employeeId: string, revisionId: strin
   return (row as SalaryRevisionRow | null) ?? undefined;
 }
 
-/** The last revision on the timeline (any date, scheduled included): what the user should be building on. */
 export async function timelineHead(db: Db, employeeId: string) {
   const [row] = await select<{ id: string; amount: number; currency: string }>(
     db,
@@ -217,7 +202,6 @@ export async function timelineHead(db: Db, employeeId: string) {
   return row;
 }
 
-/** The newest live revision on a date (the end of its correction chain), if any. */
 export async function latestOnDate(db: Db, employeeId: string, date: string) {
   const [row] = await select<{ id: string }>(
     db,
@@ -229,7 +213,6 @@ export async function latestOnDate(db: Db, employeeId: string, date: string) {
   return row?.id;
 }
 
-/** The pay in force on the day before `date`, if any. */
 export async function inForceBefore(db: Db, employeeId: string, date: string) {
   const [row] = await select<{ amount: number; currency: string }>(
     db,
@@ -241,7 +224,6 @@ export async function inForceBefore(db: Db, employeeId: string, date: string) {
   return row;
 }
 
-/** Earliest change other than the hire (for hire-date corrections). */
 export async function earliestChange(db: Db, employeeId: string) {
   const [row] = await select<{ d: string | null }>(
     db,
@@ -252,7 +234,6 @@ export async function earliestChange(db: Db, employeeId: string) {
   return row?.d ?? null;
 }
 
-/** Hire-date corrections move the hire revision (and only it) to the new date. */
 export async function moveHireRevision(db: Db, employeeId: string, effectiveOn: string) {
   await SalaryRevision.update(
     { effectiveOn },
@@ -260,7 +241,6 @@ export async function moveHireRevision(db: Db, employeeId: string, effectiveOn: 
   );
 }
 
-/** Cancels every live revision on a scheduled date (an original and its corrections). */
 export async function cancelOnDate(db: Db, employeeId: string, date: string) {
   await execute(
     db,
@@ -270,7 +250,6 @@ export async function cancelOnDate(db: Db, employeeId: string, date: string) {
   );
 }
 
-/** Cancels every scheduled (future, non-hire) revision of an employee; returns how many. */
 export async function cancelScheduled(db: Db, employeeId: string, today: string) {
   const [row] = await select<{ n: number }>(
     db,
@@ -285,11 +264,6 @@ export async function cancelScheduled(db: Db, employeeId: string, today: string)
   return row?.n ?? 0;
 }
 
-/**
- * The revision each employee's cache should hold on `today`: the latest effective
- * on or before today (latest-recorded first on a date), or, for someone hired in
- * the future, their earliest revision.
- */
 const CACHE_TARGETS = `
   SELECT DISTINCT ON (r.employee_id) r.employee_id, r.id, r.amount, r.currency, r.effective_on
   FROM salary_revisions r
@@ -300,15 +274,9 @@ const CACHE_TARGETS = `
     r.effective_on ASC,
     r.created_at DESC`;
 
-// Compares every copied field, not just the id: moving the hire date keeps the
-// revision's id but changes its date, and the composite FK rejects a stale copy.
 const CACHE_IS_STALE = `(e.current_revision_id, e.salary_amount, e.salary_currency, e.salary_effective_on)
   IS DISTINCT FROM (t.id, t.amount, t.currency, t.effective_on)`;
 
-/**
- * Points the cache of the given employees (all, if omitted) at their current
- * revision. Callers hold the row locks. Set-based: one statement however many.
- */
 export async function refreshSalaryCache(db: Db, today: string, employeeIds?: string[]) {
   if (employeeIds && employeeIds.length === 0) return 0;
   const [row] = await select<{ n: number }>(
@@ -325,12 +293,6 @@ export async function refreshSalaryCache(db: Db, today: string, employeeIds?: st
   return row?.n ?? 0;
 }
 
-/**
- * Employees whose cache is behind (a revision became due, or was corrected), locked
- * in id order. Promotion locks first and updates in a later statement, so it sees
- * anything committed while it waited (SCHEMA_REVIEW F2: a one-statement update
- * could overwrite a correction made at the same moment).
- */
 export async function lockStaleCaches(db: Db, today: string) {
   const rows = await select<{ id: string }>(
     db,
@@ -344,7 +306,6 @@ export async function lockStaleCaches(db: Db, today: string) {
   return rows.map((r) => r.id);
 }
 
-/** Employees whose cache isn't their current revision: 0 in a healthy database. */
 export async function cacheDrift(db: Db, today: string) {
   const [row] = await select<{ n: number }>(
     db,
@@ -356,7 +317,6 @@ export async function cacheDrift(db: Db, today: string) {
   return row?.n ?? 0;
 }
 
-/** Raise plans may name one value or several; the SQL always takes a list. */
 const asList = <T>(value: T | T[] | undefined): T[] | undefined =>
   value === undefined ? undefined : Array.isArray(value) ? value : [value];
 
@@ -364,15 +324,6 @@ type RaisePlanInput = Pick<RaiseCostRequest, "percent" | "country" | "jobTitle" 
   overrides?: RaiseCostRequest["overrides"];
 };
 
-/**
- * One row per person a raise plan touches: active, and either in the filtered group
- * (only when the group raise is above 0%) or given an individual raise, which wins.
- * The base is the pay in force the day before `effectiveOn` (so a raise after a
- * scheduled promotion builds on the promotion), or the current pay for a what-if
- * without a date. Each raise is rounded half up to a whole minor unit, like
- * `applyRaise` in packages/shared/src/money.ts. Individual raises arrive as one
- * JSON parameter.
- */
 function raisePlanRows(plan: RaisePlanInput, effectiveOn?: string): Where {
   const percent = plan.percent ?? 0;
   const replacements: Record<string, unknown> = {
@@ -434,7 +385,6 @@ function raisePlanRows(plan: RaisePlanInput, effectiveOn?: string): Where {
   };
 }
 
-/** The what-if: cost of a plan per currency, on current pay. Read-only. */
 export async function raisePlanCost(db: Db, plan: RaisePlanInput) {
   const p = raisePlanRows(plan);
   return select<{ currency: string; headcount: number; current_total: string; increase: string }>(
@@ -448,11 +398,6 @@ export async function raisePlanCost(db: Db, plan: RaisePlanInput) {
   );
 }
 
-/**
- * Locks every row the plan will change, in id order so two plans (or a plan and
- * an import) over the same people can't deadlock, and so the checks and the
- * write see the same salaries.
- */
 export async function lockRaisePlan(db: Db, plan: RaisePlanInput) {
   const p = raisePlanRows(plan);
   await select(
@@ -463,7 +408,6 @@ export async function lockRaisePlan(db: Db, plan: RaisePlanInput) {
   );
 }
 
-/** People in the plan the rules reject, by rule (counted in SQL, a few names for the message). */
 export async function raisePlanProblems(db: Db, plan: RaisePlanInput, effectiveOn: string) {
   const p = raisePlanRows(plan, effectiveOn);
   const [row] = await select<{
@@ -499,11 +443,6 @@ export async function raisePlanProblems(db: Db, plan: RaisePlanInput, effectiveO
   };
 }
 
-/**
- * Writes the plan in one statement: a revision per changed person (scheduled if
- * the date is in the future). People whose raise rounds to nothing are skipped.
- * Returns the ids written, so the caller can refresh their caches.
- */
 export async function applyRaisePlan(
   db: Db,
   plan: RaisePlanInput,

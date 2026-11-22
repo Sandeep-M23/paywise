@@ -53,13 +53,6 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import type { AppIcon } from "@/@types";
 
-/**
- * App icons: Phosphor's filled weight, exported under the names the code already
- * used (from lucide) so call sites read the same. Structural glyphs (chevrons,
- * arrows, check, close, spinners) stay lucide line icons: they have no filled form.
- * The /ssr entry renders in server and client components alike.
- */
-
 function filled(Base: AppIcon, name: string): AppIcon {
   const Icon = (props: IconProps) => <Base weight="fill" {...props} />;
   Icon.displayName = name;

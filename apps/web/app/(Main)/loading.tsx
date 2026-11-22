@@ -1,7 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-// While a page inside the shell loads, the sidebar and top bar stay put and the
-// content area shows the usual shape: a filter row, four stat cards and a panel.
 export default function Loading() {
   return (
     <>

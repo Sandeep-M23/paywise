@@ -26,9 +26,7 @@ export function useImportLog() {
   });
 }
 
-/** Validates every row on the server; nothing is saved. */
 export const previewImport = (request: ImportRequest) =>
   postData<ImportPreview>("/imports/preview", request);
 
-/** Saves the import in one transaction: all rows or none. */
 export const commitImport = (request: ImportRequest) => postData<ImportResult>("/imports", request);

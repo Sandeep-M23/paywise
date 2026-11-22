@@ -5,10 +5,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { countryName, money, percent } from "@/utils/helpers/others/format";
 import { useJobTitleSummaries } from "@/utils/apis/insights";
 
-/**
- * Where this salary sits among active peers (same job title and country):
- * a min-to-max track with the median marked, in words as well as visually.
- */
 export function PeerPosition({ employee }: { employee: EmployeeDetail }) {
   const { data, isLoading } = useJobTitleSummaries(employee.countryCode);
   if (isLoading) return <Skeleton className="h-16 w-full" />;

@@ -64,10 +64,8 @@ export function ChangeSalaryDialog({
     }
   }, [open, employee, currency, reset]);
 
-  // Live preview of the change, so typos like an extra zero are obvious.
   const parsed = parseMoneyInput(watch("amount") ?? "", currency);
   const change = parsed.ok ? parsed.value / employee.salary.amount - 1 : null;
-  // A future date schedules the change: the current salary stays until then.
   const effectiveOn = watch("effectiveOn") ?? "";
   const scheduled = effectiveOn > today();
 

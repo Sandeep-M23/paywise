@@ -2,7 +2,6 @@ import type { SalaryRevision } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
 import { date, humanize, money, percent } from "@/utils/helpers/others/format";
 
-/** Newest first: what changed, when, why, and where the change came from. */
 export function SalaryHistory({
   revisions,
   countryCode,

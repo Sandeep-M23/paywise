@@ -2,7 +2,6 @@ import { AlertTriangle, CircleCheck, CircleHelp, EyeOff } from "@/components/ico
 import type { GenderGapGroup } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
 
-/** Status is always icon + words, never colour alone. */
 export function GapStatus({ group }: { group: GenderGapGroup }) {
   if (group.suppressed) {
     return (

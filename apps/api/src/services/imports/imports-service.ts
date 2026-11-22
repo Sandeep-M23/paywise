@@ -18,14 +18,6 @@ import type { Clock } from "../../utils/helpers/clock";
 import { invalid, mapDbError, notFound } from "../../utils/helpers/errors";
 import * as repo from "../employees/employees-repository";
 
-/*
- * CSV import in two steps. Preview classifies every row (create / update /
- * unchanged / error) and saves nothing. Commit re-runs the same planning
- * inside a transaction, never trusting the earlier preview, then writes all
- * valid rows at once. Error rows are skipped: the user has seen them in the
- * preview and chose to continue. See docs/DESIGN.md "CSV import".
- */
-
 const BATCH_SIZE = 1_000;
 
 type PlannedCreate = { line: number; input: EmployeeImportInput };
@@ -66,7 +58,6 @@ async function plan(db: Db, request: ImportRequest, today: string, lock: boolean
     result: parseImportRow(values),
   }));
 
-  // Duplicates inside the file: the first occurrence wins, later ones are errors.
   const firstLineByCode = new Map<string, number>();
   const firstLineByEmail = new Map<string, number>();
   const fileErrors = new Map<number, ImportFieldError[]>();
@@ -89,13 +80,11 @@ async function plan(db: Db, request: ImportRequest, today: string, lock: boolean
     }
   }
 
-  // Set-based lookups: three queries for the whole file, not per row.
   const codes = [...firstLineByCode.keys()];
   const emails = [...firstLineByEmail.keys()];
   const existingRows = codes.length
     ? await select<EmployeeRow>(
         db,
-        // Locked in id order when committing, so two imports can't deadlock.
         `SELECT ${repo.EMPLOYEE_COLUMNS} FROM employees WHERE employee_code IN (:codes)
          ${lock ? "ORDER BY id FOR UPDATE" : ""}`,
         { codes },
@@ -124,7 +113,6 @@ async function plan(db: Db, request: ImportRequest, today: string, lock: boolean
     : [];
   const earliestChangeById = new Map(earliestChanges.map((e) => [e.employeeId, e.date]));
 
-  // An imported salary change is dated today; one change per person per date.
   const changedToday = existingRows.length
     ? await select<{ employeeId: string }>(
         db,
@@ -280,7 +268,6 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
         const importId = log.id;
 
         const actor = by ?? "system";
-        // Each new employee's cache points at its hire revision (checked at commit).
         const newEmployees = creates.map(({ input }) => ({
           id: randomUUID(),
           hireRevisionId: randomUUID(),
@@ -314,8 +301,6 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
           );
         }
 
-        // One UPDATE ... FROM per batch instead of one per row: round trips dominate
-        // once the database is across a network. Each batch is one JSON parameter.
         for (const batch of chunks(updates)) {
           const values = batch.map(({ existing, input }) => ({
             id: existing.id,
@@ -341,7 +326,6 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
           );
         }
         for (const { existing, input, changes } of updates) {
-          // Rare (a corrected hire date), so per row is fine.
           if (changes.some((c) => c.field === "hireDate")) {
             await repo.moveHireRevision(tx, existing.id, input.hireDate);
           }
@@ -360,7 +344,6 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
         for (const batch of chunks(salaryChanges)) {
           await SalaryRevision.bulkCreate(batch, { transaction: tx.transaction });
         }
-        // Salary and hire-date changes move the cache (set-based, one statement).
         await repo.refreshSalaryCache(
           tx,
           today,
@@ -378,7 +361,6 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
     },
 
     async list(): Promise<ImportLogEntry[]> {
-      // The per-row record can be large; the list doesn't need it.
       const rows = (await Import.findAll({
         attributes: { exclude: ["rows"] },
         order: [["createdAt", "DESC"]],

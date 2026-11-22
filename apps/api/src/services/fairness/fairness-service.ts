@@ -8,28 +8,15 @@ import type {
 import { select, type Db } from "../../config/db";
 import { raisePlanCost } from "../employees/employees-repository";
 
-/*
- * Fairness checks compare like with like: full-time employees in the same job
- * title and country (same currency, same market, same hours). Part-time pay
- * isn't comparable without hours worked, which we don't record. Definitions
- * are in docs/DESIGN.md §5.
- */
-
 const MIN_PEERS_FOR_OUTLIERS = 5;
-// A gender group smaller than this is not reported: with so few people the
-// averages would effectively disclose individual salaries.
 const MIN_GROUP_SIZE = 5;
-// EU Pay Transparency Directive: an unexplained gap of 5% or more triggers a
-// joint pay assessment.
 const GAP_THRESHOLD = 0.05;
-// |t| of a Welch t-test at ~95% confidence: the gap is unlikely to be chance.
 const SIGNIFICANT_T = 1.96;
 
 const num = (value: unknown) => Number(value);
 
 type Filters = { country?: string; jobTitle?: string; department?: string };
 
-/** Active, full-time employees, narrowed by the optional filters (named replacements only). */
 function comparableWhere(filters: Filters): { sql: string; replacements: Filters } {
   const conditions = ["status = 'active'", "employment_type = 'full_time'"];
   if (filters.country) conditions.push("country_code = :country");
@@ -40,7 +27,6 @@ function comparableWhere(filters: Filters): { sql: string; replacements: Filters
 
 export function createFairnessService({ db }: { db: Db }) {
   return {
-    /** People paid outside Tukey's fences (1.5 x IQR) of their peer group. */
     async outliers(filters: FairnessQuery): Promise<PayOutlier[]> {
       const where = comparableWhere(filters);
       const rows = await select<Record<string, unknown>>(
@@ -92,13 +78,6 @@ export function createFairnessService({ db }: { db: Db }) {
       });
     },
 
-    /**
-     * Mean and median pay of women vs. men per job title and country. The gap
-     * is (male - female) / male, so a positive gap means women are paid less.
-     * "flagged" is the legal 5% trigger; "significant" says whether the gap is
-     * larger than chance would explain in a group this size, so HR can tell
-     * systematic gaps from noise in small teams.
-     */
     async genderGaps(filters: FairnessQuery): Promise<GenderGapGroup[]> {
       const where = comparableWhere(filters);
       const rows = await select<Record<string, unknown>>(
@@ -167,14 +146,12 @@ export function createFairnessService({ db }: { db: Db }) {
           maleMedian: Math.round(maleMedian),
           meanGap,
           medianGap,
-          // The Directive's trigger is the gap in average pay; the median is context.
           flagged: Math.abs(meanGap) >= GAP_THRESHOLD,
           significant,
           suppressed: false,
         };
       });
 
-      // Flagged and statistically significant first: those most need attention.
       const rank = (g: GenderGapGroup) =>
         g.suppressed ? 3 : g.flagged && g.significant ? 0 : g.flagged ? 1 : 2;
       return groups.sort(
@@ -186,10 +163,6 @@ export function createFairnessService({ db }: { db: Db }) {
       );
     },
 
-    /**
-     * What-if: the cost of a raise plan (a group raise and/or individual raises),
-     * per currency. Read-only.
-     */
     async raiseCost(plan: RaiseCostRequest): Promise<RaiseCost[]> {
       const rows = await raisePlanCost(db, plan);
       return rows.map((r) => ({

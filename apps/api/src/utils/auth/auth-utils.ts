@@ -20,13 +20,11 @@ export async function verifyHashedPassword(password: string, stored: string): Pr
   return timingSafeEqual(actual, expected);
 }
 
-// HS256 is pinned on both sides so a token can't pick its own algorithm ("none").
 export const generateToken = (user: UserToken, config: AuthConfig): string =>
   jwt.sign({ user }, config.jwtSecret, {
     algorithm: "HS256",
     expiresIn: config.tokenTtlSeconds,
   });
 
-/** Throws when the token is forged, expired or not ours. */
 export const verifyToken = (token: string, config: AuthConfig): DecodedToken =>
   jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as DecodedToken;

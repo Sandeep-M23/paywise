@@ -17,22 +17,17 @@ import type { Clock } from "./utils/helpers/clock";
 export type AppDeps = {
   db: Db;
   clock: Clock;
-  /** "disabled" only in tests that exercise other features; production always passes a config. */
   auth: AuthConfig | "disabled";
 };
 
 export function createApp({ db, clock, auth }: AppDeps) {
   const app = express();
 
-  // Vercel and most hosts sit behind one proxy; needed for the real client IP.
   if (process.env.TRUST_PROXY === "true") app.set("trust proxy", 1);
-  // ?country=IN&country=DE becomes a list; no nested objects (?a[b]=) from qs.
   app.set("query parser", "simple");
 
-  // Method, path, status and time only: never bodies, which can hold salaries.
   if (process.env.NODE_ENV === "local") app.use(morgan("dev"));
 
-  // Bearer tokens, not cookies, so allowing other origins can't be used for CSRF.
   app.use(cors());
   app.use(helmet());
 

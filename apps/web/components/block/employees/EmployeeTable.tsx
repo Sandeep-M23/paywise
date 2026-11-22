@@ -27,9 +27,6 @@ import { Mail, CalendarDays, Hash } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DirectoryFilters, SortField } from "@/@types";
 
-// Code, name and salary always show; less important columns give way on smaller
-// screens. Widths are fixed (table-fixed) so the name column takes what is left
-// and long names truncate instead of pushing the table wider.
 const COLUMNS: { field: SortField; label: string; className?: string }[] = [
   { field: "employeeCode", label: "Code", className: "w-28 pl-4" },
   { field: "fullName", label: "Name" },
@@ -41,14 +38,8 @@ const COLUMNS: { field: SortField; label: string; className?: string }[] = [
 ];
 
 const ROW_HEIGHT = 53;
-// Start loading the next batch this many rows before the end, so scrolling doesn't stall.
 const PREFETCH_ROWS = 20;
 
-/**
- * Infinite, virtualised directory: batches of 50 load as the user nears the
- * end, and only the rows in view (plus a small overscan) are in the DOM, so
- * scrolling through all 10,000 people stays smooth.
- */
 export function EmployeeTable({
   rows,
   total,
@@ -90,13 +81,11 @@ export function EmployeeTable({
     if (hasMore && !loadingMore && lastIndex >= rows.length - PREFETCH_ROWS) onLoadMore();
   }, [lastIndex, rows.length, hasMore, loadingMore, onLoadMore]);
 
-  // A new filter or sort is a new list: start reading from the top.
   const filterKey = JSON.stringify(filters);
   useEffect(() => {
     scroller.current?.scrollTo({ top: 0 });
   }, [filterKey]);
 
-  // Offer "back to top" once the user is a few screens down.
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
@@ -233,7 +222,6 @@ export function EmployeeTable({
                           <EmployeePreview employee={employee} />
                         </HoverCardContent>
                       </HoverCard>
-                      {/* On small screens the hidden columns' key facts move under the name. */}
                       <div className="text-muted-foreground truncate text-xs md:hidden">
                         {employee.jobTitle} · {employee.countryCode}
                       </div>

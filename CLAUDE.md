@@ -36,6 +36,6 @@ Names: kebab-case for files and folders; camelCase for variables; PascalCase for
 
 ## Style
 
-- Match the surrounding code. Comments explain _why_, not _what_.
+- Match the surrounding code. No comments in `apps/api` or `apps/web` code (lint directives such as `eslint-disable` excepted): explain decisions in `docs/` and in commit messages instead.
 - Prefer small pure functions; keep side effects at the edges.
 - No new dependencies without a reason noted in the commit message.

@@ -16,7 +16,6 @@ export function employeeRoutes(service: EmployeeService, verifyAccessToken: Requ
     controller.create,
   );
 
-  // Before /:id, so "raises" is never read as an id.
   router.post(
     "/raises",
     verifyAccessToken,

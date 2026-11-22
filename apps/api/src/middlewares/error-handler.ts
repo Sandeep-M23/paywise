@@ -11,7 +11,6 @@ const CODES: Record<number, string> = {
   422: "validation_failed",
 };
 
-/** Errors thrown by express.json() itself, before any controller runs. */
 const BODY_PARSER_ERRORS: Record<string, { code: string; message: string }> = {
   "entity.parse.failed": { code: "invalid_json", message: "Request body must be valid JSON" },
   "entity.too.large": { code: "payload_too_large", message: "Request body is too large" },
@@ -22,12 +21,6 @@ export const notFoundHandler = (_req: Request, res: Response) => {
   res.status(404).json(body);
 };
 
-/**
- * Central error handler: every controller's asyncHandler funnels thrown errors
- * here. Known 4xx errors keep their status, code and message; anything else is a
- * logged 500 whose details never reach the client. Express recognises error
- * middleware by its four arguments, so `_next` stays.
- */
 export const errorHandler = (error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (isHttpError(error) && error.expose) {
     const parser = BODY_PARSER_ERRORS[(error as { type?: string }).type ?? ""];
@@ -41,8 +34,6 @@ export const errorHandler = (error: unknown, _req: Request, res: Response, _next
     res.status(error.status).json(body);
     return;
   }
-  // Name, message and stack only: the request body and a database error's SQL
-  // parameters can hold salaries.
   const {
     controller = "app",
     name,
@@ -51,7 +42,6 @@ export const errorHandler = (error: unknown, _req: Request, res: Response, _next
   } = error as Partial<Error> & {
     controller?: string;
   };
-  // Sequelize's stack starts with a bare "Error", so name the error explicitly.
   const frames = stack?.split("\n").slice(1).join("\n") ?? "";
   console.error(
     `Unhandled error in ${controller}: ${name ?? "Error"}: ${message ?? String(error)}\n${frames}`,

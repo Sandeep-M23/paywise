@@ -15,10 +15,6 @@ import type { DirectoryFilters } from "@/@types";
 
 export const DIRECTORY_BATCH = 50;
 
-/**
- * The directory loads 50 people at a time as the user scrolls. Uses the same
- * paged endpoint; the previous list stays on screen while a new filter loads.
- */
 export function useEmployeeDirectory(filters: DirectoryFilters) {
   return useInfiniteQuery({
     queryKey: ["employees", "directory", filters],
@@ -76,7 +72,6 @@ export function useDeactivateEmployee(id: string) {
   });
 }
 
-/** Quick name/code search (⌘K palette, raise planner); starts at two characters. */
 export function useEmployeeSearch(q: string, status: "all" | "active", enabled = true) {
   return useQuery({
     queryKey: ["employees", "search", status, q],

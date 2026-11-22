@@ -15,8 +15,6 @@ import { EmployeeAvatar } from "@/components/shared/EmployeeAvatar/EmployeeAvata
 import { isActive, LINKS } from "@/utils/constants/navigation";
 import { useAccount, useAuth } from "@/context/auth";
 
-// Sidebar item: 8px pill, grey label; the active page is a lime pill on black.
-// Sign out is the only red item, and the only place to sign out.
 const ITEM = "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors";
 
 function Brand() {
@@ -68,10 +66,6 @@ function AccountIdentity({ name, email }: { name: string; email: string }) {
   );
 }
 
-/**
- * The foot of the sidebar, after shadcn's sidebar "NavUser": the signed-in account
- * as one button; it opens a popover with the account, the theme and sign out.
- */
 function SidebarFooter() {
   const { name, email } = useAccount();
   const { logout } = useAuth();
@@ -112,7 +106,6 @@ function SidebarFooter() {
   );
 }
 
-/** Fixed sidebar on desktop; a top bar with a slide-out menu on small screens. */
 export function Sidebar() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();

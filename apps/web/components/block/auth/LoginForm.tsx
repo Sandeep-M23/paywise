@@ -18,7 +18,6 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
 
-  // Stays true after success, so the button doesn't re-enable while the app loads.
   const [redirecting, setRedirecting] = useState(false);
 
   const { register, handleSubmit, setError, formState } = useForm<
@@ -41,16 +40,12 @@ export function LoginForm() {
 
     setRedirecting(true);
     login(result.data.authToken);
-    // Only same-site paths: `next` comes from the URL, so it must not send anyone off-site.
     const next = searchParams.get("next");
-    // A full page load, not router.replace: a client-side switch from /login into
-    // the app shows the route loader and then the startup splash (two splashes).
     window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
   });
 
   const pending = isSubmitting || redirecting;
 
-  // Maglo's sign-in: no card, a large greeting, tall inputs and a full-width lime button.
   return (
     <div className="w-full max-w-md">
       <h1 className="text-3xl font-semibold tracking-tight">Welcome to Paywise</h1>

@@ -7,18 +7,12 @@ import type { DirectoryFilters } from "@/@types";
 
 const { page: _page, pageSize: _pageSize, ...DEFAULTS } = employeeListQuerySchema.parse({});
 
-/**
- * Directory filters and sort, stored in the URL as the single source of truth
- * (shareable, survive a reload). Scroll position isn't stored; the list is
- * infinite, so a shared link opens at the top.
- */
 export function useDirectoryQuery() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const query = useMemo<DirectoryFilters>(() => {
-    // Repeated keys (?country=IN&country=DE) are a multi-select filter.
     const raw: Record<string, string | string[]> = {};
     for (const key of new Set(searchParams.keys())) {
       const values = searchParams.getAll(key);
@@ -30,8 +24,6 @@ export function useDirectoryQuery() {
     return filters;
   }, [searchParams]);
 
-  // router.replace updates the URL after a moment; two changes in quick
-  // succession must build on each other, not both on the last render's query.
   const latest = useRef(query);
   useEffect(() => {
     latest.current = query;

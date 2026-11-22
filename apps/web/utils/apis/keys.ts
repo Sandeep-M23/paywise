@@ -2,8 +2,6 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 
-// Aggregates change only when data changes, and every mutation invalidates
-// them, so they can be served from cache for a while.
 export const STABLE = 5 * 60_000;
 
 export const keys = {
@@ -15,7 +13,6 @@ export const keys = {
   imports: ["imports"] as const,
 };
 
-/** After any write, everything derived from employee data is stale. */
 export function useInvalidateEmployeeData() {
   const client = useQueryClient();
   return () =>

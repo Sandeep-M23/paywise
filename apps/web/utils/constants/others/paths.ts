@@ -8,5 +8,4 @@ export const PATH = {
   IMPORT: "/import",
 };
 
-/** Pages a signed-out visitor may open; everything else redirects to sign in. */
 export const OPEN_PATHS = [PATH.LOGIN];

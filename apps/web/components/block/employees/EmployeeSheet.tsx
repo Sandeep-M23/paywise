@@ -52,7 +52,6 @@ export function EmployeeSheet() {
         )}
         {employee && (
           <>
-            {/* Name, salary and actions stay in view while the history scrolls. */}
             <div className="bg-popover sticky top-0 z-10 flex flex-col gap-4 border-b px-4 pt-4 pb-4">
               <SheetHeader className="flex-row items-center gap-3 p-0 pr-8">
                 <EmployeeAvatar name={employee.fullName} className="size-11 text-sm" />

@@ -6,8 +6,6 @@ import { authConfigFromEnv } from "./config/auth";
 
 const { db } = createDb(dbConfigFromEnv());
 
-// As in the Outbox services: only a local database is synced on boot. Elsewhere
-// the schema changes only through `npm run db:sync`.
 if (process.env.NODE_ENV === "local") await syncSchema(db, { alter: true });
 const port = Number(process.env.PORT ?? 4000);
 

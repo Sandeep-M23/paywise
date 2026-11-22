@@ -18,7 +18,6 @@ export function importRoutes(
 
   router.get("/:id", verifyAccessToken, controller.get);
 
-  // The larger body limit is applied in app.ts, before the app-wide JSON parser.
   router.post(
     "/preview",
     verifyAccessToken,

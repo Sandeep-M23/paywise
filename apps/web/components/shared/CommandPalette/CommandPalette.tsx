@@ -43,7 +43,6 @@ const PAGES = [
   { href: "/import", label: "Import CSV", icon: FileUp },
 ];
 
-/** ⌘K / Ctrl+K: jump to a page, run an action, or find anyone by name or code. */
 export function CommandPalette({ className }: { className?: string }) {
   const router = useRouter();
   const selectEmployee = useSetAtom(selectedEmployeeIdAtom);
@@ -96,7 +95,6 @@ export function CommandPalette({ className }: { className?: string }) {
         description="Jump to a page or find an employee"
       >
         <Command className="**:data-[slot=command-input-wrapper]:h-12">
-          {/* Employee rows use forceMount: the server already matched them, so cmdk mustn't hide them. */}
           <CommandInput
             placeholder="Type a name, code or page…"
             value={search}

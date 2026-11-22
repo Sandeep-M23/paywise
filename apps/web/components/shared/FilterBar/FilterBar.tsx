@@ -21,12 +21,6 @@ const same = (a: string[], b: string[]) =>
 
 const isActive = (facet: Facet) => !same(facet.selected, facet.defaultValue ?? []);
 
-/**
- * All filters behind one "Filters" button. The panel lists each filter on the
- * left and its values on the right: tick as many as you like, search long lists,
- * see how many people each value covers. Active filters sit beside the button as
- * chips ("Country: India, Germany"); click one to edit it, or its × to remove it.
- */
 export function FilterBar({
   facets,
   leading,
@@ -34,9 +28,7 @@ export function FilterBar({
   className,
 }: {
   facets: Facet[];
-  /** Controls before the Filters button on the same row (e.g. search). */
   leading?: ReactNode;
-  /** Extra controls on the same row, after the chips (e.g. search, actions). */
   children?: ReactNode;
   className?: string;
 }) {
@@ -146,9 +138,6 @@ export function FilterBar({
 }
 
 function FacetOptions({ facet }: { facet: Facet }) {
-  // The parent's selection can lag a click (the directory's lives in the URL), so
-  // build each change on the latest local pick, or a quick second click would
-  // overwrite the first. Re-sync whenever the parent's selection actually changes.
   const selectedKey = facet.selected.join("\u0000");
   const [picked, setPicked] = useState(facet.selected);
   const latest = useRef(facet.selected);
@@ -235,7 +224,6 @@ function FacetOptions({ facet }: { facet: Facet }) {
   );
 }
 
-/** "Country: India, Germany +1" — click to edit, × to remove. */
 function AppliedChip({
   facet,
   onEdit,

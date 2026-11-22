@@ -6,11 +6,6 @@ function toDetails(error: z.ZodError) {
   return error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message }));
 }
 
-/**
- * Validates the JSON body with a shared Zod schema and replaces `req.body` with
- * the parsed value, so controllers read clean, typed input. Malformed JSON is
- * already a 400 from express.json(); well-formed but invalid data is a 422.
- */
 export const validateBody =
   (schema: z.ZodType) => (req: Request, _res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
@@ -23,10 +18,6 @@ export const validateBody =
     return next();
   };
 
-/**
- * Validates query-string parameters; failures are a 400 (the request itself is
- * malformed). A key given more than once (?country=IN&country=DE) is already a list.
- */
 export const validateQuery =
   (schema: z.ZodType) => (req: Request, _res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.query);

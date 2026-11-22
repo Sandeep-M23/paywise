@@ -49,12 +49,6 @@ import { TableFrame } from "@/components/shared/TableFrame/TableFrame";
 const STEPS = ["Upload", "Match columns", "Review", "Done"] as const;
 const NOT_IN_FILE = "__none__";
 
-/**
- * Every visit starts at step 1: leaving the page abandons the import. Next.js keeps
- * a visited page alive (hidden) and shows it again on return, with its old state,
- * and a Jotai value changed while hidden isn't picked up. So on each arrival, reset
- * the atom and remount the wizard (a new key), before paint, so nothing stale shows.
- */
 export function ImportWizard() {
   const setWizard = useSetAtom(importWizardAtom);
   const [visit, setVisit] = useState(0);
@@ -76,7 +70,6 @@ function Wizard() {
   const [dragging, setDragging] = useState(false);
   const [edited, setEdited] = useState(0);
 
-  // A request that finishes after this wizard is gone must not refill it.
   const onPage = useRef(false);
   useLayoutEffect(() => {
     onPage.current = true;
@@ -138,7 +131,6 @@ function Wizard() {
     try {
       const result = await commitImport(request());
       await invalidate();
-      // Saved either way; only show the result if the user is still here.
       toast.success("Import complete");
       if (onPage.current) {
         setWizard({ ...wizard, step: "done", result, preview: null, records: [] });

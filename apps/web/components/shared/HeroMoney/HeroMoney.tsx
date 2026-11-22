@@ -1,7 +1,6 @@
 import { COUNTRIES, findCountry, formatMoneyParts, type FractionDisplay } from "@paywise/shared";
 import { cn } from "@/lib/utils";
 
-/** A large amount with the currency symbol and any fraction quietly dimmed. */
 export function HeroMoney({
   amount,
   currency,

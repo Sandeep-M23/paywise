@@ -5,16 +5,6 @@ import { createInsightsService } from "../src/services/insights/insights-service
 import { fixedClock } from "../src/utils/helpers/clock";
 import { createTestDb } from "./db";
 
-/*
- * Hand-computed fixture (amounts in minor units):
- *   IN Software Engineer, Engineering: 10000, 20000, 30000, 50000
- *   IN Product Manager,   Product:     100000
- *   IN inactive:                       999999  (must be ignored everywhere)
- *   DE Software Engineer, Engineering: 7000000
- *
- * IN all active: n=5, sum=210000, min=10000, max=100000, mean=42000, median=30000
- * IN Software Engineer: n=4, mean=27500, median=25000 (even count: interpolated)
- */
 const base: Omit<EmployeeCreateInput, "employeeCode" | "email" | "salaryAmount"> = {
   fullName: "Test Person",
   jobTitle: "Software Engineer",
@@ -120,7 +110,6 @@ describe("departments", () => {
 
 describe("distribution", () => {
   it("splits the country's range into equal integer-width buckets, including empty ones", async () => {
-    // width = ceil((100000 - 10000 + 1) / 5) = 18001
     expect(await insights.distribution("IN", 5)).toEqual({
       currency: "inr",
       buckets: [

@@ -39,7 +39,6 @@ export function DeactivateDialog({
     defaultValues: { reason: "" },
   });
 
-  // Each opening starts empty, not with the reason typed for someone else.
   useEffect(() => {
     if (open) reset({ reason: "" });
   }, [open, reset]);

@@ -41,7 +41,6 @@ async function hire(
   return employees.create(input);
 }
 
-/** Fixture salaries are distinct, so salary identifies the person. */
 async function idsBySalary() {
   const rows = await select<{ id: string; salary_amount: number }>(
     testDb.db,
@@ -51,12 +50,6 @@ async function idsBySalary() {
 }
 
 describe("outliers", () => {
-  /*
-   * IN Software Engineer (n=6): 100k, 102k, 104k, 106k, 108k, 300k
-   *   Q1 = 102.5k, median = 105k, Q3 = 107.5k, IQR = 5k
-   *   fences: 95k .. 115k  ->  300k is an outlier above
-   * IN Product Manager (n=4, one extreme): too few peers, never flagged
-   */
   beforeEach(async () => {
     await testDb.reset();
     for (const amount of [100_000, 102_000, 104_000, 106_000, 108_000, 300_000]) {
@@ -94,13 +87,6 @@ describe("outliers", () => {
 });
 
 describe("genderGaps", () => {
-  /*
-   * DE Software Engineer: 5 women at 90k, 5 men at 100k  -> 10% gap, flagged
-   * GB Software Engineer: 5 women at 99k, 5 men at 100k  ->  1% gap, not flagged
-   * US Software Engineer: 2 women, 5 men                 -> suppressed
-   * CA Software Engineer: women 60,140,90,110,100 (mean 100); men 70,150,100,120,110
-   *   (mean 110) -> 9.1% gap, flagged, but far too noisy to be significant
-   */
   beforeEach(async () => {
     await testDb.reset();
     for (let i = 0; i < 5; i++) {
@@ -112,7 +98,7 @@ describe("genderGaps", () => {
     }
     await hire("US", "Software Engineer", 5_000_000, "female");
     await hire("US", "Software Engineer", 5_000_000, "female");
-    await hire("DE", "Software Engineer", 1_000_000, "non_binary"); // not part of the comparison
+    await hire("DE", "Software Engineer", 1_000_000, "non_binary");
     for (const amount of [60_000, 140_000, 90_000, 110_000, 100_000]) {
       await hire("CA", "Software Engineer", amount, "female");
       await hire("CA", "Software Engineer", amount + 10_000, "male");
@@ -173,11 +159,6 @@ describe("genderGaps", () => {
 });
 
 describe("raiseCost", () => {
-  /*
-   * IN Engineering: 100,001 and 200,000 ; IN Product: 300,000 ; DE Engineering: 50,000
-   * 10% raise, rounded per person to a whole minor unit:
-   *   IN Engineering increase = round(10,000.1) + 20,000 = 30,000
-   */
   beforeEach(async () => {
     await testDb.reset();
     await hire("IN", "Software Engineer", 100_001);
@@ -195,11 +176,6 @@ describe("raiseCost", () => {
 
   it("lets individual raises replace the group raise and reach people outside the group", async () => {
     const ids = await idsBySalary();
-    /*
-     * Group: 10% for IN Engineering (100,001 -> +10,000; 200,000 is overridden).
-     * Overrides: 200,000 -> new salary 250,000 (+50,000); IN Product 300,000 at 5% (+15,000).
-     * INR: 3 people, 600,001 now, +75,000.
-     */
     expect(
       await fairness.raiseCost({
         percent: 10,

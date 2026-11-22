@@ -11,16 +11,8 @@ import {
 } from "@paywise/shared";
 import { select, type Db } from "../../config/db";
 
-/*
- * All statistics run in SQL over active employees, in minor units of the
- * country's own currency. Means and medians are rounded to a whole minor unit.
- * percentile_cont uses linear interpolation, the same as Excel's PERCENTILE.INC,
- * so HR can reconcile these numbers with their spreadsheets.
- */
-
 const toInt = (value: unknown) => Math.round(Number(value));
 
-// The statistics every summary shares, over salary_amount (minor units).
 const STATS = `count(*) AS headcount, sum(salary_amount) AS total,
   min(salary_amount) AS min, max(salary_amount) AS max, avg(salary_amount) AS mean,
   percentile_cont(0.5) WITHIN GROUP (ORDER BY salary_amount) AS median`;
@@ -47,7 +39,6 @@ const ACTIVE_IN = "status = 'active' AND country_code = :country";
 
 export function createInsightsService({ db }: { db: Db }) {
   return {
-    /** Distinct values for the directory filters. */
     async filterOptions(): Promise<FilterOptions> {
       const [titles, departments] = await Promise.all([
         select<{ value: string }>(
@@ -107,10 +98,6 @@ export function createInsightsService({ db }: { db: Db }) {
       });
     },
 
-    /**
-     * Histogram with equal integer-width buckets from the lowest to the highest
-     * salary, so bucket edges are exact amounts rather than fractions of a cent.
-     */
     async distribution(country: CountryCode, bucketCount: number): Promise<Distribution> {
       const currency = currencyForCountry(country);
       const [range] = await select<{ low: number | null; high: number | null }>(

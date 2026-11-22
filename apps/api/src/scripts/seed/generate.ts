@@ -8,13 +8,6 @@ import {
   type Gender,
 } from "@paywise/shared";
 
-/*
- * Deterministic, realistic synthetic workforce. Pure: same (count, seed, today)
- * always yields the same people. Patterns are planted on purpose so the
- * fairness and compression features have something real to find; they are
- * documented in docs/SEED_DATA.md.
- */
-
 export type SeedRevision = {
   amount: number;
   effectiveOn: string;
@@ -57,8 +50,6 @@ const ROLES: Role[] = [
   { title: "Operations Manager", department: "Operations", usdMedian: 95_000, weight: 3 },
 ];
 
-// Local market pay for a role whose US median is $1, in the local currency,
-// and the rounding step for "nice" salaries (in major units).
 const MARKETS: Record<
   CountryCode,
   { weight: number; perUsd: number; step: number; names: "en" | "in" | "de" | "jp" }
@@ -73,7 +64,6 @@ const MARKETS: Record<
   JP: { weight: 7, perUsd: 95, step: 10_000, names: "jp" },
 };
 
-// Romanised so emails stay ASCII; faker has no romaji locale.
 const JP_FIRST = {
   female: ["Yui", "Aoi", "Hina", "Sakura", "Yuna", "Mio", "Rin", "Haruka", "Akari", "Emi"],
   male: ["Haruto", "Ren", "Sota", "Yuto", "Kenji", "Takumi", "Riku", "Daiki", "Kaito", "Hiroshi"],
@@ -151,33 +141,26 @@ export function generateEmployees({
     const gender = weighted(GENDERS);
     const employmentType = weighted(EMPLOYMENT);
 
-    // Skew hires towards recent years: sqrt pulls the uniform draw towards 1.
     const hireMs =
       toDate(FIRST_HIRE) + Math.sqrt(rng.number.float()) * (latestHire - toDate(FIRST_HIRE));
     const hireDate = toIso(hireMs);
     const tenureYears = (toDate(today) - hireMs) / (365 * DAY_MS);
 
-    // ±12%: typical spread of pay for the same role and market.
     let factor = Math.exp(rng.number.float({ min: -0.12, max: 0.12 }));
-    factor *= 1 + Math.min(tenureYears * 0.015, 0.15); // modest tenure premium
+    factor *= 1 + Math.min(tenureYears * 0.015, 0.15);
     if (employmentType === "part_time") factor *= 0.6;
 
-    // Planted: ~8% gender gap for software engineers in Germany.
     if (countryCode === "DE" && role.title === "Software Engineer" && gender === "female") {
       factor *= 0.92;
     }
-    // Planted: pay compression for software engineers in India; recent hires
-    // came in at market rates above long-tenured colleagues.
     if (countryCode === "IN" && role.title === "Software Engineer") {
       factor = Math.exp(rng.number.float({ min: -0.1, max: 0.1 }));
       if (hireDate > monthsBefore(today, 18)) factor *= 1.18;
     }
-    // Planted: ~1% clear outliers for the fairness check.
     const outlier = rng.number.float();
     if (outlier < 0.005) factor *= 2.2;
     else if (outlier < 0.01) factor *= 0.45;
 
-    // Salaries are "nice" round numbers: a multiple of the market step, in minor units.
     const step = market.step * 10 ** currencyExponent(currencyForCountry(countryCode));
     const salaryAmount = roundTo(
       role.usdMedian * market.perUsd * factor * (step / market.step),
@@ -229,10 +212,6 @@ function personName(
 
 const roundTo = (amount: number, step: number) => Math.max(step, Math.round(amount / step) * step);
 
-/**
- * Works backwards from today's salary: about a third of people get 1-3 raises
- * of 4-12% each, spread between the hire date and today.
- */
 function buildHistory(
   rng: Faker,
   {
@@ -257,7 +236,6 @@ function buildHistory(
     ]),
   );
 
-  // Oldest first: each step back undoes a 4-12% raise, staying strictly lower.
   const amounts = [salaryAmount];
   for (let i = 0; i < raiseCount; i++) {
     const later = amounts[0]!;

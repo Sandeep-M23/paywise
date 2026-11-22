@@ -1,9 +1,5 @@
 import { cn } from "@/lib/utils";
 
-/**
- * Paywise mark: three rising bars (pay that grows) with a lime "spark", on a dark
- * tile. The tile inverts in dark mode so it stays visible.
- */
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={cn("size-8 shrink-0", className)} aria-hidden>

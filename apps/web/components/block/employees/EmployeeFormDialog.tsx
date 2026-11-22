@@ -55,7 +55,6 @@ export function EmployeeFormDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Present when editing. */
   employee?: EmployeeDetail;
   onSaved?: (employee: EmployeeDetail) => void;
 }) {

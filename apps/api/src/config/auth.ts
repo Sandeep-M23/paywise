@@ -6,6 +6,6 @@ export function authConfigFromEnv(): AuthConfig {
     email: requireEnv("HR_EMAIL"),
     passwordHash: requireEnv("HR_PASSWORD_HASH"),
     jwtSecret: requireEnv("JWT_ACCESS_SECRET"),
-    tokenTtlSeconds: 8 * 60 * 60, // a working day
+    tokenTtlSeconds: 8 * 60 * 60,
   };
 }

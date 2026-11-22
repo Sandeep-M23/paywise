@@ -9,7 +9,6 @@ import type {
 import type { EmployeeService } from "../../services/employees/employees-service";
 import { asyncHandler } from "../../utils/helpers/http-response";
 
-/** HTTP only: read the validated request, call the service, shape the response. */
 export function employeeController(service: EmployeeService) {
   return {
     list: asyncHandler(async (req: Request, res: Response) => {
@@ -21,7 +20,6 @@ export function employeeController(service: EmployeeService) {
       res.status(201).json(await service.create(input, { by: req.user?.email }));
     }, "createEmployee"),
 
-    /** A raise plan applied as salary revisions, all or nothing. */
     applyRaises: asyncHandler(async (req: Request, res: Response) => {
       const plan: RaiseApplyRequest = req.body;
       res.status(201).json(await service.applyRaises(plan, { by: req.user?.email }));

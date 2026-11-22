@@ -11,8 +11,6 @@ import type {
 import type { EmployeeRow } from "../../models";
 import type { RevisionWithState } from "../../services/employees/employees-repository";
 
-// Gender is deliberately absent from the summary: it is only used in aggregates
-// and shown on the individual record (see REQUIREMENTS.md).
 export function toEmployeeSummary(row: EmployeeRow): EmployeeSummary {
   return {
     id: row.id,

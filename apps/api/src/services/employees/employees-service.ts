@@ -19,7 +19,6 @@ import { toEmployeeDetail, toEmployeeSummary } from "../../utils/helpers/dto";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Who is acting: recorded on every revision (and, later, in the audit log). */
 export type Actor = { by?: string };
 const actorOf = (actor: Actor) => actor.by ?? "system";
 
@@ -42,11 +41,6 @@ async function assertUniqueIdentity(
   }
 }
 
-/**
- * Inserts an employee and its "hire" revision, with the cache pointing at it (the
- * deferred foreign key checks the pair at commit). Must run inside a transaction.
- * Shared with CSV import so both paths obey the same rules.
- */
 export async function insertEmployeeWithHireRevision(
   tx: Db,
   input: EmployeeCreateInput,
@@ -74,7 +68,6 @@ export async function insertEmployeeWithHireRevision(
   return row;
 }
 
-/** "A, B, C and 4 others": enough to find the people without a wall of names. */
 function names(list: string[], shown = 3) {
   const head = list.slice(0, shown).join(", ");
   return list.length > shown ? `${head} and ${list.length - shown} others` : head;
@@ -103,7 +96,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       return loadDetail(db, id, clock.today());
     },
 
-    /** A hire date in the future is allowed: a pre-boarded hire, paid from that date. */
     async create(input: EmployeeCreateInput, actor: Actor = {}): Promise<EmployeeDetail> {
       return inTransaction(db, async (tx) => {
         await assertUniqueIdentity(tx, input);
@@ -135,7 +127,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       }).catch(mapDbError);
     },
 
-    /** Deactivation keeps history and cancels anything still scheduled. */
     async deactivate(id: string, { reason }: { reason: string }): Promise<EmployeeDetail> {
       const today = clock.today();
       return inTransaction(db, async (tx) => {
@@ -154,11 +145,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       }).catch(mapDbError);
     },
 
-    /**
-     * The only way a salary changes: append a revision, effective on a past,
-     * current or future date, then point the cache at the current revision (a
-     * scheduled one leaves it alone until its date). Rules in docs/DESIGN.md §2.1.
-     */
     async changeSalary(
       id: string,
       input: SalaryRevisionCreateInput,
@@ -171,8 +157,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
           throw conflict("employee_inactive", "Cannot change the salary of an inactive employee");
         }
 
-        // Someone else changed the salary since the user loaded it: don't build on
-        // a value they never saw (SCHEMA_REVIEW F1).
         const head = await repo.timelineHead(tx, id);
         if (input.basedOnRevisionId && head && input.basedOnRevisionId !== head.id) {
           throw conflict(
@@ -209,7 +193,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
               "There is already a salary change on that date; record a correction instead",
             );
           }
-          // Backdating before the current revision would rewrite pay already made.
           if (current.salaryEffectiveOn <= today && input.effectiveOn < current.salaryEffectiveOn) {
             throw invalid(
               "effectiveOn",
@@ -219,7 +202,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
         }
 
         const before = await repo.inForceBefore(tx, id, input.effectiveOn);
-        // A correction keeps the corrected change's currency unless told otherwise.
         const baseCurrency = corrected?.currency ?? before?.currency ?? current.salaryCurrency;
         const currency = input.currency ?? baseCurrency;
         if (input.reason === "currency_change" && currency === baseCurrency) {
@@ -256,7 +238,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       }).catch(mapDbError);
     },
 
-    /** Cancels a scheduled change (with its corrections). A change already in force can't be. */
     async cancelRevision(id: string, revisionId: string): Promise<EmployeeDetail> {
       const today = clock.today();
       return inTransaction(db, async (tx) => {
@@ -277,11 +258,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       }).catch(mapDbError);
     },
 
-    /**
-     * Applies a raise plan as salary revisions, all or nothing: the same rules as
-     * changeSalary for every person, checked in SQL against locked rows. A future
-     * date makes every revision scheduled.
-     */
     async applyRaises(request: RaiseApplyRequest, actor: Actor = {}): Promise<RaiseApplyResult> {
       const today = clock.today();
       const plan = {
@@ -328,11 +304,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       }).catch(mapDbError);
     },
 
-    /**
-     * Moves every cache to its current revision: run daily (Vercel Cron), on start-up
-     * and safe to repeat. Locks the stale rows first, then updates them in a later
-     * statement, so a correction committed meanwhile isn't overwritten.
-     */
     async promoteDueRevisions(): Promise<{ promoted: number }> {
       const today = clock.today();
       return inTransaction(db, async (tx) => {
@@ -341,7 +312,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       }).catch(mapDbError);
     },
 
-    /** How many employees' cached salary isn't their current revision (0 when healthy). */
     async cacheDrift(): Promise<number> {
       return repo.cacheDrift(db, clock.today());
     },

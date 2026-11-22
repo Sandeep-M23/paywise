@@ -2,7 +2,6 @@ import { createDb, dbConfigFromEnv } from "../../config/db";
 import { generateEmployees } from "./generate";
 import { seedDatabase } from "./seed";
 
-// Fixed reference date and seed: every run produces identical data.
 const SEED = 42;
 const REFERENCE_DATE = "2026-11-15";
 const count = Number(process.env.SEED_COUNT ?? 10_000);

@@ -14,8 +14,6 @@ type ExportFilters = Pick<
   "status" | "country" | "jobTitle" | "department" | "q"
 >;
 
-// Headers match what autoMapColumns recognises, so the template, an export and
-// a hand-made file all import the same way.
 const TEMPLATE_HEADERS = [
   "employee_code",
   "full_name",
@@ -31,7 +29,6 @@ const TEMPLATE_HEADERS = [
 
 export function createExportService({ db }: { db: Db }) {
   return {
-    /** Same filters as the directory, all matching rows, Excel-safe CSV. */
     async employeesCsv(filters: ExportFilters): Promise<string> {
       const where = employeeFilters(filters);
       const rows = await select<EmployeeRow>(

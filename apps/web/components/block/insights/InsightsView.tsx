@@ -48,7 +48,6 @@ import { cn } from "@/lib/utils";
 import { Stat } from "@/components/shared/StatCard/Stat";
 import type { AppIcon } from "@/@types";
 
-// Eight tiles share one row, so the two long names get their everyday short form.
 const SHORT_NAMES: Record<string, string> = { US: "USA", GB: "UK" };
 
 const countChart = { count: { label: "Employees", color: "var(--chart-1)" } } satisfies ChartConfig;
@@ -66,8 +65,6 @@ export function InsightsView() {
 
   return (
     <>
-      {/* Every country at once, as equal tiles: flag, name, people and median. No
-          sideways scrolling, and the selected country reads at a glance. */}
       <div
         role="tablist"
         aria-label="Country"
@@ -412,10 +409,6 @@ function LoadingRows({ columns }: { columns: number }) {
   ));
 }
 
-/**
- * Pay bands: per job title, a bar from min to max on one shared scale with a mark
- * at the median, so both the typical pay and the spread read at a glance.
- */
 function PayBands({
   rows,
   format,
@@ -465,7 +458,6 @@ function PayBands({
   );
 }
 
-/** A small grey icon circle beside a card title, matching the stat cards. */
 function TitleIcon({ icon: Icon }: { icon: AppIcon }) {
   return (
     <span className="bg-muted text-muted-foreground grid size-8 shrink-0 place-items-center rounded-full">

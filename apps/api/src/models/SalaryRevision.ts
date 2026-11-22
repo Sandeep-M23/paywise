@@ -7,11 +7,6 @@ import {
   type Sequelize,
 } from "sequelize";
 
-/**
- * Effective-dated salary history: "from effective_on, pay is amount in currency".
- * Append-only: a mistake is fixed by a "correction" pointing at the revision it
- * corrects (same date); only a scheduled revision may be cancelled.
- */
 export class SalaryRevision extends Model<
   InferAttributes<SalaryRevision>,
   InferCreationAttributes<SalaryRevision>

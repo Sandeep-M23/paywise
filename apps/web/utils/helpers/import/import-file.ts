@@ -10,10 +10,6 @@ import {
 } from "@paywise/shared";
 import type { ParsedFile } from "@/@types";
 
-/**
- * Reads a CSV in the browser. Blank lines are dropped but line numbers are
- * kept, so errors point at the row HR sees in Excel (header = line 1).
- */
 export function parseCsvText(text: string): ParsedFile {
   const result = Papa.parse<Record<string, string>>(text.replace(/^\uFEFF/, ""), {
     header: true,
@@ -34,7 +30,6 @@ export function parseCsvText(text: string): ParsedFile {
   return { headers, records };
 }
 
-/** Applies the column mapping, producing the API request. */
 export function buildImportRequest(
   filename: string,
   records: ParsedFile["records"],
@@ -54,10 +49,6 @@ export function buildImportRequest(
   };
 }
 
-/**
- * The rows that failed, exactly as uploaded plus a column explaining what to
- * fix, so HR can correct them in Excel and upload just this file again.
- */
 export function errorReportCsv(
   headers: string[],
   records: ParsedFile["records"],

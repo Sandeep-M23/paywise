@@ -14,7 +14,6 @@ export function Stat({
   value: ReactNode;
   hint?: string;
   icon: AppIcon;
-  /** Only "warning" changes the tile: it colours the value. */
   tone?: "primary" | "warning" | "success" | "muted";
   loading?: boolean;
 }) {

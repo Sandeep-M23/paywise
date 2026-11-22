@@ -96,8 +96,6 @@ export function FairnessView() {
   const [kinds, setKinds] = useState<string[]>([]);
   const [directions, setDirections] = useState<string[]>([]);
   const [explaining, setExplaining] = useState(false);
-  // Every country is fetched once (about 160 groups and a few hundred outliers), so
-  // any mix of countries, titles and statuses is filtered here without a round trip.
   const gaps = useGenderGaps({});
   const outliers = useOutliers({});
   const { data: options } = useFilterOptions();
@@ -179,7 +177,6 @@ export function FairnessView() {
         onValueChange={(v) => setView(v as FairnessTab)}
         className={cn("gap-4", fill)}
       >
-        {/* One row at the top: the view, one Filters button, then the guide on the right. */}
         <div className="flex flex-wrap items-center gap-2">
           <TabsList>
             <TabsTrigger value="gender">
@@ -440,7 +437,6 @@ function furthest(people: PayOutlier[]) {
   return top ? `${top.fullName}, ${top.jobTitle}` : undefined;
 }
 
-/** A short visual guide: what each number means, then what each status badge means. */
 function GapExplainer() {
   const sample = (patch: Partial<GenderGapGroup>): GenderGapGroup => ({
     countryCode: "",

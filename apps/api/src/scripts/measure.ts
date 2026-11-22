@@ -1,8 +1,3 @@
-/**
- * Times the main API calls against a running API with the 10k seed.
- *   npm run measure -w @paywise/api            (BASE_URL defaults to http://localhost:4000)
- * Import commit is only measured with --commit, because it writes data.
- */
 import Papa from "papaparse";
 import { autoMapColumns, unescapeCsvCell, type ImportRequest } from "@paywise/shared";
 
@@ -95,7 +90,6 @@ await time(
 );
 
 if (process.argv.includes("--commit")) {
-  // Give everyone a 3% raise so every row is an update with a salary revision.
   for (const row of request.rows) {
     const amount = Number(row.values.salary);
     row.values.salary = Math.round(amount * 1.03).toString();

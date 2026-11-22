@@ -8,7 +8,6 @@ import {
   type Sequelize,
 } from "sequelize";
 
-/** One committed CSV import: who ran it, the counts, and what each changed row did. */
 export class Import extends Model<InferAttributes<Import>, InferCreationAttributes<Import>> {
   declare id: CreationOptional<string>;
   declare filename: string;
@@ -18,7 +17,6 @@ export class Import extends Model<InferAttributes<Import>, InferCreationAttribut
   declare skippedCount: number;
   declare status: CreationOptional<string>;
   declare createdBy: string | null;
-  // Unchanged rows are left out; no raw file values are kept.
   declare rows: ImportPreviewRow[];
   declare createdAt: CreationOptional<Date>;
 

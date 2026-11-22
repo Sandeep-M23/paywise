@@ -7,12 +7,6 @@ import {
   type Sequelize,
 } from "sequelize";
 
-/**
- * Who someone is and where they work, plus a cache of their current salary: an
- * exact copy of one of their revisions (the latest effective on or before today),
- * pinned to it by a deferred composite foreign key in config/schema.sql.
- * Indexes, checks and foreign keys are in config/schema.sql, applied after sync.
- */
 export class Employee extends Model<InferAttributes<Employee>, InferCreationAttributes<Employee>> {
   declare id: CreationOptional<string>;
   declare employeeCode: string;

@@ -13,7 +13,6 @@ import { useCountrySummaries } from "@/utils/apis/insights";
 import { useFilterOptions } from "@/utils/apis/meta";
 import type { DirectoryFilters as Filters, Facet } from "@/@types";
 
-// Active is the default; clearing the filter goes back to it.
 const STATUS_OPTIONS = [
   {
     value: "active",
@@ -39,7 +38,6 @@ export function DirectoryFilters({
 }: {
   query: Filters;
   onChange: (patch: Partial<Filters>) => void;
-  /** Page actions (export, add) that sit at the end of the same row. */
   actions?: ReactNode;
 }) {
   const { data: options } = useFilterOptions();
@@ -48,7 +46,6 @@ export function DirectoryFilters({
   const debounced = useDebouncedValue(search);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // "/" jumps to search from anywhere on the page (unless already typing).
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement;
@@ -60,7 +57,6 @@ export function DirectoryFilters({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Keep the box in sync when filters are cleared elsewhere.
   useEffect(() => {
     if (!query.q) setSearch("");
   }, [query.q]);
@@ -70,7 +66,6 @@ export function DirectoryFilters({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the debounced text
   }, [debounced]);
 
-  // Headcounts are for active employees, the default view.
   const headcount = (code: string) => summaries?.find((c) => c.countryCode === code)?.headcount;
   const list = <T extends string>(values: string[]) =>
     values.length ? (values as T[]) : undefined;
@@ -128,8 +123,6 @@ export function DirectoryFilters({
     },
   ];
 
-  // One row: search, the Filters button with the active filters as chips, and the
-  // page actions on the right.
   return (
     <FilterBar
       facets={facets}

@@ -29,7 +29,7 @@ afterAll(async () => {
 const people: EmployeeCreateInput[] = [
   {
     employeeCode: "EMP-00001",
-    fullName: "-Zoë, O'Brien", // formula trigger, comma, accent, apostrophe
+    fullName: "-Zoë, O'Brien",
     email: "zoe@acme.test",
     jobTitle: "Software Engineer",
     department: "Engineering",
@@ -66,7 +66,6 @@ const post = (path: string, body: string) =>
     body,
   });
 
-/** What the browser does: parse the CSV, auto-map headers, build the request. */
 function toImportRequest(csv: string): ImportRequest {
   const parsed = Papa.parse<Record<string, string>>(csv.replace(/^\uFEFF/, ""), {
     header: true,
@@ -91,12 +90,11 @@ describe("export", () => {
     const res = await app.request("/api/export/employees.csv");
     expect(res.headers.get("content-type")).toContain("text/csv");
     expect(res.headers.get("content-disposition")).toContain("attachment");
-    // Check bytes: Response.text() decodes UTF-8 and drops the BOM; Excel sees it.
     const bytes = new Uint8Array(await res.arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const csv = new TextDecoder().decode(bytes);
     expect(csv).toContain(`"'-Zoë, O'Brien"`);
-    expect(csv).not.toContain("female"); // gender is never exported
+    expect(csv).not.toContain("female");
   });
 
   it("respects directory filters", async () => {

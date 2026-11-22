@@ -3,11 +3,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { AppIcon } from "@/@types";
 
-/**
- * The one stat card used on every page: grey icon circle, label,
- * large value and a hint line. The hint line is always there (blank if unused) so
- * cards in a row are the same height.
- */
 export function StatTile({
   icon: Icon,
   label,
@@ -22,7 +17,6 @@ export function StatTile({
   value: ReactNode;
   hint?: ReactNode;
   tone?: "warning";
-  /** Shows shining placeholders for the value and hint. */
   loading?: boolean;
   className?: string;
 }) {

@@ -1,7 +1,6 @@
 import type { ApiResult, LoginInput, LoginResponse } from "@/@types";
 import { postData } from "@/utils/services";
 
-/** Never throws: the sign-in form shows `message` either way. */
 export async function handleLogin(payload: LoginInput): Promise<ApiResult<LoginResponse>> {
   try {
     const body = await postData<{ message: string; data: LoginResponse }>("/auth/login", payload);

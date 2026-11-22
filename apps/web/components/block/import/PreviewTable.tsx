@@ -17,13 +17,9 @@ import {
 } from "@/components/ui/table";
 import { humanize, money } from "@/utils/helpers/others/format";
 
-// Rows are already in the browser; render them in batches as the user scrolls,
-// so a 10,000-row file doesn't build every row up front.
 const PAGE = 100;
-// Start the next batch this far before the end, so scrolling never hits a gap.
 const PREFETCH = "0px 0px 600px 0px";
 
-/** "Hire date (YYYY-MM-DD)" -> "Hire date": the hint belongs on the mapping screen only. */
 const fieldLabel = (field: string) =>
   (IMPORT_FIELD_LABELS[field as keyof typeof IMPORT_FIELD_LABELS] ?? humanize(field)).replace(
     / \(.*\)$/,
@@ -36,10 +32,6 @@ const STATUS_LABEL: Record<ImportRowStatus, string> = {
   error: "Error",
 };
 
-/**
- * Rows of an import, filterable by result. With `getValue`/`onEdit`, error cells
- * become inputs so a bad value can be fixed here and re-checked, no re-upload.
- */
 export function PreviewTable({
   rows,
   getValue,
@@ -47,7 +39,6 @@ export function PreviewTable({
   maxHeight = "max-h-[32rem]",
 }: {
   rows: ImportPreviewRow[];
-  /** The raw value in the file for this line and field; undefined if the field isn't mapped. */
   getValue?: (line: number, field: string) => string | undefined;
   onEdit?: (line: number, field: string, value: string) => void;
   maxHeight?: string;
@@ -88,7 +79,6 @@ export function PreviewTable({
             onClick={() => {
               setFilter(status);
               setLimit(PAGE);
-              // A different filter is a different list: start reading from the top.
               scroller.current?.scrollTo({ top: 0 });
             }}
           >

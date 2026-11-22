@@ -20,7 +20,6 @@ import { PreviewTable } from "@/components/block/import/PreviewTable";
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 
-/** Past imports, newest first; open one to see who ran it and what each row did. */
 export function ImportLog() {
   const { data, isLoading } = useImportLog();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -116,7 +115,6 @@ export function ImportLog() {
   );
 }
 
-/** A count pill; zero stays grey so the numbers that matter stand out. */
 function Count({
   value,
   label,

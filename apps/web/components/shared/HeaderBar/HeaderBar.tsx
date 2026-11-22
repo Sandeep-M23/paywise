@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { CommandPalette } from "@/components/shared/CommandPalette/CommandPalette";
 import { isActive, LINKS } from "@/utils/constants/navigation";
 
-/** "How it works": what the page is for and how to use it, as numbered steps. */
 function PageGuide({ page }: { page: (typeof LINKS)[number] }) {
   const Icon = page.icon;
   return (
@@ -54,7 +53,6 @@ function PageGuide({ page }: { page: (typeof LINKS)[number] }) {
   );
 }
 
-/** The page title and what it is for on the left; the guide and search on the right. */
 export function HeaderBar({ className }: { className?: string }) {
   const pathname = usePathname();
   const page = LINKS.find((link) => isActive(pathname, link));

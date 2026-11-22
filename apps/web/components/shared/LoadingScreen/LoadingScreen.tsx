@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/Logo/Logo";
 
-/** The branded full-screen loader: logo on black with a sweeping lime bar. */
 export function LoadingScreen({ className }: { className?: string }) {
   return (
     <div
@@ -25,16 +24,9 @@ export function LoadingScreen({ className }: { className?: string }) {
   );
 }
 
-// Longest the splash may stay up, so a slow request never blocks the whole app.
 const MAX_MS = 4000;
-// If nothing starts loading within this time, there is nothing to wait for.
 const IDLE_MS = 600;
 
-/**
- * Covers the app on first load until the page's first data has arrived, then
- * fades out. It is rendered on the server too, so the empty shell never flashes.
- * It shows once per full page load: the shell layout stays mounted while you navigate.
- */
 export function StartupScreen() {
   const fetching = useIsFetching();
   const started = useRef(false);
@@ -71,10 +63,6 @@ export function StartupScreen() {
   );
 }
 
-/**
- * After start-up, background loads (filters, sorting, refreshes) show as a thin lime
- * bar along the top of the page. It waits a moment so quick loads don't flicker.
- */
 export function FetchingBar() {
   const fetching = useIsFetching() > 0;
   const [visible, setVisible] = useState(false);

@@ -29,7 +29,6 @@ function greeting(now: Date | null) {
   return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
-/** The HR manager's starting point: where things stand and what needs a look. */
 export function OverviewView() {
   const router = useRouter();
   const selectEmployee = useSetAtom(selectedEmployeeIdAtom);

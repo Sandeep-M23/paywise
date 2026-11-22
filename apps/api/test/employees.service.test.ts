@@ -196,7 +196,6 @@ describe("update", () => {
     const { id } = await service.create(priya);
     const updated = await service.update(id, { hireDate: "2022-03-15" });
     expect(updated.revisions.at(-1)).toMatchObject({ reason: "hire", effectiveOn: "2022-03-15" });
-    // The cache copies the hire revision, so it follows the new date too.
     expect(await service.cacheDrift()).toBe(0);
   });
 
@@ -323,11 +322,6 @@ describe("list", () => {
 });
 
 describe("applyRaises", () => {
-  /*
-   * Priya IN 180,000,000 ; Rahul IN 120,000,001 ; Anna DE 6,000,000 (all hired 2022).
-   * 10% for IN: Priya +18,000,000 ; Rahul +12,000,000 (12,000,000.1 rounds down).
-   * Anna individually to 6,600,000.
-   */
   let ids: { priya: string; rahul: string; anna: string };
   beforeEach(async () => {
     const priyaRow = await service.create(priya);

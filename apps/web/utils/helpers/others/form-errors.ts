@@ -2,7 +2,6 @@ import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
 import { toast } from "sonner";
 import { ApiError } from "@/utils/services";
 
-/** Puts API field errors on the matching inputs; anything else becomes a toast. */
 export function applyApiErrors<T extends FieldValues>(
   error: unknown,
   setError: UseFormSetError<T>,
