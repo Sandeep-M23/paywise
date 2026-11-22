@@ -1,18 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { COOKIES } from "./utils/constants/others/cookies";
 import { OPEN_PATHS, PATH } from "./utils/constants/others/paths";
+import { decodeAuthToken } from "./utils/helpers/others/jwt";
 
 function isSignedIn(request: NextRequest) {
   const token = request.cookies.get(COOKIES.AUTH_TOKEN)?.value;
-  if (!token) return false;
-  try {
-    const payload = JSON.parse(
-      atob(token.split(".")[1]!.replace(/-/g, "+").replace(/_/g, "/")),
-    ) as { exp?: number };
-    return !!payload.exp && payload.exp * 1000 > Date.now();
-  } catch {
-    return false;
-  }
+  return !!token && decodeAuthToken(token) !== null;
 }
 
 export function proxy(request: NextRequest) {
