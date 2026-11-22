@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Briefcase, Building2, Globe, Search, UserCheck, Users, UserX } from "@/components/icons";
 import { FilterBar } from "@/components/shared/FilterBar/FilterBar";
 import { countryFlag } from "@/components/shared/CountryLabel/CountryLabel";
@@ -61,9 +61,11 @@ export function DirectoryFilters({
     if (!query.q) setSearch("");
   }, [query.q]);
 
+  const pushSearch = useEffectEvent((text: string) => {
+    if ((text || undefined) !== query.q) onChange({ q: text || undefined });
+  });
   useEffect(() => {
-    if ((debounced || undefined) !== query.q) onChange({ q: debounced || undefined });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to the debounced text
+    pushSearch(debounced);
   }, [debounced]);
 
   const headcount = (code: string) => summaries?.find((c) => c.countryCode === code)?.headcount;

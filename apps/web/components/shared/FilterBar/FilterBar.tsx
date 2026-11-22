@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
 import { Filter } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -140,27 +140,23 @@ export function FilterBar({
 function FacetOptions({ facet }: { facet: Facet }) {
   const selectedKey = facet.selected.join("\u0000");
   const [picked, setPicked] = useState(facet.selected);
-  const latest = useRef(facet.selected);
-  useEffect(() => {
-    latest.current = facet.selected;
+  const [pickedFor, setPickedFor] = useState(selectedKey);
+  if (pickedFor !== selectedKey) {
+    setPickedFor(selectedKey);
     setPicked(facet.selected);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on content, not identity
-  }, [selectedKey]);
+  }
 
   function toggle(value: string) {
-    const current = latest.current;
     const next = facet.single
       ? [value]
-      : current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
-    latest.current = next;
+      : picked.includes(value)
+        ? picked.filter((v) => v !== value)
+        : [...picked, value];
     setPicked(next);
     facet.onChange(next);
   }
 
   function clear() {
-    latest.current = [];
     setPicked([]);
     facet.onChange([]);
   }
