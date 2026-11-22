@@ -214,7 +214,28 @@ Only **active** employees count in insights. Every figure shows its sample size.
 
 Reads (lists, analytics) run without explicit transactions. PGlite tests cover each rule. PGlite has a single connection, so races run in `test/concurrency.pg.test.ts` against real Postgres when `TEST_PG_URL` is set (always in CI): two people changing the same salary at once (one wins, the other gets `409 stale_salary`), and four overlapping raise plans locking the same 200 people at once (all complete; with the id lock order replaced by a random one, the test fails on a deadlock).
 
-## 7. Testing Approach
+## 7. How the Non-Obvious Parts Work
+
+The code carries no comments (CLAUDE.md), so the reasoning behind the parts that aren't obvious from reading lives here.
+
+**API**
+
+- **The current-salary cache** (`employees.salary_amount`, `salary_currency`, `salary_effective_on`, `current_revision_id`) is a copy of one revision, kept so lists and statistics read one table. A composite foreign key pins it to a real revision of the same employee. `refreshSalaryCache` (`salary-revisions-repository.ts`) rewrites the copy whenever any copied field differs, not only the revision id: moving a hire date keeps the id but changes the date.
+- **Scheduled changes take effect without a cron job.** `promoteDueRevisionsDaily` (`middlewares/promote-due.ts`) runs `promoteDueRevisions` on the first API request of each day, per server instance. Simultaneous requests share one run, a failure is retried on the next request, and the update is idempotent, so several instances running it is harmless. It locks the stale rows first and updates them in a second statement, so a correction committed meanwhile isn't overwritten (SCHEMA_REVIEW F2).
+- **Two people changing one salary.** Each change locks the employee row; the request carries `basedOnRevisionId` (the latest change the user saw), and a mismatch is `409 stale_salary` instead of building on a value nobody saw (F1). Raise plans and imports lock many employees in id order, so they can't deadlock (F3). Both races are tested on real Postgres.
+- **Corrections** use the corrected change's date and point at it; only the newest entry on a date can be corrected, and the latest-recorded entry on a date wins. `previousAmount` is derived at read time with `LAG`, so a correction never leaves a stale "previous" value behind.
+- **Import** plans every row (`imports-plan.ts`: validate, match by code, check emails and hire dates, diff), shows that as the preview, then plans again inside the commit transaction with the rows locked: the preview is never trusted. Updates are one `UPDATE … FROM jsonb_to_recordset` per 1,000 rows.
+- **Typed requests.** Validator middleware parses body and query with the shared Zod schemas and replaces them; controllers declare the parsed types through `ValidatedRequest`, and the only cast is in `asyncHandler`.
+
+**Web**
+
+- **Sign-in and sign-out are full page loads.** Next.js 16 keeps visited pages alive and shows them again with their old state, so a client-side switch would restore a filled-in sign-in form, play two splash screens, and keep salaries in memory after sign-out. `proxy.ts` redirects signed-out or expired visitors on the server, before any page renders.
+- **The import wizard starts fresh on every visit.** For the same reason, a page left mid-import would come back at step 3, and a Jotai atom changed while the page is hidden isn't re-read. `ImportWizard` resets the atom and remounts the wizard with a new `key` on each arrival, before paint; a request that finishes after you left is ignored (`onPage` in `useImportWizard`).
+- **Quick filter picks.** The directory's filters live in the URL, which updates a moment after a click. `FilterBar` builds each pick on its own local selection (resynced from the URL only when the selection's content changes), and `useDirectoryQuery` merges each change into the latest pending one, so clicking India then Germany quickly keeps both.
+- **Downloads** fetch the file with the Bearer token and save the blob (`downloadFile`): a plain link can't send the header.
+- **The virtualized directory** scrolls through the virtualizer (`scrollToOffset`), not the container: the virtualizer adjusts the scroll position as it measures rows, which cuts a native smooth scroll short.
+
+## 8. Testing Approach
 
 - **Pure logic** (money, currencies, CSV helpers, schemas, seed generator): plain Vitest, written test-first.
 - **Services and SQL**: Vitest against **PGlite** (real Postgres in-process; with Sequelize it is reached over `@electric-sql/pglite-socket`). Each file gets a freshly created DB; tables are truncated between tests. Fixtures are a handful of hand-computed employees, never the 10k seed.
