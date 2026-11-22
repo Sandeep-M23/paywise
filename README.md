@@ -107,6 +107,9 @@ Sign in with `HR_EMAIL` from `.env` and the password you hashed.
 ```bash
 npm test          # 197 tests, ~5 s: shared logic, API on PGlite, web helpers
 npm run check     # format + typecheck + lint + tests (the pre-commit gate; CI runs the same)
+# race tests on real Postgres (CI always runs them); the database is wiped, so use a throwaway one
+docker compose exec db createdb -U paywise paywise_ci
+TEST_PG_URL=postgres://paywise:paywise@localhost:5433/paywise_ci npm test
 npm run measure -w @paywise/api   # time the main endpoints against a running API (needs HR_EMAIL/HR_PASSWORD)
 ```
 

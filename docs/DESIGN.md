@@ -212,7 +212,7 @@ Only **active** employees count in insights. Every figure shows its sample size.
 | Import commit                | import record, employees, revisions     | employees in id order     |
 | Promote due revisions        | cache updates only (idempotent)         | stale rows, in id order   |
 
-Reads (lists, analytics) run without explicit transactions. PGlite tests cover each rule. PGlite has a single connection, so true concurrency (two writers racing) isn't tested; the row locks and lock ordering above are what guard it.
+Reads (lists, analytics) run without explicit transactions. PGlite tests cover each rule. PGlite has a single connection, so races run in `test/concurrency.pg.test.ts` against real Postgres when `TEST_PG_URL` is set (always in CI): two people changing the same salary at once (one wins, the other gets `409 stale_salary`), and four overlapping raise plans locking the same 200 people at once (all complete; with the id lock order replaced by a random one, the test fails on a deadlock).
 
 ## 7. Testing Approach
 

@@ -8,6 +8,20 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: paywise
+          POSTGRES_PASSWORD: paywise
+          POSTGRES_DB: paywise_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U paywise"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,5 +29,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - name: Format, typecheck, lint, test
+      - name: Format, typecheck, lint, test (concurrency tests on real Postgres)
         run: npm run check
+        env:
+          TEST_PG_URL: postgres://paywise:paywise@localhost:5432/paywise_ci
