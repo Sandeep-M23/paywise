@@ -16,7 +16,7 @@ import {
 import { COUNTRIES } from "@paywise/shared";
 import { useSetAtom } from "jotai";
 import { useState, type ReactNode } from "react";
-import type { GenderGapGroup, PayOutlier } from "@paywise/shared";
+import type { GenderGapGroup } from "@paywise/shared";
 import { EmployeeSheet } from "@/components/block/employees/EmployeeSheet";
 import { FilterBar } from "@/components/shared/FilterBar/FilterBar";
 import {
@@ -49,13 +49,8 @@ import { useCountrySummaries } from "@/utils/apis/insights";
 import { useFilterOptions } from "@/utils/apis/meta";
 import { useGenderGaps, useOutliers } from "@/utils/apis/fairness";
 import { GapStatus } from "@/components/block/fairness/GapStatus";
+import { furthestOutlier, gapKind } from "@/utils/helpers/fairness";
 import type { AppIcon, DirectionFilter, Facet, FairnessTab, GapFilter } from "@/@types";
-
-function gapKind(g: GenderGapGroup): Exclude<GapFilter, "all"> {
-  if (g.suppressed) return "hidden";
-  if (g.flagged) return g.significant ? "review" : "chance";
-  return "within";
-}
 
 const GAP_FILTERS: { value: Exclude<GapFilter, "all">; label: string; icon: ReactNode }[] = [
   {
@@ -354,7 +349,7 @@ export function FairnessView() {
                   ? percent(Math.max(...people.map((o) => Math.abs(o.deviation))), 0)
                   : "–"
               }
-              hint={furthest(people)}
+              hint={furthestOutlier(people)}
             />
           </div>
           <TableFrame
@@ -430,11 +425,6 @@ export function FairnessView() {
       <EmployeeSheet />
     </>
   );
-}
-
-function furthest(people: PayOutlier[]) {
-  const top = [...people].sort((a, b) => Math.abs(b.deviation) - Math.abs(a.deviation))[0];
-  return top ? `${top.fullName}, ${top.jobTitle}` : undefined;
 }
 
 function GapExplainer() {

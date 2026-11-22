@@ -6,7 +6,6 @@ import { X } from "lucide-react";
 import {
   applyRaise,
   RAISE_REASONS,
-  parseMoneyInput,
   raisePlanSchema,
   toMajorString,
   type CountryCode,
@@ -49,23 +48,10 @@ import { useApplyRaises, useRaiseCost } from "@/utils/apis/raises";
 import { useCountrySummaries } from "@/utils/apis/insights";
 import { useFilterOptions } from "@/utils/apis/meta";
 import { cn } from "@/lib/utils";
+import { parseIndividualRaise } from "@/utils/helpers/raises";
 import type { Facet, Individual, ManualReason } from "@/@types";
 
 const PRESETS = [2, 3, 5, 8, 10];
-
-function toOverride({ employee, mode, text }: Individual): RaiseOverride | { error: string } {
-  if (!text.trim()) return { error: "Enter a raise" };
-  if (mode === "percent") {
-    const value = Number(text);
-    if (!Number.isFinite(value) || value <= 0 || value > 100) return { error: "0–100%" };
-    if (Math.round(value * 100) !== value * 100) return { error: "Two decimals at most" };
-    return { employeeId: employee.id, percent: value };
-  }
-  const parsed = parseMoneyInput(text, employee.salary.currency);
-  if (!parsed.ok) return { error: parsed.error };
-  if (parsed.value <= employee.salary.amount) return { error: "Must be above current" };
-  return { employeeId: employee.id, newAmount: parsed.value };
-}
 
 export function RaisePlanner() {
   const [percentText, setPercentText] = useState("5");
@@ -84,7 +70,7 @@ export function RaisePlanner() {
   const { data: summaries } = useCountrySummaries();
   const applyRaises = useApplyRaises();
 
-  const overrides = individuals.map(toOverride);
+  const overrides = individuals.map(parseIndividualRaise);
   const validOverrides = overrides.filter((o): o is RaiseOverride => !("error" in o));
   const groupPercent = percentText.trim() === "" ? 0 : Number(percentText);
   const plan = {
