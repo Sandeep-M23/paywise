@@ -1,14 +1,18 @@
 import type { NextFunction, Request, Response } from "express";
-import type { ResponseObject, ResponsePayload } from "../../interfaces/helpers/http-response";
+import type {
+  ResponseObject,
+  ResponsePayload,
+  ValidatedRequest,
+} from "../../interfaces/helpers/http-response";
 
 export const asyncHandler =
-  (
-    handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>,
+  <Req extends ValidatedRequest<unknown, unknown, unknown> = Request>(
+    handler: (req: Req, res: Response, next: NextFunction) => Promise<unknown>,
     controllerName: string,
   ) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await handler(req, res, next);
+      await handler(req as unknown as Req, res, next);
     } catch (error) {
       if (error && typeof error === "object") {
         (error as { controller?: string }).controller = controllerName;
