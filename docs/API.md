@@ -69,7 +69,7 @@ Each revision in `EmployeeDetail.revisions`:
 
 `state`: `historical` · `current` · `scheduled` · `corrected` (superseded by a correction) · `cancelled` (a scheduled change dropped when the employee was deactivated).
 
-Rules (details in `DESIGN.md` §2.1): `effectiveOn` ≥ hire date; not before the current revision unless it is a correction; one original per date (`409 revision_date_taken`, "record a correction instead"); a correction names `correctsRevisionId` and uses that revision's date, and only the newest one on a date can be corrected (`409 already_corrected`); a different currency needs the reason `currency_change`; `basedOnRevisionId` that is no longer the latest → `409 stale_salary`. The web app's form records merit, promotion and market adjustment changes; corrections and currency changes are API-only.
+Rules (details in `DESIGN.md` §2.1): `effectiveOn` ≥ hire date; not before the current revision unless it is a correction; one original per date (`409 revision_date_taken`, "record a correction instead"); a correction names `correctsRevisionId` and uses that revision's date, and only the newest one on a date can be corrected (`409 already_corrected`); a different currency needs the reason `currency_change`; `basedOnRevisionId` that is no longer the latest → `409 stale_salary`. The web app records merit, promotion and market adjustment changes, and corrections from the salary history; currency changes are API-only.
 
 ## Insights and fairness
 

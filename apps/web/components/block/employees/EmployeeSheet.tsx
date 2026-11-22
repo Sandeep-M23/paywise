@@ -23,6 +23,8 @@ import { selectedEmployeeIdAtom } from "@/utils/atoms/employees";
 import { date, humanize } from "@/utils/helpers/others/format";
 import { useEmployee } from "@/utils/apis/employees";
 import { ChangeSalaryDialog } from "@/components/block/employees/ChangeSalaryDialog";
+import { CorrectSalaryDialog } from "@/components/block/employees/CorrectSalaryDialog";
+import type { SalaryRevision } from "@paywise/shared";
 import { DeactivateDialog } from "@/components/block/employees/DeactivateDialog";
 import { EmployeeFormDialog } from "@/components/block/employees/EmployeeFormDialog";
 import { PeerPosition } from "@/components/block/employees/PeerPosition";
@@ -33,6 +35,7 @@ export function EmployeeSheet() {
   const [id, setId] = useAtom(selectedEmployeeIdAtom);
   const { data: employee, isLoading, error } = useEmployee(id);
   const [dialog, setDialog] = useState<EmployeeDialog>(null);
+  const [correcting, setCorrecting] = useState<SalaryRevision | null>(null);
   const close = (open: boolean) => !open && setDialog(null);
 
   return (
@@ -122,7 +125,11 @@ export function EmployeeSheet() {
               <Separator />
               <div>
                 <h3 className="mb-3 text-sm font-medium">Salary history</h3>
-                <SalaryHistory revisions={employee.revisions} countryCode={employee.countryCode} />
+                <SalaryHistory
+                  revisions={employee.revisions}
+                  countryCode={employee.countryCode}
+                  onCorrect={employee.status === "active" ? setCorrecting : undefined}
+                />
               </div>
             </div>
             <EmployeeFormDialog open={dialog === "edit"} onOpenChange={close} employee={employee} />
@@ -130,6 +137,11 @@ export function EmployeeSheet() {
               open={dialog === "salary"}
               onOpenChange={close}
               employee={employee}
+            />
+            <CorrectSalaryDialog
+              employee={employee}
+              revision={correcting}
+              onOpenChange={(open) => !open && setCorrecting(null)}
             />
             <DeactivateDialog
               open={dialog === "deactivate"}

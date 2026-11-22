@@ -1,5 +1,6 @@
 import type { SalaryRevision } from "@paywise/shared";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { date, humanize, money, percent } from "@/utils/helpers/others/format";
 
@@ -10,12 +11,16 @@ const STATE_LABEL: Partial<Record<SalaryRevision["state"], string>> = {
   cancelled: "Cancelled",
 };
 
+const CORRECTABLE: SalaryRevision["state"][] = ["current", "scheduled", "historical"];
+
 export function SalaryHistory({
   revisions,
   countryCode,
+  onCorrect,
 }: {
   revisions: SalaryRevision[];
   countryCode: string;
+  onCorrect?: (revision: SalaryRevision) => void;
 }) {
   return (
     <ol className="relative flex flex-col gap-4 border-l pl-5">
@@ -61,9 +66,21 @@ export function SalaryHistory({
               {revision.importId && <span className="text-muted-foreground">via CSV import</span>}
             </div>
             {revision.note && <p className="text-muted-foreground mt-1 text-sm">{revision.note}</p>}
-            <p className="text-muted-foreground mt-1 text-xs">
-              by {revision.createdBy} · recorded {date(revision.createdAt.slice(0, 10))}
-            </p>
+            <div className="text-muted-foreground mt-1 flex items-center justify-between gap-2 text-xs">
+              <span>
+                by {revision.createdBy} · recorded {date(revision.createdAt.slice(0, 10))}
+              </span>
+              {onCorrect && CORRECTABLE.includes(revision.state) && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-xs"
+                  onClick={() => onCorrect(revision)}
+                >
+                  Correct
+                </Button>
+              )}
+            </div>
           </li>
         );
       })}

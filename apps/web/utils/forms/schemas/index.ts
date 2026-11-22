@@ -14,3 +14,8 @@ export const salaryChangeFormSchema = withSalaryRevisionRules(
   salaryRevisionFieldsSchema.omit({ amount: true }).extend({ amount: z.string() }),
 );
 export type SalaryChangeFormValues = z.input<typeof salaryChangeFormSchema>;
+
+export const correctionFormSchema = salaryRevisionFieldsSchema
+  .pick({ note: true })
+  .extend({ amount: z.string().trim().min(1, "Enter the correct salary") });
+export type CorrectionFormValues = z.input<typeof correctionFormSchema>;
