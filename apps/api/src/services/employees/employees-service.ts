@@ -238,26 +238,6 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
       }).catch(mapDbError);
     },
 
-    async cancelRevision(id: string, revisionId: string): Promise<EmployeeDetail> {
-      const today = clock.today();
-      return inTransaction(db, async (tx) => {
-        await lockEmployee(tx, id);
-        const target = UUID.test(revisionId)
-          ? await repo.findRevision(tx, id, revisionId)
-          : undefined;
-        if (!target || target.cancelledAt) throw notFound("Salary change");
-        if (target.reason === "hire") {
-          throw conflict("not_scheduled", "A hire can't be cancelled; deactivate the employee");
-        }
-        if (target.effectiveOn <= today) {
-          throw conflict("not_scheduled", "Only a scheduled change can be cancelled");
-        }
-        await repo.cancelOnDate(tx, id, target.effectiveOn);
-        await repo.refreshSalaryCache(tx, today, [id]);
-        return loadDetail(tx, id, today);
-      }).catch(mapDbError);
-    },
-
     async applyRaises(request: RaiseApplyRequest, actor: Actor = {}): Promise<RaiseApplyResult> {
       const today = clock.today();
       const plan = {

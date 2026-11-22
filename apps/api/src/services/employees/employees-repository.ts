@@ -254,15 +254,6 @@ export async function moveHireRevision(db: Db, employeeId: string, effectiveOn: 
   );
 }
 
-export async function cancelOnDate(db: Db, employeeId: string, date: string) {
-  await execute(
-    db,
-    `UPDATE salary_revisions SET cancelled_at = now()
-     WHERE employee_id = :employeeId AND effective_on = CAST(:date AS date) AND cancelled_at IS NULL`,
-    { employeeId, date },
-  );
-}
-
 export async function cancelScheduled(db: Db, employeeId: string, today: string) {
   const [row] = await select<{ n: number }>(
     db,
