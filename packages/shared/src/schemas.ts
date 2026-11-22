@@ -13,6 +13,8 @@ export const MANUAL_REVISION_REASONS = [
   "correction",
 ] as const;
 // Changing the pay currency is its own reason: amount and currency move together.
+export const RAISE_REASONS = ["merit", "promotion", "market_adjustment"] as const;
+
 export const SALARY_CHANGE_REASONS = [...MANUAL_REVISION_REASONS, "currency_change"] as const;
 export const REVISION_REASONS = ["hire", "import", ...SALARY_CHANGE_REASONS] as const;
 
@@ -219,7 +221,7 @@ export const raiseCostRequestSchema = raisePlanSchema;
 export const raiseApplySchema = raisePlanSchema.and(
   z.object({
     effectiveOn: isoDateSchema,
-    reason: z.enum(MANUAL_REVISION_REASONS),
+    reason: z.enum(RAISE_REASONS),
     note: z.string().trim().max(500).optional(),
   }),
 );

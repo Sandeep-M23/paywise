@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { COUNTRIES, currencyForCountry } from "../src/countries";
 import {
+  RAISE_REASONS,
   loginSchema,
   salaryRevisionFieldsSchema,
   withSalaryRevisionRules,
@@ -315,5 +316,20 @@ describe("loginSchema", () => {
     const result = loginSchema.safeParse({ email: " ", password: "" });
     expect(result.success).toBe(false);
     expect(result.error?.issues.map((i) => i.path.join("."))).toEqual(["email", "password"]);
+  });
+});
+
+describe("raiseApplySchema reasons", () => {
+  const plan = { percent: 5, effectiveOn: "2026-06-30" };
+
+  it("accepts the reasons a raise can have", () => {
+    for (const reason of RAISE_REASONS) {
+      expect(raiseApplySchema.safeParse({ ...plan, reason }).success).toBe(true);
+    }
+  });
+
+  it("refuses a correction: it would correct no particular change", () => {
+    expect(RAISE_REASONS).not.toContain("correction");
+    expect(raiseApplySchema.safeParse({ ...plan, reason: "correction" }).success).toBe(false);
   });
 });

@@ -25,7 +25,7 @@ import { date, humanize, money, percent } from "@/utils/helpers/others/format";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { salaryChangeFormSchema, type SalaryChangeFormValues } from "@/utils/forms/schemas";
 import {
-  MANUAL_REVISION_REASONS,
+  RAISE_REASONS,
   parseMoneyInput,
   toMajorString,
   type EmployeeDetail,
@@ -132,7 +132,7 @@ export function ChangeSalaryDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {MANUAL_REVISION_REASONS.map((r) => (
+                      {RAISE_REASONS.map((r) => (
                         <SelectItem key={r} value={r}>
                           {humanize(r)}
                         </SelectItem>

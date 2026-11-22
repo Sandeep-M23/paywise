@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { X } from "lucide-react";
 import {
   applyRaise,
-  MANUAL_REVISION_REASONS,
+  RAISE_REASONS,
   parseMoneyInput,
   raisePlanSchema,
   toMajorString,
@@ -397,7 +397,7 @@ export function RaisePlanner() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MANUAL_REVISION_REASONS.map((r) => (
+                    {RAISE_REASONS.map((r) => (
                       <SelectItem key={r} value={r}>
                         {humanize(r)}
                       </SelectItem>
