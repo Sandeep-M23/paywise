@@ -16,7 +16,7 @@ import { inTransaction, type Db } from "../../config/db";
 import type { EmployeeRow, ImportRow } from "../../models";
 import type { Clock } from "../../utils/helpers/clock";
 import { invalid, mapDbError, notFound } from "../../utils/helpers/errors";
-import * as repo from "../employees/employees-repository";
+import * as revisions from "../employees/salary-revisions-repository";
 import * as importRepo from "./imports-repository";
 
 const BATCH_SIZE = 1_000;
@@ -285,7 +285,7 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
         }
         for (const { existing, input, changes } of updates) {
           if (changes.some((c) => c.field === "hireDate")) {
-            await repo.moveHireRevision(tx, existing.id, input.hireDate);
+            await revisions.moveHireRevision(tx, existing.id, input.hireDate);
           }
         }
         const salaryChanges = updates
@@ -302,7 +302,7 @@ export function createImportService({ db, clock }: { db: Db; clock: Clock }) {
         for (const batch of chunks(salaryChanges)) {
           await importRepo.insertRevisions(tx, batch);
         }
-        await repo.refreshSalaryCache(
+        await revisions.refreshSalaryCache(
           tx,
           today,
           updates.map(({ existing }) => existing.id),

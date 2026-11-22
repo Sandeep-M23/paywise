@@ -9,7 +9,7 @@ import type {
   SalaryRevision,
 } from "@paywise/shared";
 import type { EmployeeRow } from "../../models";
-import type { RevisionWithState } from "../../services/employees/employees-repository";
+import type { RevisionWithState } from "../../services/employees/salary-revisions-repository";
 
 export function toEmployeeSummary(row: EmployeeRow): EmployeeSummary {
   return {

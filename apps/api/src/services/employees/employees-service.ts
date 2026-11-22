@@ -15,6 +15,8 @@ import { inTransaction, type Db } from "../../config/db";
 import type { Clock } from "../../utils/helpers/clock";
 import { conflict, mapDbError, notFound, invalid } from "../../utils/helpers/errors";
 import * as repo from "./employees-repository";
+import * as revisions from "./salary-revisions-repository";
+import * as raises from "./raise-plans-repository";
 import { toEmployeeDetail, toEmployeeSummary } from "../../utils/helpers/dto";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -25,7 +27,7 @@ const actorOf = (actor: Actor) => actor.by ?? "system";
 async function loadDetail(db: Db, id: string, today: string): Promise<EmployeeDetail> {
   const row = await repo.findEmployee(db, id);
   if (!row) throw notFound("Employee");
-  return toEmployeeDetail(row, await repo.listRevisions(db, id, today));
+  return toEmployeeDetail(row, await revisions.listRevisions(db, id, today));
 }
 
 async function assertUniqueIdentity(
@@ -55,7 +57,7 @@ export async function insertEmployeeWithHireRevision(
     salaryEffectiveOn: input.hireDate,
     currentRevisionId: hireRevisionId,
   });
-  await repo.insertRevision(tx, {
+  await revisions.insertRevision(tx, {
     id: hireRevisionId,
     employeeId: row.id,
     amount: input.salaryAmount,
@@ -111,18 +113,18 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
         if (patch.email) await assertUniqueIdentity(tx, { email: patch.email }, id);
 
         if (patch.hireDate && patch.hireDate !== current.hireDate) {
-          const firstChange = await repo.earliestChange(tx, id);
+          const firstChange = await revisions.earliestChange(tx, id);
           if (firstChange && patch.hireDate >= firstChange) {
             throw invalid(
               "hireDate",
               `Hire date must be before the first salary change (${firstChange})`,
             );
           }
-          await repo.moveHireRevision(tx, id, patch.hireDate);
+          await revisions.moveHireRevision(tx, id, patch.hireDate);
         }
 
         await repo.updateEmployee(tx, id, patch);
-        await repo.refreshSalaryCache(tx, today, [id]);
+        await revisions.refreshSalaryCache(tx, today, [id]);
         return loadDetail(tx, id, today);
       }).catch(mapDbError);
     },
@@ -134,13 +136,13 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
         if (current.status === "inactive") {
           throw conflict("employee_inactive", "Employee is already inactive");
         }
-        await repo.cancelScheduled(tx, id, today);
+        await revisions.cancelScheduled(tx, id, today);
         await repo.updateEmployee(tx, id, {
           status: "inactive",
           deactivatedAt: new Date(),
           deactivationReason: reason,
         });
-        await repo.refreshSalaryCache(tx, today, [id]);
+        await revisions.refreshSalaryCache(tx, today, [id]);
         return loadDetail(tx, id, today);
       }).catch(mapDbError);
     },
@@ -157,7 +159,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
           throw conflict("employee_inactive", "Cannot change the salary of an inactive employee");
         }
 
-        const head = await repo.timelineHead(tx, id);
+        const head = await revisions.timelineHead(tx, id);
         if (input.basedOnRevisionId && head && input.basedOnRevisionId !== head.id) {
           throw conflict(
             "stale_salary",
@@ -174,12 +176,12 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
 
         let corrected: { currency: string } | undefined;
         if (input.reason === "correction") {
-          const target = await repo.findRevision(tx, id, input.correctsRevisionId!);
+          const target = await revisions.findRevision(tx, id, input.correctsRevisionId!);
           if (!target || target.cancelledAt) throw notFound("Salary change to correct");
           if (target.effectiveOn !== input.effectiveOn) {
             throw invalid("effectiveOn", "A correction uses the date of the change it corrects");
           }
-          if ((await repo.latestOnDate(tx, id, input.effectiveOn)) !== target.id) {
+          if ((await revisions.latestOnDate(tx, id, input.effectiveOn)) !== target.id) {
             throw conflict(
               "already_corrected",
               "That change was already corrected; correct the newest one",
@@ -187,7 +189,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
           }
           corrected = target;
         } else {
-          if (await repo.latestOnDate(tx, id, input.effectiveOn)) {
+          if (await revisions.latestOnDate(tx, id, input.effectiveOn)) {
             throw conflict(
               "revision_date_taken",
               "There is already a salary change on that date; record a correction instead",
@@ -201,7 +203,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
           }
         }
 
-        const before = await repo.inForceBefore(tx, id, input.effectiveOn);
+        const before = await revisions.inForceBefore(tx, id, input.effectiveOn);
         const baseCurrency = corrected?.currency ?? before?.currency ?? current.salaryCurrency;
         const currency = input.currency ?? baseCurrency;
         if (input.reason === "currency_change" && currency === baseCurrency) {
@@ -223,7 +225,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
           throw invalid("amount", "New salary is the same as the salary in force on that date");
         }
 
-        await repo.insertRevision(tx, {
+        await revisions.insertRevision(tx, {
           employeeId: id,
           amount: input.amount,
           currency,
@@ -233,7 +235,7 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
           correctsRevisionId: input.correctsRevisionId ?? null,
           createdBy: actorOf(actor),
         });
-        await repo.refreshSalaryCache(tx, today, [id]);
+        await revisions.refreshSalaryCache(tx, today, [id]);
         return loadDetail(tx, id, today);
       }).catch(mapDbError);
     },
@@ -246,8 +248,8 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
         overrides: request.overrides ?? [],
       };
       return inTransaction(db, async (tx) => {
-        await repo.lockRaisePlan(tx, plan);
-        const problems = await repo.raisePlanProblems(tx, plan, request.effectiveOn);
+        await raises.lockRaisePlan(tx, plan);
+        const problems = await raises.raisePlanProblems(tx, plan, request.effectiveOn);
         if (problems.notActive > 0) {
           throw invalid("overrides", "Individual raises can only go to active employees");
         }
@@ -269,13 +271,13 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
             `${names(problems.dateTaken)} already ${problems.dateTaken.length === 1 ? "has" : "have"} a salary change on that date`,
           );
         }
-        const result = await repo.applyRaisePlan(tx, plan, {
+        const result = await raises.applyRaisePlan(tx, plan, {
           effectiveOn: request.effectiveOn,
           reason: request.reason,
           note: request.note ?? null,
           createdBy: actorOf(actor),
         });
-        await repo.refreshSalaryCache(tx, today, result.employeeIds);
+        await revisions.refreshSalaryCache(tx, today, result.employeeIds);
         return {
           applied: result.applied,
           skipped: result.skipped,
@@ -287,13 +289,13 @@ export function createEmployeeService({ db, clock }: { db: Db; clock: Clock }) {
     async promoteDueRevisions(): Promise<{ promoted: number }> {
       const today = clock.today();
       return inTransaction(db, async (tx) => {
-        const ids = await repo.lockStaleCaches(tx, today);
-        return { promoted: await repo.refreshSalaryCache(tx, today, ids) };
+        const ids = await revisions.lockStaleCaches(tx, today);
+        return { promoted: await revisions.refreshSalaryCache(tx, today, ids) };
       }).catch(mapDbError);
     },
 
     async cacheDrift(): Promise<number> {
-      return repo.cacheDrift(db, clock.today());
+      return revisions.cacheDrift(db, clock.today());
     },
   };
 }

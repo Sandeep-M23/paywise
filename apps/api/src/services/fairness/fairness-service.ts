@@ -7,7 +7,7 @@ import type {
 } from "@paywise/shared";
 import type { Db } from "../../config/db";
 import * as repo from "./fairness-repository";
-import { raisePlanCost } from "../employees/employees-repository";
+import { raisePlanCost } from "../employees/raise-plans-repository";
 
 const MIN_PEERS_FOR_OUTLIERS = 5;
 const MIN_GROUP_SIZE = 5;
