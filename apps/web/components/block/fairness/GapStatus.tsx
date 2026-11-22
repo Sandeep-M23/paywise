@@ -13,7 +13,7 @@ export function GapStatus({ group }: { group: GenderGapGroup }) {
   if (group.flagged && group.significant) {
     return (
       <Badge variant="destructive">
-        <AlertTriangle aria-hidden /> Review: gap ≥ 5%
+        <AlertTriangle aria-hidden /> Potential disparity (≥ 5%)
       </Badge>
     );
   }

@@ -467,12 +467,12 @@ function GapExplainer() {
         {
           icon: AlertTriangle,
           title: "The 5% line",
-          text: "Under the EU Pay Transparency Directive, an unexplained gap of 5% or more calls for a joint pay assessment.",
+          text: "5% is a common reporting threshold (the EU Pay Transparency Directive uses it). A gap here is a statistical indicator, not a finding: it can reflect tenure, level or performance, which Paywise doesn't record, and it isn't evidence of discrimination.",
         },
         {
           icon: CircleHelp,
           title: "Chance or real?",
-          text: "In small groups a big gap can be luck. “Review” means a statistical test says it is unlikely to be chance.",
+          text: "In small groups a big gap can be luck. “Potential disparity” means a statistical test says it is unlikely to be chance.",
         },
         {
           icon: EyeOff,
