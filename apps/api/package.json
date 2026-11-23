@@ -8,6 +8,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "db:sync": "tsx --env-file-if-exists=.env src/scripts/sync-db.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/scripts/seed/run.ts",
+    "db:app-role": "tsx --env-file-if-exists=.env src/scripts/create-app-role.ts",
     "hash-password": "tsx src/scripts/hash-password.ts",
     "measure": "tsx --env-file-if-exists=.env src/scripts/measure.ts"
   },

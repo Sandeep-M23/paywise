@@ -26,15 +26,33 @@ cd apps/api
 vercel integration add neon --name paywise-db --meta region=sin1 --no-env-pull
 ```
 
-This creates the database and adds `DATABASE_URL` (pooled) and `DATABASE_URL_UNPOOLED` (direct) to `paywise-api`. The first install asks you to accept Neon's terms in the browser.
+This creates the database and adds about 18 variables to `paywise-api`, all holding the **owner** role's credentials (`DATABASE_URL`, `PGPASSWORD`, `POSTGRES_URL`, …) plus Neon Auth URLs. The first install asks you to accept Neon's terms in the browser. They are only needed for the steps below; step 2b replaces them.
 
-Create the schema and load the 10,000 employees from your machine, through the **direct** URL:
+Create the schema and load the 10,000 employees from your machine, as the owner, through the **direct** (unpooled) URL:
 
 ```bash
-vercel env pull /tmp/neon.env --environment production   # keep this file private
+vercel env pull /tmp/neon.env --environment production   # keep this file private, delete it after
 DATABASE_URL="<DATABASE_URL_UNPOOLED from that file>" npm run db:sync
 DATABASE_URL="<DATABASE_URL_UNPOOLED from that file>" npm run db:seed
 ```
+
+### 2b. A least-privilege role for the API
+
+The API connects as its own role, `paywise_app`, which may only `SELECT`, `INSERT` and `UPDATE` the three app tables. It can't delete or truncate rows (so salary history is append-only in the database too), change the schema, create roles or read the `neon_auth` schema. `db:app-role` creates the role (or resets its password and grants), as the owner:
+
+```bash
+openssl rand -base64 36 | tr -d '\n/+=' > /tmp/app.pw            # never printed
+DATABASE_URL="<owner, unpooled>" APP_DB_PASSWORD="$(cat /tmp/app.pw)" npm run db:app-role
+```
+
+Then point the API at it and drop the owner credentials from Vercel:
+
+1. Build `postgresql://paywise_app:<url-encoded password>@<pooled host>/neondb?sslmode=require` (the pooled host is the one in the integration's `DATABASE_URL`).
+2. `vercel env rm <NAME> --confirm-name <NAME>` for every variable the integration added.
+3. `vercel env add DATABASE_URL production --sensitive` (and `preview`), reading the URL from a file, not typed on the command line. It is not added to Development, so `vercel env pull` on a laptop gets no production credentials.
+4. Redeploy and delete the temporary files.
+
+From then on Vercel holds no owner credentials: schema changes, re-seeding and role changes use the owner connection string from the Neon console (Project → Connect). Re-run `db:app-role` after adding a table. Neon Auth isn't used by the app; turn it off in the Neon console.
 
 `db:sync` creates the tables from the Sequelize models, then applies `src/config/schema.sql` (the `pg_trgm` extension, checks, foreign keys, indexes). It is safe to re-run; run it deliberately, after a backup, whenever the models change. The API never syncs on boot outside `NODE_ENV=local`.
 
@@ -42,7 +60,7 @@ TLS: the server certificate is verified. Neon's certificates are publicly truste
 
 ## 3. API project
 
-Environment variables (production and preview), besides Neon's `DATABASE_URL`:
+Environment variables (production and preview), besides `DATABASE_URL` from step 2b. These six are the only ones the project holds:
 
 | Name                | Value                                                                                  |
 | ------------------- | -------------------------------------------------------------------------------------- |

@@ -122,4 +122,4 @@ What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no 
 
 ## Deploy
 
-Live on Vercel: two projects from this repo, `paywise-web` (https://paywise-web-tau.vercel.app) and `paywise-api` (https://paywise-api.vercel.app), with a Neon Postgres database in Singapore. Both are connected to GitHub, so every push to `main` deploys to production. Sign-in attempts are rate-limited by the Vercel Firewall. Setup, environment variables and checks: [docs/DEPLOY.md](docs/DEPLOY.md).
+Live on Vercel: two projects from this repo, `paywise-web` (https://paywise-web-tau.vercel.app) and `paywise-api` (https://paywise-api.vercel.app), with a Neon Postgres database in Singapore. Both are connected to GitHub, so every push to `main` deploys to production. Sign-in attempts are rate-limited by the Vercel Firewall. The API connects to the database as a least-privilege role that can read, add and update rows but never delete them or change the schema. Setup, environment variables and checks: [docs/DEPLOY.md](docs/DEPLOY.md).
