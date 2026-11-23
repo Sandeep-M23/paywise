@@ -53,7 +53,7 @@ export function createDb(config: DbConfig): { db: Db; close: () => Promise<void>
     dialectModule: pg,
     logging: false,
     pool: { max: config.poolMax ?? 5, min: 0, idle: 10_000 },
-    dialectOptions: config.ssl ? { ssl: { require: true, rejectUnauthorized: false } } : {},
+    dialectOptions: config.ssl ? { ssl: { require: true, rejectUnauthorized: true } } : {},
     define: { freezeTableName: true, underscored: true },
   });
   initModels(sequelize);
