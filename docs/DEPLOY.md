@@ -63,7 +63,13 @@ Check: `https://<api-url>/api/health` → `{"ok":true}`.
 
 Environment variable: `API_URL` = the API's production URL (no trailing slash). `next build` typechecks with `tsconfig.build.json`, which leaves out the tests and the Vitest config (Vitest isn't installed in Vercel's build). The web app proxies `/api/*` there, so the browser only ever talks to the web domain. (Auth is a Bearer token, so calling the API directly with `NEXT_PUBLIC_BACKEND_API_URL` also works.) Then `vercel deploy --prod` from `apps/web`.
 
-## 5. Smoke test
+## 5. Git and firewall
+
+Both projects are connected to `Sandeep-M23/paywise` (`vercel git connect <repo-url> --project <name>`), so every push to `main` deploys both to production and other branches get preview deployments. Vercel's GitHub login must be valid (Account Settings → Authentication) or the connection fails with "repository couldn't be found".
+
+Sign-in rate limit (Vercel Firewall, per project): `POST /api/auth/login`, fixed 60-second window keyed by IP, 10 requests on `paywise-web` and 30 on `paywise-api` (proxied sign-ins may reach the API from shared addresses), then deny. Rules are staged with `vercel firewall rules add` and go live with `vercel firewall publish`.
+
+## 6. Smoke test
 
 Open the web URL → you're redirected to `/login` → sign in → the employees list shows 10,000 people. The browser walkthrough used locally (sign-in, every page, salary change, correction, raise plan, import, export, sign-out) is the full check.
 

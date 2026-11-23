@@ -9,7 +9,7 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 **Status:** every requirement in [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) is built, including scheduled salary changes and the P1 pay fairness and raise planner. What was left out, and why, is listed there too.
 
-> **Live demo:** _add the Vercel URL here after deploying (see [docs/DEPLOY.md](docs/DEPLOY.md))_
+> **Live demo:** https://paywise-web-tau.vercel.app
 > **Demo video:** _add the link here_
 > **Sign in:** use the HR credentials configured for the deployment.
 
