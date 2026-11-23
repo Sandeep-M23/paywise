@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import { corsOriginsFromEnv } from "./config/cors";
 import type { Db } from "./config/db";
 import type { AuthConfig } from "./interfaces/middlewares/auth";
 import { importBodyParser, MAX_JSON_BODY } from "./middlewares/body-limit";
@@ -19,9 +20,10 @@ export type AppDeps = {
   db: Db;
   clock: Clock;
   auth: AuthConfig | "disabled";
+  corsOrigins?: string[];
 };
 
-export function createApp({ db, clock, auth }: AppDeps) {
+export function createApp({ db, clock, auth, corsOrigins = corsOriginsFromEnv() }: AppDeps) {
   const app = express();
 
   if (process.env.TRUST_PROXY === "true") app.set("trust proxy", 1);
@@ -29,7 +31,7 @@ export function createApp({ db, clock, auth }: AppDeps) {
 
   if (process.env.NODE_ENV === "local") app.use(morgan("dev"));
 
-  app.use(cors());
+  app.use(cors({ origin: corsOrigins }));
   app.use(helmet());
 
   app.use("/api/imports", importBodyParser);

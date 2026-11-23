@@ -28,5 +28,13 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.73.0",
     "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "sequelize": {
+      "uuid": "^11.1.1"
+    },
+    "@ts-morph/common": {
+      "minimatch": "^11.0.1"
+    }
   }
 }

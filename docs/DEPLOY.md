@@ -44,11 +44,12 @@ TLS: the server certificate is verified. Neon's certificates are publicly truste
 
 Environment variables (production and preview), besides Neon's `DATABASE_URL`:
 
-| Name                | Value                                                                         |
-| ------------------- | ----------------------------------------------------------------------------- |
-| `HR_EMAIL`          | the demo sign-in email                                                        |
-| `HR_PASSWORD_HASH`  | output of `npm run hash-password -w @paywise/api -- '<password>'`             |
-| `JWT_ACCESS_SECRET` | `openssl rand -base64 48` (piped straight into `vercel env add`, never shown) |
+| Name                | Value                                                                                  |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `HR_EMAIL`          | the demo sign-in email                                                                 |
+| `HR_PASSWORD_HASH`  | output of `npm run hash-password -w @paywise/api -- '<password>'`                      |
+| `JWT_ACCESS_SECRET` | `openssl rand -base64 48` (piped straight into `vercel env add`, never shown)          |
+| `CORS_ORIGIN`       | leave unset: the web app proxies `/api`; set it only if browsers call the API directly |
 
 The API ships as a **prebuilt function** (Vercel's Build Output API). `apps/api/vercel.json` runs `scripts/build-vercel.mjs`, which bundles `server.ts` (the exported Express app, `@paywise/shared` included) with esbuild into `.vercel/output/functions/index.func/index.mjs`, and routes every path to it. Vercel runs that file as it is.
 
