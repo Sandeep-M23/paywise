@@ -14,17 +14,20 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 ## Start here (reviewers)
 
-| Read                                         | Why                                                                                                      |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Goal, scope, what's left out and why, and the HR problems each feature answers                           |
-| [docs/DESIGN.md](docs/DESIGN.md)             | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions |
-| [docs/API.md](docs/API.md)                   | HTTP contract: every endpoint, payloads, errors                                                          |
-| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication (JWT), logging, assumptions, and what isn't covered                         |
-| [docs/TRADEOFFS.md](docs/TRADEOFFS.md)       | Decisions and what they cost                                                                             |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md)   | Measured timings on the 10k dataset and what changed because of them                                     |
-| [docs/DEPLOY.md](docs/DEPLOY.md)             | How it is deployed (Vercel + Neon), environment variables, firewall                                      |
-| [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)     | How AI was used, and where its output was wrong and corrected                                            |
-| `git log`                                    | Small commits, `test:` before `feat:` for core logic                                                     |
+| Read                                           | Why                                                                                                        |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)   | One page: goal, scope, what's left out and why. Written before any code.                                   |
+| [docs/RESEARCH.md](docs/RESEARCH.md)           | Real HR problems (sourced), CSV import practice, what other submissions built. Every feature traces to it. |
+| [PLAN.md](PLAN.md)                             | Plan of action: priorities (P0/P1/P2), design decisions, build sequence, timeline                          |
+| [docs/DESIGN.md](docs/DESIGN.md)               | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions   |
+| [docs/SCHEMA_REVIEW.md](docs/SCHEMA_REVIEW.md) | Review of the salary data model before it was built: concurrency, effective dating, corrections            |
+| [docs/API.md](docs/API.md)                     | HTTP contract: every endpoint, payloads, errors                                                            |
+| [docs/SECURITY.md](docs/SECURITY.md)           | Threat model, authentication (JWT), logging, assumptions, and what isn't covered                           |
+| [docs/TRADEOFFS.md](docs/TRADEOFFS.md)         | Decisions and what they cost                                                                               |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md)     | Measured timings on the 10k dataset and what changed because of them                                       |
+| [docs/DEPLOY.md](docs/DEPLOY.md)               | How it is deployed (Vercel + Neon), environment variables, firewall                                        |
+| [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)       | How AI was used, and where its output was wrong and corrected                                              |
+| `git log`                                      | Small commits, `test:` before `feat:` for core logic                                                       |
 
 ## Stack
 
@@ -76,7 +79,7 @@ packages/
   shared/                    code both sides must agree on
     src/                     Zod schemas, money, currencies, countries, CSV helpers, DTO types
     test/
-docs/                        requirements, design, API, security, trade-offs, performance, seed data, deploy, AI log
+docs/                        requirements, research, design, schema review, API, security, trade-offs, performance, seed data, deploy, AI log
 ```
 
 ## Run it locally

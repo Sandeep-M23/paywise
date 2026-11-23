@@ -82,7 +82,7 @@ CREATE INDEX IF NOT EXISTS employees_country_title_idx ON employees (country_cod
 CREATE INDEX IF NOT EXISTS employees_country_department_idx ON employees (country_code, department);
 CREATE INDEX IF NOT EXISTS employees_name_trgm_idx ON employees USING gin (full_name gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS employees_salary_idx ON employees (salary_currency, salary_amount);
--- A two-value column, never used for `status = 'active'`.
+-- A two-value column, never used for `status = 'active'` (SCHEMA_REVIEW F10).
 DROP INDEX IF EXISTS employees_status_idx;
 
 -- One original per employee per date; later changes on that date are corrections.
