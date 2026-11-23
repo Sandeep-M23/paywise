@@ -1,25 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { EmployeeCreateInput } from "@paywise/shared";
-import { createDb, execute } from "../src/config/db";
+import { createDb, dbConfigFromEnv, execute } from "../src/config/db";
 import { syncSchema } from "../src/config/sync";
 import { createEmployeeService } from "../src/services/employees/employees-service";
 import { isHttpError, type ApiHttpError } from "../src/utils/helpers/errors";
 import { fixedClock } from "../src/utils/helpers/clock";
 
 const url = process.env.TEST_PG_URL;
-
-function configFrom(connection: string) {
-  const u = new URL(connection);
-  return {
-    host: u.hostname,
-    port: Number(u.port || 5432),
-    database: u.pathname.slice(1),
-    username: decodeURIComponent(u.username),
-    password: decodeURIComponent(u.password),
-    ssl: false,
-    poolMax: 10,
-  };
-}
 
 const person = (n: number): EmployeeCreateInput => ({
   employeeCode: `EMP-${String(n).padStart(5, "0")}`,
@@ -39,7 +26,7 @@ describe.skipIf(!url)("concurrent writes on real Postgres", () => {
   let service: ReturnType<typeof createEmployeeService>;
 
   beforeAll(async () => {
-    const config = configFrom(url!);
+    const config = { ...dbConfigFromEnv({ DATABASE_URL: url }), poolMax: 10 };
     if (!/_(test|ci)$/.test(config.database)) {
       throw new Error(
         `TEST_PG_URL must name a throwaway database (*_test or *_ci), not ${config.database}`,

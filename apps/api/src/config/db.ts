@@ -14,7 +14,20 @@ export type DbConfig = {
   poolMax?: number;
 };
 
+function configFromUrl(connection: string): DbConfig {
+  const url = new URL(connection);
+  return {
+    host: url.hostname,
+    port: Number(url.port || 5432),
+    database: decodeURIComponent(url.pathname.slice(1)),
+    username: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    ssl: ["require", "verify-ca", "verify-full"].includes(url.searchParams.get("sslmode") ?? ""),
+  };
+}
+
 export function dbConfigFromEnv(env: NodeJS.ProcessEnv = process.env): DbConfig {
+  if (env.DATABASE_URL) return configFromUrl(env.DATABASE_URL);
   const required = (name: string) => {
     const value = env[name];
     if (!value) throw new Error(`Missing required environment variable ${name}`);
