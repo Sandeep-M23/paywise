@@ -52,7 +52,7 @@ Then point the API at it and drop the owner credentials from Vercel:
 3. `vercel env add DATABASE_URL production --sensitive` (and `preview`), reading the URL from a file, not typed on the command line. It is not added to Development, so `vercel env pull` on a laptop gets no production credentials.
 4. Redeploy and delete the temporary files.
 
-From then on Vercel holds no owner credentials: schema changes, re-seeding and role changes use the owner connection string from the Neon console (Project → Connect). Re-run `db:app-role` after adding a table. Neon Auth isn't used by the app; turn it off in the Neon console.
+From then on Vercel holds no owner credentials: schema changes, re-seeding and role changes use the owner connection string from the Neon console (Project → Connect). Re-run `db:app-role` after adding a table. The integration also enables Neon Auth, which the app doesn't use; it is turned off (Neon console → Auth, or `neonctl neon-auth disable --delete-data`), so the `neon_auth` role and schema no longer exist.
 
 `db:sync` creates the tables from the Sequelize models, then applies `src/config/schema.sql` (the `pg_trgm` extension, checks, foreign keys, indexes). It is safe to re-run; run it deliberately, after a backup, whenever the models change. The API never syncs on boot outside `NODE_ENV=local`.
 
