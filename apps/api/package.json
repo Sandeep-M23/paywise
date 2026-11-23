@@ -9,8 +9,7 @@
     "db:sync": "tsx --env-file-if-exists=.env src/scripts/sync-db.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/scripts/seed/run.ts",
     "hash-password": "tsx src/scripts/hash-password.ts",
-    "measure": "tsx --env-file-if-exists=.env src/scripts/measure.ts",
-    "bundle": "node scripts/bundle.mjs"
+    "measure": "tsx --env-file-if-exists=.env src/scripts/measure.ts"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.16",
@@ -23,7 +22,6 @@
     "@types/morgan": "^1.9.10",
     "@types/papaparse": "^5.5.2",
     "@types/pg": "^8.23.1",
-    "esbuild": "^0.25.12",
     "papaparse": "^5.7.1",
     "tsx": "^4.23.15"
   },

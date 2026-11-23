@@ -10,6 +10,7 @@ export default tseslint.config(
       "**/.next/**",
       "**/coverage/**",
       "**/next-env.d.ts",
+      "**/.vercel/**",
       "apps/api/api/**",
       "apps/web/components/ui/**",
     ],
