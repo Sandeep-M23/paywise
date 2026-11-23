@@ -1,125 +1,118 @@
 # Paywise
 
-Salary management for an HR manager responsible for **10,000 employees across 8 countries**, replacing a set of Excel files.
+[![CI](https://github.com/Sandeep-M23/paywise/actions/workflows/ci.yml/badge.svg)](https://github.com/Sandeep-M23/paywise/actions/workflows/ci.yml)
 
-- **Maintain** salary records: search, filter, add, edit, deactivate, with validation everywhere.
-- **Trust** them: every salary change is kept (old → new, effective date, reason, source), and money is stored the way Stripe stores it.
-- **Move off Excel**: import a CSV with column matching and a full preview before anything is saved; export any view back to Excel.
-- **Answer "how do we pay people?"**: pay by country, job title and department, salary distribution, salary outliers, gender-based compensation differences (flagged as potential disparities, not findings), and a raise planner that applies changes in one step.
+Salary management for an HR manager running pay for **10,000 employees across 8 countries**, who today does it in a set of Excel files.
 
-**Status:** every requirement in [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) is built, including scheduled salary changes and the P1 pay fairness and raise planner. What was left out, and why, is listed there too.
+**Live demo:** https://paywise-web-tau.vercel.app · sign in as `hr@paywise.demo` (the password is shared with reviewers separately)
 
-> **Live demo:** https://paywise-web-tau.vercel.app
-> **Sign in:** `hr@paywise.demo`; the password is shared with reviewers separately.
+## What it does
 
-## Start here (reviewers)
+- **Keep salary records.** Search, filter, sort and page through 10,000 people; add, edit and deactivate them, with the same validation in the form and the API.
+- **Trust the history.** Every salary change is kept: old and new amount, effective date, reason, who made it and where it came from. Changes can be scheduled for a future date. Mistakes are fixed with a correction entry, never by editing or deleting history.
+- **Move off Excel.** Import a CSV with automatic column matching and a full row-by-row review before anything is saved; export any filtered view back to a CSV that opens cleanly in Excel.
+- **Answer "how do we pay people?"** Pay by country, job title and department, salary distribution, outliers against peers, gender pay gaps (shown as potential disparities, not findings, and hidden for small groups), and a raise planner that shows the cost per currency and applies the raises in one step.
 
-| Read                                           | Why                                                                                                        |
-| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md)   | One page: goal, scope, what's left out and why. Written before any code.                                   |
-| [docs/RESEARCH.md](docs/RESEARCH.md)           | Real HR problems (sourced), CSV import practice, what other submissions built. Every feature traces to it. |
-| [PLAN.md](PLAN.md)                             | Plan of action: priorities (P0/P1/P2), design decisions, build sequence, timeline                          |
-| [docs/DESIGN.md](docs/DESIGN.md)               | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions   |
-| [docs/SCHEMA_REVIEW.md](docs/SCHEMA_REVIEW.md) | Review of the salary data model before it was built: concurrency, effective dating, corrections            |
-| [docs/API.md](docs/API.md)                     | HTTP contract: every endpoint, payloads, errors                                                            |
-| [docs/SECURITY.md](docs/SECURITY.md)           | Threat model, authentication (JWT), logging, assumptions, and what isn't covered                           |
-| [docs/TRADEOFFS.md](docs/TRADEOFFS.md)         | Decisions and what they cost                                                                               |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md)     | Measured timings on the 10k dataset and what changed because of them                                       |
-| [docs/DEPLOY.md](docs/DEPLOY.md)               | How it is deployed (Vercel + Neon), environment variables, firewall                                        |
-| [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)       | How AI was used, and where its output was wrong and corrected                                              |
-| `git log`                                      | Small commits, `test:` before `feat:` for core logic                                                       |
+Everything in [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) is built; what was deliberately left out, and why, is listed there too.
 
-## Stack
+## Engineering highlights
 
-|        |                                                                                                                                                                             |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API    | Node 24, TypeScript, **Express**, `http-errors`, JWT Bearer auth, **PostgreSQL** via `pg` + **Sequelize** (as in our other backends)                                        |
-| Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** over an **axios** client, **Jotai**, **react-hook-form**, **Recharts**; sign-in token in a cookie |
-| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                                                                            |
-| Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker), reached by Sequelize over `pglite-socket`                                                   |
-| Deploy | Vercel (web + API, Singapore), **Neon** Postgres; pushes to `main` deploy both                                                                                              |
+- **Money is never a float.** Amounts are integers in the currency's smallest unit with an ISO currency code, converted only through one module; amounts in different currencies are never added together.
+- **Append-only salary history.** Corrections and cancellations are new entries. The API's database role can't delete rows at all, so this holds even if the code had a bug.
+- **Aggregates in SQL.** Insights, fairness statistics and raise costs are computed in PostgreSQL, not in JavaScript loops, and stay fast at 10,000 employees ([measurements](docs/PERFORMANCE.md)).
+- **One source of validation.** Zod schemas in `packages/shared` are used by both the API and the web forms, along with the money, CSV and country helpers.
+- **Tested where it matters.** 235 fast, deterministic tests: money maths, every salary-history rule, raise plans, statistics on small hand-computed fixtures, import and export (including an export → import round trip), and auth. API tests run on a real in-process Postgres.
+- **Secure by default.** JWT auth on every route, a sign-in rate limit, security headers, parameterised SQL, formula-safe CSV export and a least-privilege database role ([threat model](docs/SECURITY.md)).
 
-## Folder structure
+## How it's built
 
-An npm-workspaces monorepo. The API follows our Outbox backend starter (as in domainstack); the web app follows our referral-stack frontend.
-
+```mermaid
+flowchart LR
+  B[Browser] -->|pages| W["Next.js web app"]
+  B -->|"/api/* (same origin)"| W
+  W -->|proxies /api| A["Express API"]
+  A -->|"SQL (least-privilege role, TLS)"| D[(PostgreSQL)]
+  S["packages/shared<br/>Zod schemas, money, CSV"] -.-> W
+  S -.-> A
 ```
-apps/
-  api/                       Express API (server.ts exports the app; bundled into one Vercel Function)
-    src/
-      routes/<feature>/      paths, with verifyAccessToken + validators per route
-      controllers/<feature>/ HTTP only, wrapped in asyncHandler
-      services/<feature>/    <feature>-service.ts (rules, transactions) + <feature>-repository.ts (SQL)
-      validators/            shared Zod schemas as Express middleware
-      middlewares/           JWT auth, body limit, central error handler (http-errors)
-      models/                one Sequelize model per table
-      config/                db, env, auth; schema.sql (constraints, indexes) for db:sync
-      interfaces/            types for helpers, middlewares, services
-      utils/                 auth (JWT, scrypt), helpers (errors, DTOs, http-response, clock)
-      scripts/               db:sync, seed, hash-password, measure
-    test/                    route, service and seed tests on PGlite (+ test db and server helpers)
-  web/                       Next.js 16 app (App Router)
-    app/
-      (Auth)/login/          sign-in
-      (Main)/<route>/        layout.tsx (page title) + page.tsx per page
-    components/
-      block/<feature>/       page sections: employees, insights, fairness, raises, import, ...
-      shared/<Name>/         reusable components (index.ts barrel)
-      layout/  icons/  ui/   page shell, icons, shadcn/ui
-    context/                 auth, providers (TanStack Query, Jotai, theme)
-    hooks/                   generic hooks
-    utils/
-      services/              axios client: Bearer token, 401 sign-out, ApiError
-      apis/<feature>/        TanStack Query hooks per feature
-      constants/  forms/  helpers/  atoms/
-    @types/                  web-only types (API types come from packages/shared)
-    proxy.ts                 server-side redirect to /login when signed out
-    test/                    tests for web helpers (CSV parsing and mapping)
-packages/
-  shared/                    code both sides must agree on
-    src/                     Zod schemas, money, currencies, countries, CSV helpers, DTO types
-    test/
-docs/                        requirements, research, design, schema review, API, security, trade-offs, performance, seed data, deploy, AI log
-```
+
+| Layer  | Technology                                                                                             |
+| ------ | ------------------------------------------------------------------------------------------------------ |
+| Web    | Next.js 16 (App Router), shadcn/ui + Tailwind, TanStack Query, axios, react-hook-form, Jotai, Recharts |
+| API    | Node 24, TypeScript, Express 4, `http-errors`, JWT (Bearer) auth, Sequelize on PostgreSQL              |
+| Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config and the types both sides use        |
+| Tests  | Vitest; API tests on PGlite (real Postgres, in-process, no Docker); CI on every push                   |
+| Hosted | Vercel (web and API, Singapore region) and Neon PostgreSQL; every push to `main` deploys               |
+
+The API is layered as routes → controllers (HTTP only) → services (business rules, transactions) → repositories (SQL). Details, diagrams and the salary-timeline rules are in [docs/DESIGN.md](docs/DESIGN.md).
+
+## Documentation
+
+| Document                               | What's in it                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [Requirements](docs/REQUIREMENTS.md)   | One page, written before any code: goal, scope, what's left out and why                         |
+| [Research](docs/RESEARCH.md)           | Real HR problems with sources, CSV import practice; every feature traces back to it             |
+| [Plan](PLAN.md)                        | Priorities (P0/P1/P2), design decisions, build sequence and timeline                            |
+| [Design](docs/DESIGN.md)               | Architecture, data model, salary timeline rules, money, import flow, analytics, transactions    |
+| [Schema review](docs/SCHEMA_REVIEW.md) | Review of the salary data model before it was built: concurrency, effective dating, corrections |
+| [API](docs/API.md)                     | Every endpoint, its payloads and errors                                                         |
+| [Security](docs/SECURITY.md)           | Threat model, authentication, logging, assumptions and known limits                             |
+| [Trade-offs](docs/TRADEOFFS.md)        | Each decision and what it costs                                                                 |
+| [Performance](docs/PERFORMANCE.md)     | Measured timings on the 10,000-employee dataset and what changed because of them                |
+| [Seed data](docs/SEED_DATA.md)         | How the 10,000 synthetic employees and their planted patterns are generated                     |
+| [Deployment](docs/DEPLOY.md)           | Vercel and Neon setup, environment variables, database role, firewall                           |
+| [AI usage](docs/ai/PROMPTS.md)         | How AI tools were used, and where their output was wrong and how that was caught                |
+
+The commit history shows how the solution evolved: small commits, with tests committed before the code they cover.
 
 ## Run it locally
 
-Prerequisites: Node 24 (`nvm use`), Docker.
+Requires Node 24 (`nvm use`) and Docker.
 
 ```bash
 npm install
-docker compose up -d db                     # Postgres on localhost:5433
+docker compose up -d db                       # PostgreSQL on localhost:5433
 
-cp apps/api/.env.example apps/api/.env       # DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-npm run hash-password -w @paywise/api -- 'choose-a-password'   # paste into HR_PASSWORD_HASH
-# also set JWT_ACCESS_SECRET (e.g. `openssl rand -base64 48`)
+cp apps/api/.env.example apps/api/.env
+npm run hash-password -w @paywise/api -- 'choose-a-password'   # put the output in HR_PASSWORD_HASH
+# also set JWT_ACCESS_SECRET, e.g. the output of `openssl rand -base64 48`
 
-npm run db:sync -w @paywise/api              # tables from the models + config/schema.sql
-npm run db:seed -w @paywise/api             # 10,000 employees in ~1 s
+npm run db:sync -w @paywise/api               # create the tables and constraints
+npm run db:seed -w @paywise/api               # load 10,000 employees (about a second)
 
-npm run dev -w @paywise/api                 # http://localhost:4000/api/health
-npm run dev -w @paywise/web -- --port 3100  # http://localhost:3100
+npm run dev -w @paywise/api                   # API on http://localhost:4000
+npm run dev -w @paywise/web -- --port 3100    # app on http://localhost:3100
 ```
 
 Sign in with `HR_EMAIL` from `.env` and the password you hashed.
 
-## Tests and checks
+## Tests
 
 ```bash
-npm test          # 227 tests, ~7 s: shared logic, API on PGlite, web helpers
-npm run check     # format + typecheck + lint + tests (the pre-commit gate; CI runs the same)
-# race tests on real Postgres (CI always runs them); the database is wiped, so use a throwaway one
-docker compose exec db createdb -U paywise paywise_ci
-TEST_PG_URL=postgres://paywise:paywise@localhost:5433/paywise_ci npm test
-npm run measure -w @paywise/api   # time the main endpoints against a running API (needs HR_EMAIL/HR_PASSWORD)
+npm test         # 235 tests in under 10 s: shared logic, API on PGlite, web helpers
+npm run check    # formatting, typecheck, lint and tests (what CI runs)
 ```
 
-What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no float maths); validation schemas including multi-value filters; CSV header mapping, row parsing and injection-safe export; every employee/salary-history domain rule; raise plans (rounding, all-or-nothing apply); insights, outliers and gender-difference maths on small hand-computed fixtures; import preview/commit and import history including an **export → import round trip**; auth; the seed generator's determinism and planted patterns.
+Concurrency tests also run against a real PostgreSQL server (CI always runs them). The database is wiped, so point them at a throwaway one:
 
-## Seed data
+```bash
+docker compose exec db createdb -U paywise paywise_ci
+TEST_PG_URL=postgres://paywise:paywise@localhost:5433/paywise_ci npm test
+```
 
-`npm run db:seed -w @paywise/api` generates the same 10,000 people every time (fixed seed and reference date), with salary histories and a few **planted patterns** (a gender gap, pay compression, outliers) so the fairness features have something real to find. See [docs/SEED_DATA.md](docs/SEED_DATA.md).
+## Project structure
 
-## Deploy
-
-Live on Vercel: two projects from this repo, `paywise-web` (https://paywise-web-tau.vercel.app) and `paywise-api` (https://paywise-api.vercel.app), with a Neon Postgres database in Singapore. Both are connected to GitHub, so every push to `main` deploys to production. Sign-in attempts are rate-limited by the Vercel Firewall. The API connects to the database as a least-privilege role that can read, add and update rows but never delete them or change the schema. Setup, environment variables and checks: [docs/DEPLOY.md](docs/DEPLOY.md).
+```
+apps/
+  api/          Express API
+    src/        routes, controllers, services + repositories, validators, middlewares, models, config, scripts
+    test/       route, service and seed tests
+  web/          Next.js app
+    app/        (Auth)/login and (Main)/<page>, each with its own layout
+    components/ page sections (block/), reusable components (shared/), shadcn/ui (ui/)
+    utils/      API client, TanStack Query hooks per feature, form schemas, helpers
+    test/       component and helper tests
+packages/
+  shared/       Zod schemas, money, currencies, countries, CSV helpers, shared types
+docs/           requirements, research, design, API, security, trade-offs, performance, deployment, AI log
+```
