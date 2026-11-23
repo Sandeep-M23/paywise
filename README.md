@@ -11,22 +11,21 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 
 > **Live demo:** https://paywise-web-tau.vercel.app
 > **Demo video:** _add the link here_
-> **Sign in:** use the HR credentials configured for the deployment.
+> **Sign in:** `hr@paywise.demo`; the password is shared with reviewers separately.
 
 ## Start here (reviewers)
 
-| Read                                         | Why                                                                                                        |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | One page: goal, scope, what's left out and why. Written before any code.                                   |
-| [docs/RESEARCH.md](docs/RESEARCH.md)         | What other submissions built, real HR problems (sourced), CSV import practice. Every feature traces to it. |
-| [PLAN.md](PLAN.md)                           | Plan of action: priorities (P0/P1/P2), design decisions, build sequence, timeline, status                  |
-| [docs/DESIGN.md](docs/DESIGN.md)             | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions   |
-| [docs/API.md](docs/API.md)                   | HTTP contract: every endpoint, payloads, errors                                                            |
-| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication (JWT), logging, assumptions, and what isn't covered                           |
-| [docs/TRADEOFFS.md](docs/TRADEOFFS.md)       | Decisions and what they cost                                                                               |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md)   | Measured timings on the 10k dataset and what changed because of them                                       |
-| [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)     | How AI was used, and where its output was wrong and corrected                                              |
-| `git log`                                    | Small commits, `test:` before `feat:` for core logic                                                       |
+| Read                                         | Why                                                                                                      |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Goal, scope, what's left out and why, and the HR problems each feature answers                           |
+| [docs/DESIGN.md](docs/DESIGN.md)             | Architecture, ER diagram, salary timeline rules, money, import flow, analytics definitions, transactions |
+| [docs/API.md](docs/API.md)                   | HTTP contract: every endpoint, payloads, errors                                                          |
+| [docs/SECURITY.md](docs/SECURITY.md)         | Threat model, authentication (JWT), logging, assumptions, and what isn't covered                         |
+| [docs/TRADEOFFS.md](docs/TRADEOFFS.md)       | Decisions and what they cost                                                                             |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md)   | Measured timings on the 10k dataset and what changed because of them                                     |
+| [docs/DEPLOY.md](docs/DEPLOY.md)             | How it is deployed (Vercel + Neon), environment variables, firewall                                      |
+| [docs/ai/PROMPTS.md](docs/ai/PROMPTS.md)     | How AI was used, and where its output was wrong and corrected                                            |
+| `git log`                                    | Small commits, `test:` before `feat:` for core logic                                                     |
 
 ## Stack
 
@@ -36,7 +35,7 @@ Salary management for an HR manager responsible for **10,000 employees across 8 
 | Web    | **Next.js 16** (App Router), **shadcn/ui** + Tailwind, **TanStack Query** over an **axios** client, **Jotai**, **react-hook-form**, **Recharts**; sign-in token in a cookie |
 | Shared | `packages/shared`: Zod schemas, money, CSV helpers, country config, DTO types used by both sides                                                                            |
 | Tests  | **Vitest**; API tests run on **PGlite** (real Postgres, in-process, no Docker), reached by Sequelize over `pglite-socket`                                                   |
-| Deploy | Vercel (web + API) and a managed Postgres (any host)                                                                                                                        |
+| Deploy | Vercel (web + API, Singapore), **Neon** Postgres; pushes to `main` deploy both                                                                                              |
 
 ## Folder structure
 
@@ -44,7 +43,7 @@ An npm-workspaces monorepo. The API follows our Outbox backend starter (as in do
 
 ```
 apps/
-  api/                       Express API (deployed as one Vercel Function)
+  api/                       Express API (server.ts exports the app; bundled into one Vercel Function)
     src/
       routes/<feature>/      paths, with verifyAccessToken + validators per route
       controllers/<feature>/ HTTP only, wrapped in asyncHandler
@@ -78,7 +77,7 @@ packages/
   shared/                    code both sides must agree on
     src/                     Zod schemas, money, currencies, countries, CSV helpers, DTO types
     test/
-docs/                        requirements, research, design, API, security, trade-offs, performance, AI log
+docs/                        requirements, design, API, security, trade-offs, performance, seed data, deploy, AI log
 ```
 
 ## Run it locally
@@ -105,7 +104,7 @@ Sign in with `HR_EMAIL` from `.env` and the password you hashed.
 ## Tests and checks
 
 ```bash
-npm test          # 197 tests, ~5 s: shared logic, API on PGlite, web helpers
+npm test          # 227 tests, ~7 s: shared logic, API on PGlite, web helpers
 npm run check     # format + typecheck + lint + tests (the pre-commit gate; CI runs the same)
 # race tests on real Postgres (CI always runs them); the database is wiped, so use a throwaway one
 docker compose exec db createdb -U paywise paywise_ci
@@ -113,7 +112,7 @@ TEST_PG_URL=postgres://paywise:paywise@localhost:5433/paywise_ci npm test
 npm run measure -w @paywise/api   # time the main endpoints against a running API (needs HR_EMAIL/HR_PASSWORD)
 ```
 
-What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no float maths); validation schemas including multi-value filters; CSV header mapping, row parsing and injection-safe export; every employee/salary-history domain rule; raise plans (rounding, all-or-nothing apply); insights, outliers and gender-difference maths on small hand-computed fixtures; import preview/commit and import history including an **export → import round trip**; auth; the seed generator's determinism and planted patterns. Revision 2's added tests are listed in [PLAN.md](PLAN.md) §6.
+What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no float maths); validation schemas including multi-value filters; CSV header mapping, row parsing and injection-safe export; every employee/salary-history domain rule; raise plans (rounding, all-or-nothing apply); insights, outliers and gender-difference maths on small hand-computed fixtures; import preview/commit and import history including an **export → import round trip**; auth; the seed generator's determinism and planted patterns.
 
 ## Seed data
 
@@ -121,4 +120,4 @@ What's covered: money parsing/formatting (Stripe exponents, Indian grouping, no 
 
 ## Deploy
 
-See [docs/DEPLOY.md](docs/DEPLOY.md): two Vercel projects (API, web) from this repo, and a managed Postgres database.
+Live on Vercel: two projects from this repo, `paywise-web` (https://paywise-web-tau.vercel.app) and `paywise-api` (https://paywise-api.vercel.app), with a Neon Postgres database in Singapore. Both are connected to GitHub, so every push to `main` deploys to production. Sign-in attempts are rate-limited by the Vercel Firewall. Setup, environment variables and checks: [docs/DEPLOY.md](docs/DEPLOY.md).
