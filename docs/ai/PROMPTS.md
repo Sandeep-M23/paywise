@@ -49,13 +49,13 @@ Prompt, in short: act as a senior backend engineer (PostgreSQL, financial data) 
 
 Output: [`docs/SCHEMA_REVIEW.md`](../SCHEMA_REVIEW.md), a proposal that builds on PLAN.md revision 2. Each claim was checked by running it: 24 constraint checks on PGlite, and four concurrency races on local Postgres 17 in a scratch database. New findings: a lost-decision race (fixed with a `basedOnRevisionId` check, returning 409), a race in the planned promotion job that can overwrite a correction in the cache (fixed by locking first, then updating in a new statement), the deadlock reproduced, and a composite FK that pins the cached salary to a real revision.
 
-## Phase 7: Match our other projects (domainstack)
+## Phase 7: Match the conventions of my existing projects
 
-Prompt, in short: compare Paywise with our domainstack backend and frontend, then make Paywise match them: Express instead of Hono, `http-errors`, the same structure and client, keeping the tests. Decisions asked of the user: keep the shared Zod validation (not express-validator), move the web app to domainstack's layout and client but keep TanStack Query, Jotai and react-hook-form inside it, and switch to JWT Bearer auth with the token in `localStorage`.
+Prompt, in short: compare Paywise with one of my existing backend and frontend projects, then make Paywise match them: Express instead of Hono, `http-errors`, the same structure and client, keeping the tests. Decisions asked of the user: keep the shared Zod validation (not express-validator), move the web app to that project's layout and client but keep TanStack Query, Jotai and react-hook-form inside it, and switch to JWT Bearer auth with the token in `localStorage`.
 
 Output: Express routes with per-route `verifyAccessToken` + Zod validator middleware, `asyncHandler` controllers, `http-errors` with a stable `code`, a central error handler; the web app under `src/` with `lib/api-client.ts`, `lib/auth-client.ts`, `context/AuthContext.tsx`, `components/<feature>/` and `hooks/useX.ts`. Route tests kept their shape through a loopback test server. Checked in headless Chrome: redirect to sign in, wrong password, sign-in, every page, CSV export, sign-out.
 
-Follow-up: the web app moved to our referral-stack frontend's layout (no `src/`; `app/(Auth|Main)`, `components/{block,shared,layout}`, `utils/{apis,services,constants,forms,helpers}`, `@types`). Decisions asked of the user: axios in `utils/services` with TanStack Query kept in `utils/apis`, the token in a js-cookie with a server-side redirect in `proxy.ts` (replacing the client-side gate), and `@types` for web-only types while API shapes stay in `@paywise/shared`.
+Follow-up: the web app moved to another existing frontend's layout (no `src/`; `app/(Auth|Main)`, `components/{block,shared,layout}`, `utils/{apis,services,constants,forms,helpers}`, `@types`). Decisions asked of the user: axios in `utils/services` with TanStack Query kept in `utils/apis`, the token in a js-cookie with a server-side redirect in `proxy.ts` (replacing the client-side gate), and `@types` for web-only types while API shapes stay in `@paywise/shared`.
 
 ## Phase 8: Honest docs before submitting
 

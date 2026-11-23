@@ -33,7 +33,7 @@ The web app keeps the previous page on screen while the next loads, debounces se
 
 - **Never ship 10k rows to the browser**: server-side paging, sorting and filtering.
 - **Aggregates in SQL**: no endpoint loads all employees into Node to compute statistics.
-- **Indexes match the queries**: `(country_code, job_title)`, `(country_code, department)`, `status`, unique `employee_code`, unique `lower(email)`, trigram GIN on `full_name`, and `(employee_id, effective_on)` on revisions.
+- **Indexes match the queries**: `(country_code, job_title)`, `(country_code, department)`, unique `employee_code`, unique `lower(email)`, trigram GIN on `full_name`, and `(employee_id, effective_on)` on revisions.
 - **`salary_amount` is denormalised** onto `employees` as a cache of the **current** revision (the latest effective on or before today), so lists and aggregates never need a "latest revision per employee" subquery. It's written only in the same transaction as the revision, or by the idempotent due-revision promotion on the first request of each day.
 - **Import limits**: at most 10,000 rows per file and a 4.4 MB request body (Vercel Functions cap at 4.5 MB), with a clear 413 message.
 - **Small connection pool** (max 5) per function instance.
@@ -45,7 +45,7 @@ The web app keeps the previous page on screen while the next loads, debounces se
 
 **Transaction boundaries and locking:** see `DESIGN.md` §6. Bulk writes lock employees in id order (no deadlocks between two raise plans or imports); a single salary change locks one row.
 
-**Request limits:** page size ≤ 100, import ≤ 10,000 rows and 4.4 MB, Ask question ≤ 300 characters, JSON bodies only for writes.
+**Request limits:** page size ≤ 100, import ≤ 10,000 rows and 4.4 MB, JSON bodies only for writes.
 
 ## At 10× or 100× scale
 

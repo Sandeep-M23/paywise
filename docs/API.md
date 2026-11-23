@@ -1,6 +1,6 @@
 # Paywise: API Contract
 
-REST + JSON under `/api`, served by Express. The browser calls the web app's origin, which proxies `/api/*` to the API; it can also call the API directly (`NEXT_PUBLIC_BACKEND_API_URL`), since auth is a header, not a cookie. Every endpoint below is built; request and response types live in `packages/shared` (`schemas.ts`, `dto.ts`).
+REST + JSON under `/api`, served by Express. The browser calls the web app's origin, which proxies `/api/*` to the API; it can also call the API directly (`NEXT_PUBLIC_BACKEND_API_URL`, with that origin listed in the API's `CORS_ORIGIN`), since auth is a header, not a cookie. Every endpoint below is built; request and response types live in `packages/shared` (`schemas.ts`, `dto.ts`).
 
 ## Conventions
 
@@ -62,7 +62,7 @@ Each revision in `EmployeeDetail.revisions`:
   "importId": null,
   "correctsRevisionId": null,
   "state": "scheduled",
-  "createdBy": "hr@acme.test",
+  "createdBy": "hr@paywise.demo",
   "createdAt": "2026-11-19T10:02:11Z"
 }
 ```

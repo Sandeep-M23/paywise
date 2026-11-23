@@ -79,7 +79,7 @@ Check: `https://<api-url>/api/health` → `{"ok":true}`.
 
 ## 4. Web project
 
-Environment variable: `API_URL` = the API's production URL (no trailing slash). `next build` typechecks with `tsconfig.build.json`, which leaves out the tests and the Vitest config (Vitest isn't installed in Vercel's build). The web app proxies `/api/*` there, so the browser only ever talks to the web domain. (Auth is a Bearer token, so calling the API directly with `NEXT_PUBLIC_BACKEND_API_URL` also works.) Then `vercel deploy --prod` from `apps/web`.
+Environment variable: `API_URL` = the API's production URL (no trailing slash). `next build` typechecks with `tsconfig.build.json`, which leaves out the tests and the Vitest config (Vitest isn't installed in Vercel's build). The web app proxies `/api/*` there, so the browser only ever talks to the web domain. (Auth is a Bearer token, so browsers can also call the API directly: set `NEXT_PUBLIC_BACKEND_API_URL` on the web project and list the web origin in the API's `CORS_ORIGIN`.) Then `vercel deploy --prod` from `apps/web`.
 
 ## 5. Git and firewall
 
@@ -89,7 +89,7 @@ Sign-in rate limit (Vercel Firewall, per project): `POST /api/auth/login`, fixed
 
 ## 6. Smoke test
 
-Open the web URL → you're redirected to `/login` → sign in → the employees list shows 10,000 people. The browser walkthrough used locally (sign-in, every page, salary change, correction, raise plan, import, export, sign-out) is the full check.
+Open the web URL → you're redirected to `/login` → sign in → the directory shows about 9,700 active people (10,000 including the deactivated). A full check walks every page in a browser: sign-in, salary change, scheduled change, correction, raise plan, import, export and sign-out.
 
 ## Notes
 

@@ -27,9 +27,9 @@ Paywise holds salary data for 10,000 people, so the bar is "safe for a public de
 
 ## Assumptions and limitations
 
-- **One shared HR account.** Changes are recorded as "hr@acme.test", not a person. Multiple users, roles, SSO and per-person accountability are v2.
+- **One shared HR account.** Changes are recorded under the single HR account's email (`hr@paywise.demo` on the live demo), not a person. Multiple users, roles, SSO and per-person accountability are v2.
 - **Stateless tokens.** There is no server-side session store, so a token can't be revoked before it expires; signing out only removes it from the browser. Rotating `JWT_ACCESS_SECRET` signs everyone out.
-- **Token in a script-readable cookie, not an `HttpOnly` one.** Chosen to match our other apps (referral-stack): the cookie lets `proxy.ts` redirect on the server, and the API only ever reads the `Authorization: Bearer` header, never the cookie, so there is no CSRF surface. The cost is that an XSS bug could read the token; an `HttpOnly` cookie would hide it from script but the API would then have to accept cookies, bringing CSRF back.
+- **Token in a script-readable cookie, not an `HttpOnly` one.** Chosen because the cookie lets `proxy.ts` redirect on the server, and the API only ever reads the `Authorization: Bearer` header, never the cookie, so there is no CSRF surface. The cost is that an XSS bug could read the token; an `HttpOnly` cookie would hide it from script but the API would then have to accept cookies, bringing CSRF back.
 - **Data:** every environment, including the deployed demo, uses the synthetic seed. Reviewer credentials are shared out of band, never committed.
 - **Secrets:** `HR_PASSWORD_HASH`, `JWT_ACCESS_SECRET` and the database settings (`DATABASE_URL`, or `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSL`) live in environment variables; `.env` files are git-ignored.
 
