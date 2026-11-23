@@ -5,6 +5,7 @@ const apiUrl = process.env.API_URL ?? "http://localhost:4000";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   devIndicators: false,
+  typescript: { tsconfigPath: "tsconfig.build.json" },
   partialPrefetching: true,
   turbopack: {
     rules: {

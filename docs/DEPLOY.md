@@ -14,7 +14,7 @@ Settings (dashboard, or `vercel api /v9/projects/<name> -X PATCH`):
 
 | Project       | Root Directory | Framework | Node.js | Function region |
 | ------------- | -------------- | --------- | ------- | --------------- |
-| `paywise-api` | `apps/api`     | Express   | 24.x    | `sin1`          |
+| `paywise-api` | `apps/api`     | Other     | 24.x    | `sin1`          |
 | `paywise-web` | `apps/web`     | Next.js   | 24.x    | `sin1`          |
 
 Link the monorepo so each folder resolves to its project: `.vercel/repo.json` maps `apps/api` → `paywise-api` and `apps/web` → `paywise-web` (`vercel link --repo` creates it when the projects are connected to Git). Check with `vercel project inspect --non-interactive` from each folder. Deploys then upload the whole repository and build the project's folder, so `packages/shared` is included.
@@ -50,17 +50,17 @@ Environment variables (production and preview), besides Neon's `DATABASE_URL`:
 | `HR_PASSWORD_HASH`  | output of `npm run hash-password -w @paywise/api -- '<password>'`             |
 | `JWT_ACCESS_SECRET` | `openssl rand -base64 48` (piped straight into `vercel env add`, never shown) |
 
-Vercel's native Express support deploys the API: `apps/api/server.ts` exports the app, and Vercel compiles it, `@paywise/shared` included, into one function. There is no build script, `vercel.json` or `api/` folder.
+The API ships as a **prebuilt function** (Vercel's Build Output API). `apps/api/vercel.json` runs `scripts/build-vercel.mjs`, which bundles `server.ts` (the exported Express app, `@paywise/shared` included) with esbuild into `.vercel/output/functions/index.func/index.mjs`, and routes every path to it. Vercel runs that file as it is.
 
-`apps/api/tsconfig.json` repeats the compiler options instead of extending the root `tsconfig.base.json`: Vercel's build didn't apply options inherited from outside the project's root folder, and typechecked with TypeScript defaults (no `esModuleInterop`), which rejected `helmet()`.
+Why not Vercel's native Express support: it compiled each TypeScript file separately into ES modules but kept our extensionless imports (`./src/app`), which Node's ES module loader rejects, so the live function crashed with `ERR_MODULE_NOT_FOUND`. Bundling avoids that, and the TypeScript source in `packages/shared`, in one step. (Native support also typechecked with TypeScript's defaults because `apps/api/tsconfig.json` extended a file outside the project root, which is why that tsconfig holds its options directly.)
 
-Before deploying, `vercel build --prod` (after `vercel pull`) reproduces Vercel's build locally; check that `.vercel/output/functions/` exists. Then `vercel deploy --prod`.
+Before deploying, `vercel build --prod` (after `vercel pull`) reproduces the build locally, and the built `index.mjs` can be loaded in Node as a `(req, res)` handler to smoke-test it against a database. Then `vercel deploy --prod`.
 
 Check: `https://<api-url>/api/health` → `{"ok":true}`.
 
 ## 4. Web project
 
-Environment variable: `API_URL` = the API's production URL (no trailing slash). The web app proxies `/api/*` there, so the browser only ever talks to the web domain. (Auth is a Bearer token, so calling the API directly with `NEXT_PUBLIC_BACKEND_API_URL` also works.) Then `vercel deploy --prod` from `apps/web`.
+Environment variable: `API_URL` = the API's production URL (no trailing slash). `next build` typechecks with `tsconfig.build.json`, which leaves out the tests and the Vitest config (Vitest isn't installed in Vercel's build). The web app proxies `/api/*` there, so the browser only ever talks to the web domain. (Auth is a Bearer token, so calling the API directly with `NEXT_PUBLIC_BACKEND_API_URL` also works.) Then `vercel deploy --prod` from `apps/web`.
 
 ## 5. Smoke test
 
