@@ -52,7 +52,6 @@ export function employeeFilters(
   return { sql: conditions.length ? conditions.join(" AND ") : "TRUE", replacements };
 }
 
-/** Every employee matching the directory filters, unpaged (CSV export). */
 export function allEmployees(
   db: Db,
   filters: Pick<EmployeeListQuery, "status" | "country" | "jobTitle" | "department" | "q">,

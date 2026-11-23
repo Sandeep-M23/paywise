@@ -3,7 +3,6 @@ import { execute, select, type Db } from "../../config/db";
 import { Employee, Import, SalaryRevision, type EmployeeRow, type ImportRow } from "../../models";
 import { EMPLOYEE_COLUMNS } from "../employees/employees-repository";
 
-/** Existing employees by code; with `lock`, row-locked in id order (no deadlocks). */
 export function employeesByCodes(db: Db, codes: string[], { lock }: { lock: boolean }) {
   if (!codes.length) return Promise.resolve([] as EmployeeRow[]);
   return select<EmployeeRow>(
@@ -24,7 +23,6 @@ export function emailOwners(db: Db, emails: string[]) {
   );
 }
 
-/** Each employee's first salary change after hire (a hire date can't move past it). */
 export function earliestChanges(db: Db, ids: string[]) {
   if (!ids.length) return Promise.resolve([] as { employeeId: string; date: string }[]);
   return select<{ employeeId: string; date: string }>(
@@ -70,7 +68,6 @@ export type ImportedFields = {
   gender: string;
 };
 
-/** One statement per batch, however many rows. */
 export async function updateEmployeesFromImport(db: Db, values: ImportedFields[]) {
   await execute(
     db,

@@ -3,9 +3,6 @@
 import * as React from "react"
 import { cn } from "cn"
 
-// Local changes: containerClassName/containerRef let a table be its own
-// scroll container (e.g. max-h + overflow-auto) so a sticky header works; every
-// header is a grey band with bold labels.
 function Table({
   className,
   containerClassName,

@@ -12,10 +12,6 @@ export type ResponseObject<T> = {
   data: T;
 };
 
-/**
- * A request whose body and query were parsed by a validator middleware
- * (validators/validate.ts), so they already have these types at runtime.
- */
 export type ValidatedRequest<
   Body = unknown,
   Query = unknown,

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/shared/PasswordInput/PasswordInput";
 import { useAuth } from "@/context/auth";
 import { handleLogin } from "@/utils/apis/auth";
+import { safeRedirectPath } from "@/utils/helpers/others/redirect";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, type LoginInput } from "@paywise/shared";
 import { useSearchParams } from "next/navigation";
@@ -40,8 +41,7 @@ export function LoginForm() {
 
     setRedirecting(true);
     login(result.data.authToken);
-    const next = searchParams.get("next");
-    window.location.assign(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
+    window.location.assign(safeRedirectPath(searchParams.get("next"), window.location.origin));
   });
 
   const pending = isSubmitting || redirecting;

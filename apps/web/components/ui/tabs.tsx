@@ -23,9 +23,6 @@ function Tabs({
   )
 }
 
-// Local change: the default switcher is a white track with the same corner radius
-// as buttons and inputs; the active tab is solid black (lime in dark mode) with a
-// lime icon.
 const tabsListVariants = cva(
   "group/tabs-list inline-flex w-fit items-center justify-center gap-0.5 rounded-lg p-1 text-muted-foreground group-data-horizontal/tabs:h-10 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none",
   {
