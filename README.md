@@ -6,6 +6,8 @@ Salary management for an HR manager running pay for **10,000 employees across 8 
 
 **Live demo:** https://paywise-web-tau.vercel.app · sign in as `hr@paywise.demo` (the password is shared with reviewers separately)
 
+**Video walkthrough:** https://www.loom.com/share/3b8e0bbac99145f9ba6efff7a3df8e26 (about 3 minutes)
+
 ## What it does
 
 - **Keep salary records.** Search, filter, sort and page through 10,000 people; add, edit and deactivate them, with the same validation in the form and the API.
